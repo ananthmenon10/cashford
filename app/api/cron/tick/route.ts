@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { lockDueContests, settleFinishedContests } from "@/lib/settle-contest";
+import { pollScores } from "@/lib/espn";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,8 @@ function authorized(req: NextRequest) {
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const admin = createServiceRoleClient();
-  const locks = await lockDueContests(admin);
-  const settles = await settleFinishedContests(admin);
-  return NextResponse.json({ ok: true, locks, settles, at: new Date().toISOString() });
+  const poll = await pollScores(admin);          // ESPN: live scores + KO team resolution
+  const locks = await lockDueContests(admin);    // open → locked (void <2)
+  const settles = await settleFinishedContests(admin); // finished → settle
+  return NextResponse.json({ ok: true, poll, locks, settles, at: new Date().toISOString() });
 }
