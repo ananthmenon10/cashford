@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;450;500;600;700;800&family=Geist+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  @keyframes cf-pulse { 0%,100% { opacity:1; transform:scale(1);} 50% { opacity:.5; transform:scale(.85);} }
+  @keyframes cf-spin { to { transform: rotate(360deg);} }
+  @keyframes cf-shimmer { 0% { background-position:-360px 0;} 100% { background-position:360px 0;} }
+</style>
+</helmet>
+
+<div style="min-width:100%; min-height:100vh; box-sizing:border-box; padding:56px 48px; background:#e7e5df; font-family:'Hanken Grotesk',system-ui,sans-serif; color:#0F172A;">
+<div style="max-width:1260px; margin:0 auto;">
+
+  <!-- ============ MASTHEAD ============ -->
+  <div style="display:flex; align-items:center; gap:14px; margin-bottom:10px;">
+    <div style="width:44px; height:44px; border-radius:14px; background:#15A66A; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(21,166,106,.35);">
+      <div style="width:17px; height:17px; border-radius:50%; background:#F2C94C;"></div>
+    </div>
+    <div>
+      <div style="font-size:30px; font-weight:800; letter-spacing:-.025em; line-height:1;">Cashford</div>
+      <div style="font-size:13px; color:#64748b; margin-top:4px; font-family:'Geist Mono',monospace;">Design System · Clean Sheet · v1</div>
+    </div>
+  </div>
+  <div style="font-size:15px; color:#475569; line-height:1.6; max-width:640px; margin-bottom:8px;">Predict every match. Settle up after. The full token set, component library, MatchCard state matrix, and all six screens — one extensible source of truth.</div>
+
+  <!-- ============ FOUNDATIONS ============ -->
+  <div style="margin-top:56px;">
+    <div style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700; letter-spacing:.14em; color:#94a3b8;">01 — FOUNDATIONS</div>
+    <div style="font-size:22px; font-weight:800; letter-spacing:-.01em; margin-top:4px; margin-bottom:22px;">Tokens</div>
+
+    <!-- color -->
+    <div style="background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:24px; box-shadow:0 2px 8px rgba(15,23,42,.04); margin-bottom:18px;">
+      <div style="font-size:13px; font-weight:700; color:#64748b; margin-bottom:16px; letter-spacing:.03em;">COLOR</div>
+      <div style="display:flex; flex-wrap:wrap; gap:12px;">
+        <div style="width:118px;"><div style="height:56px; border-radius:12px; background:#15A66A;"></div><div style="font-size:12px; font-weight:700; margin-top:7px;">Primary</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">#15A66A</div></div>
+        <div style="width:118px;"><div style="height:56px; border-radius:12px; background:#0E8455;"></div><div style="font-size:12px; font-weight:700; margin-top:7px;">Primary press</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">#0E8455</div></div>
+        <div style="width:118px;"><div style="height:56px; border-radius:12px; background:#F2C94C;"></div><div style="font-size:12px; font-weight:700; margin-top:7px;">Accent / cash</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">#F2C94C</div></div>
+        <div style="width:118px;"><div style="height:56px; border-radius:12px; background:#16A34A;"></div><div style="font-size:12px; font-weight:700; margin-top:7px;">Win</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">#16A34A</div></div>
+        <div style="width:118px;"><div style="height:56px; border-radius:12px; background:#EF4444;"></div><div style="font-size:12px; font-weight:700; margin-top:7px;">Loss</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">#EF4444</div></div>
+        <div style="width:118px;"><div style="height:56px; border-radius:12px; background:#64748B;"></div><div style="font-size:12px; font-weight:700; margin-top:7px;">Push / neutral</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">#64748B</div></div>
+        <div style="width:118px;"><div style="height:56px; border-radius:12px; background:#FF3B30;"></div><div style="font-size:12px; font-weight:700; margin-top:7px;">Live</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">#FF3B30</div></div>
+        <div style="width:118px;"><div style="height:56px; border-radius:12px; background:#0F172A;"></div><div style="font-size:12px; font-weight:700; margin-top:7px;">Text</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">#0F172A</div></div>
+        <div style="width:118px;"><div style="height:56px; border-radius:12px; background:#F7F8FA; border:1px solid #E5E8EC;"></div><div style="font-size:12px; font-weight:700; margin-top:7px;">BG light</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">#F7F8FA</div></div>
+        <div style="width:118px;"><div style="height:56px; border-radius:12px; background:#0B0F14;"></div><div style="font-size:12px; font-weight:700; margin-top:7px;">BG dark</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">#0B0F14</div></div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:18px; flex-wrap:wrap;">
+      <!-- type -->
+      <div style="flex:1; min-width:420px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:24px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; color:#64748b; margin-bottom:16px; letter-spacing:.03em;">TYPE · Hanken Grotesk + Geist Mono</div>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid #F1F4F7; padding-bottom:12px;"><span style="font-size:28px; font-weight:700; letter-spacing:-.02em;">Display</span><span style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">28 / 700</span></div>
+          <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid #F1F4F7; padding-bottom:12px;"><span style="font-size:22px; font-weight:700;">Heading 1</span><span style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">22 / 700</span></div>
+          <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid #F1F4F7; padding-bottom:12px;"><span style="font-size:18px; font-weight:600;">Heading 2</span><span style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">18 / 600</span></div>
+          <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid #F1F4F7; padding-bottom:12px;"><span style="font-size:15px; font-weight:450;">Body copy text</span><span style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">15 / 450</span></div>
+          <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid #F1F4F7; padding-bottom:12px;"><span style="font-size:13px; font-weight:500;">Small label</span><span style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">13 / 500</span></div>
+          <div style="display:flex; align-items:baseline; justify-content:space-between;"><span style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:700;">2–1</span><span style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8;">mono · tabular</span></div>
+        </div>
+      </div>
+      <!-- radius/spacing/shadow -->
+      <div style="flex:1; min-width:420px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:24px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; color:#64748b; margin-bottom:16px; letter-spacing:.03em;">RADIUS · SPACING · SHADOW</div>
+        <div style="display:flex; gap:16px; align-items:flex-end; margin-bottom:22px;">
+          <div style="text-align:center;"><div style="width:64px; height:64px; background:#E7F6EF; border:2px solid #15A66A; border-radius:16px;"></div><div style="font-size:11px; margin-top:6px; font-weight:600;">16 · cards</div></div>
+          <div style="text-align:center;"><div style="width:64px; height:64px; background:#E7F6EF; border:2px solid #15A66A; border-radius:12px;"></div><div style="font-size:11px; margin-top:6px; font-weight:600;">12 · inputs</div></div>
+          <div style="text-align:center;"><div style="width:64px; height:34px; background:#E7F6EF; border:2px solid #15A66A; border-radius:999px;"></div><div style="font-size:11px; margin-top:6px; font-weight:600;">999 · pills</div></div>
+        </div>
+        <div style="font-size:12px; color:#64748b; margin-bottom:8px;">Spacing — 4-pt grid</div>
+        <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:22px;">
+          <div style="width:4px; height:16px; background:#15A66A; border-radius:2px;"></div>
+          <div style="width:8px; height:24px; background:#15A66A; border-radius:2px;"></div>
+          <div style="width:12px; height:32px; background:#15A66A; border-radius:2px;"></div>
+          <div style="width:16px; height:40px; background:#15A66A; border-radius:2px;"></div>
+          <div style="width:24px; height:48px; background:#15A66A; border-radius:2px;"></div>
+          <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#94a3b8; margin-left:6px;">4 8 12 16 24 32</span>
+        </div>
+        <div style="font-size:12px; color:#64748b; margin-bottom:10px;">Shadow — y2 blur8 @ 8%</div>
+        <div style="width:120px; height:48px; background:#fff; border:1px solid #E5E8EC; border-radius:12px; box-shadow:0 2px 8px rgba(15,23,42,.08);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ COMPONENTS ============ -->
+  <div style="margin-top:64px;">
+    <div style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700; letter-spacing:.14em; color:#94a3b8;">02 — COMPONENTS</div>
+    <div style="font-size:22px; font-weight:800; letter-spacing:-.01em; margin-top:4px; margin-bottom:22px;">Library</div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:18px;">
+
+      <!-- Buttons -->
+      <div style="flex:1; min-width:380px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:22px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; margin-bottom:16px;">Button <span style="color:#94a3b8; font-weight:500;">· variants & states</span></div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <button style="padding:12px 20px; border:none; border-radius:12px; background:#15A66A; color:#fff; font-size:14px; font-weight:700; font-family:inherit; cursor:pointer; box-shadow:0 2px 8px rgba(21,166,106,.3);">Primary</button>
+            <button style="padding:12px 20px; border:none; border-radius:12px; background:#0E8455; color:#fff; font-size:14px; font-weight:700; font-family:inherit; cursor:pointer;">Press</button>
+            <button style="padding:12px 20px; border:none; border-radius:12px; background:#15A66A; color:#fff; font-size:14px; font-weight:700; font-family:inherit; opacity:.4; cursor:not-allowed;">Disabled</button>
+            <button style="padding:12px 20px; border:none; border-radius:12px; background:#15A66A; color:#fff; font-size:14px; font-weight:700; font-family:inherit; display:flex; align-items:center; gap:9px; cursor:wait;"><span style="width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:cf-spin .7s linear infinite;"></span>Loading</button>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <button style="padding:12px 20px; border:1px solid #E5E8EC; border-radius:12px; background:#fff; color:#0F172A; font-size:14px; font-weight:700; font-family:inherit; cursor:pointer;">Secondary</button>
+            <button style="padding:12px 20px; border:none; border-radius:12px; background:transparent; color:#0E8455; font-size:14px; font-weight:700; font-family:inherit; cursor:pointer;">Ghost</button>
+            <button style="padding:12px 20px; border:none; border-radius:12px; background:#EF4444; color:#fff; font-size:14px; font-weight:700; font-family:inherit; cursor:pointer;">Destructive</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inputs -->
+      <div style="flex:1; min-width:380px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:22px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; margin-bottom:16px;">Input · Password · InlineError</div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <div style="font-size:12px; font-weight:600; color:#475569; margin-bottom:6px;">Username</div>
+            <input value="rashford07" readonly style="width:100%; padding:12px 14px; border:1px solid #E5E8EC; border-radius:12px; font-size:15px; font-family:inherit; color:#0F172A; outline:none;" />
+          </div>
+          <div>
+            <div style="font-size:12px; font-weight:600; color:#475569; margin-bottom:6px;">Password</div>
+            <div style="display:flex; align-items:center; border:1.5px solid #15A66A; border-radius:12px; padding:0 14px; box-shadow:0 0 0 3px rgba(21,166,106,.12);">
+              <input value="••••••••" readonly style="flex:1; padding:12px 0; border:none; font-size:15px; font-family:inherit; outline:none; background:transparent;" />
+              <span style="font-size:12px; font-weight:700; color:#0E8455; cursor:pointer;">Show</span>
+            </div>
+            <div style="display:flex; gap:5px; margin-top:8px;">
+              <span style="flex:1; height:4px; border-radius:2px; background:#16A34A;"></span>
+              <span style="flex:1; height:4px; border-radius:2px; background:#16A34A;"></span>
+              <span style="flex:1; height:4px; border-radius:2px; background:#16A34A;"></span>
+              <span style="flex:1; height:4px; border-radius:2px; background:#E5E8EC;"></span>
+            </div>
+            <div style="font-size:11px; color:#16A34A; font-weight:600; margin-top:5px;">Strong password</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; color:#EF4444; font-size:12px; font-weight:600;"><span style="width:14px;height:14px;border-radius:50%;background:#EF4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;">!</span>Incorrect password. Try again.</div>
+        </div>
+      </div>
+
+      <!-- Toast -->
+      <div style="flex:1; min-width:380px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:22px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; margin-bottom:16px;">Toast</div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; align-items:center; gap:11px; background:#0F172A; padding:13px 16px; border-radius:12px; box-shadow:0 8px 24px -8px rgba(15,23,42,.4);">
+            <span style="width:22px;height:22px;border-radius:50%;background:#16A34A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;">✓</span>
+            <span style="color:#fff; font-size:14px; font-weight:600;">Pick saved · France 2–1</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:11px; background:#0F172A; padding:13px 16px; border-radius:12px; box-shadow:0 8px 24px -8px rgba(15,23,42,.4);">
+            <span style="width:22px;height:22px;border-radius:50%;background:#EF4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;">✕</span>
+            <span style="color:#fff; font-size:14px; font-weight:600;">Match locked — pick not saved</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Badges -->
+      <div style="flex:1; min-width:380px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:22px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; margin-bottom:16px;">StatusBadge</div>
+        <div style="display:flex; flex-wrap:wrap; gap:9px;">
+          <span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#0E8455; background:#E7F6EF; padding:5px 11px; border-radius:999px;">OPEN</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#475569; background:#EEF1F4; padding:5px 11px; border-radius:999px;">LOCKED</span>
+          <span style="display:flex; align-items:center; gap:5px; font-size:10px; font-weight:700; letter-spacing:.06em; color:#fff; background:#FF3B30; padding:5px 11px; border-radius:999px;"><span style="width:6px;height:6px;border-radius:50%;background:#fff;animation:cf-pulse 1.4s ease-in-out infinite;"></span>LIVE</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#92690b; background:#FDF4D6; padding:5px 11px; border-radius:999px;">HT</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#475569; background:#EEF1F4; padding:5px 11px; border-radius:999px;">FT</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#64748B; background:#F1F4F7; padding:5px 11px; border-radius:999px;">VOID</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#B91C1C; background:#FEE2E2; padding:5px 11px; border-radius:999px;">CANCELLED</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#0E8455; background:#D7F0E4; padding:5px 11px; border-radius:999px;">SETTLED</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#94a3b8; background:#F1F4F7; padding:5px 11px; border-radius:999px;">TBD</span>
+        </div>
+      </div>
+
+      <!-- Segmented + Stake -->
+      <div style="flex:1; min-width:380px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:22px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; margin-bottom:16px;">OutcomeSelector · StakeChip · CountdownTimer</div>
+        <div style="font-size:11px; color:#94a3b8; margin-bottom:7px; font-weight:600;">3-way (group stage)</div>
+        <div style="display:flex; background:#EEF1F4; border-radius:12px; padding:4px; gap:4px; margin-bottom:14px;">
+          <div style="flex:1; text-align:center; padding:10px; border-radius:9px; font-size:14px; font-weight:700; background:#15A66A; color:#fff; box-shadow:0 1px 4px rgba(21,166,106,.3);">ESP</div>
+          <div style="flex:1; text-align:center; padding:10px; border-radius:9px; font-size:14px; font-weight:600; color:#64748b;">Draw</div>
+          <div style="flex:1; text-align:center; padding:10px; border-radius:9px; font-size:14px; font-weight:600; color:#64748b;">GER</div>
+        </div>
+        <div style="font-size:11px; color:#94a3b8; margin-bottom:7px; font-weight:600;">2-way (knockouts · no draw)</div>
+        <div style="display:flex; background:#EEF1F4; border-radius:12px; padding:4px; gap:4px; margin-bottom:16px;">
+          <div style="flex:1; text-align:center; padding:10px; border-radius:9px; font-size:14px; font-weight:600; color:#64748b;">BRA</div>
+          <div style="flex:1; text-align:center; padding:10px; border-radius:9px; font-size:14px; font-weight:700; background:#15A66A; color:#fff; box-shadow:0 1px 4px rgba(21,166,106,.3);">ARG</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span style="font-size:12px; font-weight:600; color:#475569; background:#F1F4F7; padding:7px 13px; border-radius:999px;">Stake <strong style="font-family:'Geist Mono',monospace; color:#0F172A;">₹500</strong></span>
+          <span style="font-size:12px; font-weight:600; color:#475569; background:#F1F4F7; padding:7px 13px; border-radius:999px; font-family:'Geist Mono',monospace;">Locks in 12:43</span>
+          <span style="font-size:12px; font-weight:700; color:#92690b; background:#FDF4D6; padding:7px 13px; border-radius:999px; font-family:'Geist Mono',monospace;">Kicks off 03:10</span>
+        </div>
+      </div>
+
+      <!-- ScoreStepper -->
+      <div style="flex:1; min-width:380px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:22px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; margin-bottom:16px;">ScoreStepper</div>
+        <div style="display:flex; gap:24px; justify-content:center;">
+          <div style="text-align:center;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <button style="width:40px; height:40px; border-radius:12px; border:1px solid #E5E8EC; background:#fff; font-size:20px; font-weight:700; color:#0F172A; cursor:pointer; font-family:inherit;">−</button>
+              <span style="font-family:'Geist Mono',monospace; font-size:34px; font-weight:700; width:34px; text-align:center;">2</span>
+              <button style="width:40px; height:40px; border-radius:12px; border:none; background:#15A66A; color:#fff; font-size:20px; font-weight:700; cursor:pointer; font-family:inherit;">+</button>
+            </div>
+            <div style="font-size:12px; font-weight:600; color:#64748b; margin-top:8px;">France</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <button style="width:40px; height:40px; border-radius:12px; border:1px solid #E5E8EC; background:#fff; font-size:20px; font-weight:700; color:#0F172A; cursor:pointer; font-family:inherit;">−</button>
+              <span style="font-family:'Geist Mono',monospace; font-size:34px; font-weight:700; width:34px; text-align:center;">1</span>
+              <button style="width:40px; height:40px; border-radius:12px; border:none; background:#15A66A; color:#fff; font-size:20px; font-weight:700; cursor:pointer; font-family:inherit;">+</button>
+            </div>
+            <div style="font-size:12px; font-weight:600; color:#64748b; margin-top:8px;">England</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Avatar + TopBar/TabBar -->
+      <div style="flex:1; min-width:380px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:22px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; margin-bottom:16px;">Avatar · TopBar · TabBar</div>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:18px;">
+          <span style="width:36px;height:36px;border-radius:50%;background:#15A66A;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;">YO</span>
+          <span style="width:36px;height:36px;border-radius:50%;background:#6366f1;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;">SM</span>
+          <span style="width:36px;height:36px;border-radius:50%;background:#F2994A;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;">DV</span>
+          <span style="width:36px;height:36px;border-radius:50%;background:#0F172A;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;">+3</span>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 14px; border:1px solid #E5E8EC; border-radius:12px; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:8px;"><div style="width:24px;height:24px;border-radius:8px;background:#15A66A;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border-radius:50%;background:#F2C94C;"></div></div><span style="font-size:17px;font-weight:800;letter-spacing:-.02em;">Cashford</span></div>
+          <span style="width:28px;height:28px;border-radius:50%;background:#E0F2EA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0E8455;">YO</span>
+        </div>
+        <div style="display:flex; gap:20px; border-bottom:1px solid #E5E8EC;">
+          <div style="padding-bottom:10px; font-size:13px; font-weight:700; border-bottom:2.5px solid #15A66A;">Upcoming</div>
+          <div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#94a3b8;">Live</div>
+          <div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#94a3b8;">Completed</div>
+          <div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#94a3b8;">Dues</div>
+        </div>
+      </div>
+
+      <!-- LeagueCard -->
+      <div style="flex:1; min-width:380px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:22px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; margin-bottom:16px;">LeagueCard</div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div style="border:1px solid #E5E8EC; border-radius:16px; padding:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div><div style="font-size:16px; font-weight:700;">Sunday Club</div><div style="font-size:12px; color:#64748b; margin-top:3px;">6 members · 3 picks to make</div></div>
+              <div style="text-align:right;"><div style="font-size:11px; color:#64748b;">Your net</div><div style="font-family:'Geist Mono',monospace; font-size:20px; font-weight:700; color:#16A34A;">+₹1,250</div></div>
+            </div>
+          </div>
+          <div style="border:1px solid #E5E8EC; border-radius:16px; padding:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div><div style="font-size:16px; font-weight:700;">Office FC</div><div style="font-size:12px; color:#64748b; margin-top:3px;">11 members · all picks in</div></div>
+              <div style="text-align:right;"><div style="font-size:11px; color:#64748b;">Your net</div><div style="font-family:'Geist Mono',monospace; font-size:20px; font-weight:700; color:#EF4444;">−₹400</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RevealGrid -->
+      <div style="flex:1; min-width:380px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:22px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; margin-bottom:6px;">RevealGrid <span style="color:#94a3b8; font-weight:500;">· revealed after lock</span></div>
+        <div style="display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:center; gap:10px; padding:11px 10px; border-radius:12px; background:#E7F6EF;">
+            <span style="width:28px;height:28px;border-radius:50%;background:#15A66A;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">YO</span>
+            <span style="font-size:14px; font-weight:700;">You</span>
+            <span style="font-size:10px; font-weight:700; color:#0E8455; background:#fff; padding:2px 7px; border-radius:999px;">YOU</span>
+            <span style="margin-left:auto; font-size:11px; font-weight:700; color:#0E8455; background:#fff; padding:4px 9px; border-radius:999px;">POR</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; width:34px; text-align:center;">2–1</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; color:#16A34A; width:46px; text-align:right;">+₹500</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:11px 10px;">
+            <span style="width:28px;height:28px;border-radius:50%;background:#6366f1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">SM</span>
+            <span style="font-size:14px; font-weight:600;">Sam</span>
+            <span style="margin-left:auto; font-size:11px; font-weight:700; color:#475569; background:#EEF1F4; padding:4px 9px; border-radius:999px;">NED</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; width:34px; text-align:center;">1–2</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; color:#EF4444; width:46px; text-align:right;">−₹250</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:11px 10px;">
+            <span style="width:28px;height:28px;border-radius:50%;background:#F2994A;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">DV</span>
+            <span style="font-size:14px; font-weight:600;">Dev</span>
+            <span style="margin-left:auto; font-size:11px; font-weight:700; color:#475569; background:#EEF1F4; padding:4px 9px; border-radius:999px;">Draw</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; width:34px; text-align:center;">1–1</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; color:#64748B; width:46px; text-align:right;">push</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dues -->
+      <div style="flex:1; min-width:380px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:22px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; margin-bottom:14px;">DuesLeaderboard · PairwiseDuesList</div>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center; gap:11px;"><span style="font-family:'Geist Mono',monospace; font-size:13px; color:#94a3b8; width:18px;">1</span><span style="width:26px;height:26px;border-radius:50%;background:#15A66A;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">YO</span><span style="font-size:14px; font-weight:600; flex:1;">You</span><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#16A34A;">+₹1,250</span></div>
+          <div style="display:flex; align-items:center; gap:11px;"><span style="font-family:'Geist Mono',monospace; font-size:13px; color:#94a3b8; width:18px;">2</span><span style="width:26px;height:26px;border-radius:50%;background:#6366f1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">SM</span><span style="font-size:14px; font-weight:600; flex:1;">Sam</span><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#16A34A;">+₹300</span></div>
+          <div style="display:flex; align-items:center; gap:11px;"><span style="font-family:'Geist Mono',monospace; font-size:13px; color:#94a3b8; width:18px;">3</span><span style="width:26px;height:26px;border-radius:50%;background:#F2994A;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">DV</span><span style="font-size:14px; font-weight:600; flex:1;">Dev</span><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#EF4444;">−₹550</span></div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:9px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; background:#FEF2F2; border-radius:12px; padding:11px 14px;"><span style="font-size:13px; font-weight:600;">You owe <strong>Sam</strong></span><div style="display:flex; align-items:center; gap:10px;"><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#EF4444;">₹250</span><button style="padding:6px 13px; border:none; border-radius:999px; background:#0F172A; color:#fff; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer;">Settle</button></div></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; background:#F0FDF4; border-radius:12px; padding:11px 14px;"><span style="font-size:13px; font-weight:600;"><strong>Dev</strong> owes you</span><div style="display:flex; align-items:center; gap:10px;"><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#16A34A;">₹500</span><button style="padding:6px 13px; border:1px solid #E5E8EC; border-radius:999px; background:#fff; color:#0F172A; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer;">Remind</button></div></div>
+        </div>
+      </div>
+
+      <!-- EmptyState + Skeleton -->
+      <div style="flex:1; min-width:380px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:22px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="font-size:13px; font-weight:700; margin-bottom:16px;">EmptyState · Skeleton</div>
+        <div style="border:1px dashed #CBD5E1; border-radius:12px; padding:24px; text-align:center; margin-bottom:14px;">
+          <div style="width:44px; height:44px; border-radius:14px; background:#F1F4F7; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;"><div style="width:16px;height:16px;border-radius:50%;background:#CBD5E1;"></div></div>
+          <div style="font-size:15px; font-weight:700;">No leagues yet</div>
+          <div style="font-size:13px; color:#64748b; margin-top:4px;">Join one with an invite code to start predicting.</div>
+          <button style="margin-top:14px; padding:10px 18px; border:none; border-radius:12px; background:#15A66A; color:#fff; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer;">Enter code</button>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="height:14px; border-radius:7px; width:60%; background:linear-gradient(90deg,#EEF1F4 25%,#F7F8FA 50%,#EEF1F4 75%); background-size:720px 100%; animation:cf-shimmer 1.4s infinite linear;"></div>
+          <div style="height:14px; border-radius:7px; width:90%; background:linear-gradient(90deg,#EEF1F4 25%,#F7F8FA 50%,#EEF1F4 75%); background-size:720px 100%; animation:cf-shimmer 1.4s infinite linear;"></div>
+          <div style="height:48px; border-radius:12px; width:100%; background:linear-gradient(90deg,#EEF1F4 25%,#F7F8FA 50%,#EEF1F4 75%); background-size:720px 100%; animation:cf-shimmer 1.4s infinite linear;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ MATCHCARD · 12 STATES ============ -->
+  <div style="margin-top:64px;">
+    <div style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700; letter-spacing:.14em; color:#94a3b8;">03 — MATCHCARD</div>
+    <div style="font-size:22px; font-weight:800; letter-spacing:-.01em; margin-top:4px; margin-bottom:6px;">One component · 12 states</div>
+    <div style="font-size:14px; color:#475569; margin-bottom:22px; max-width:620px;">Header is constant — TeamRow ×2, round · local kickoff · venue, StatusBadge. Only the body changes per <code style="font-family:'Geist Mono',monospace; background:#fff; padding:1px 6px; border-radius:5px; border:1px solid #E5E8EC;">state</code>.</div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:18px;">
+
+      <!-- S1 Open · no pick -->
+      <div style="flex:1 1 380px; min-width:360px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:600; color:#94a3b8;">S1 · OPEN · no pick</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#0E8455; background:#E7F6EF; padding:5px 11px; border-radius:999px;">OPEN</span></div>
+        <div style="font-size:11px; color:#64748b; margin:10px 0 12px;">Group E · Sat 21 Jun, 9:30 PM IST · Estadio BBVA</div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; align-items:center; gap:11px;"><span style="width:28px;height:28px;border-radius:50%;background:#C8102E;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">ESP</span><span style="font-size:16px;font-weight:600;">Spain</span></div>
+          <div style="display:flex; align-items:center; gap:11px;"><span style="width:28px;height:28px;border-radius:50%;background:#0F172A;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">GER</span><span style="font-size:16px;font-weight:600;">Germany</span></div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px;"><span style="font-size:12px; font-weight:600; color:#92690b; background:#FDF4D6; padding:6px 11px; border-radius:999px; font-family:'Geist Mono',monospace;">Locks in 12:43</span><span style="font-size:12px; color:#64748b;">Stake ₹500</span></div>
+        <button style="width:100%; margin-top:12px; padding:13px; border:none; border-radius:12px; background:#15A66A; color:#fff; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer; box-shadow:0 2px 8px rgba(21,166,106,.3);">Make pick</button>
+      </div>
+
+      <!-- S2 Open · picked -->
+      <div style="flex:1 1 380px; min-width:360px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:600; color:#94a3b8;">S2 · OPEN · picked</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#0E8455; background:#E7F6EF; padding:5px 11px; border-radius:999px;">OPEN</span></div>
+        <div style="font-size:11px; color:#64748b; margin:10px 0 12px;">Group F · Sun 22 Jun, 12:30 AM IST · Arena MX</div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; flex-direction:column; gap:9px;">
+            <div style="display:flex; align-items:center; gap:10px;"><span style="width:26px;height:26px;border-radius:50%;background:#1e40af;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">FRA</span><span style="font-size:15px;font-weight:600;">France</span></div>
+            <div style="display:flex; align-items:center; gap:10px;"><span style="width:26px;height:26px;border-radius:50%;background:#cf142b;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">ENG</span><span style="font-size:15px;font-weight:600;">England</span></div>
+          </div>
+          <div style="text-align:right;"><div style="font-size:11px; color:#64748b;">Your pick</div><div style="font-family:'Geist Mono',monospace; font-size:15px; font-weight:700; margin-top:2px;">France · 2–1</div></div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px;"><span style="font-size:12px; font-weight:600; color:#92690b; background:#FDF4D6; padding:6px 11px; border-radius:999px; font-family:'Geist Mono',monospace;">Locks in 04:12</span><button style="padding:9px 18px; border:1px solid #E5E8EC; border-radius:12px; background:#fff; font-size:14px; font-weight:700; font-family:inherit; cursor:pointer;">Edit pick</button></div>
+      </div>
+
+      <!-- S3 TBD -->
+      <div style="flex:1 1 380px; min-width:360px; background:#FBFCFD; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:600; color:#94a3b8;">S3 · TBD</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#94a3b8; background:#F1F4F7; padding:5px 11px; border-radius:999px;">TBD</span></div>
+        <div style="font-size:11px; color:#94a3b8; margin:10px 0 12px;">Quarter-final · Fri 27 Jun, 1:30 AM IST · Venue TBC</div>
+        <div style="display:flex; flex-direction:column; gap:10px; opacity:.7;">
+          <div style="display:flex; align-items:center; gap:11px;"><span style="width:28px;height:28px;border-radius:50%;background:#E5E8EC;display:flex;align-items:center;justify-content:center;font-size:13px;color:#94a3b8;">?</span><span style="font-size:15px;font-weight:600; color:#64748b;">Winner Group A</span></div>
+          <div style="display:flex; align-items:center; gap:11px;"><span style="width:28px;height:28px;border-radius:50%;background:#E5E8EC;display:flex;align-items:center;justify-content:center;font-size:13px;color:#94a3b8;">?</span><span style="font-size:15px;font-weight:600; color:#64748b;">Runner-up Group B</span></div>
+        </div>
+        <button disabled style="width:100%; margin-top:14px; padding:13px; border:none; border-radius:12px; background:#EEF1F4; color:#94a3b8; font-size:15px; font-weight:700; font-family:inherit; cursor:not-allowed;">Teams confirmed after groups</button>
+      </div>
+
+      <!-- S4 Locked · pre-KO -->
+      <div style="flex:1 1 380px; min-width:360px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:600; color:#94a3b8;">S4 · LOCKED · pre-kickoff</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#475569; background:#EEF1F4; padding:5px 11px; border-radius:999px;">LOCKED</span></div>
+        <div style="font-size:11px; color:#64748b; margin:10px 0 12px;">Group C · 9:30 PM IST · Estadio Azteca</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <div style="display:flex; flex-direction:column; gap:8px;"><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#009b3a;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">BRA</span><span style="font-size:14px;font-weight:600;">Brazil</span></div><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#75aadb;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#0F172A;font-family:'Geist Mono',monospace;">ARG</span><span style="font-size:14px;font-weight:600;">Argentina</span></div></div>
+          <span style="font-size:12px; font-weight:700; color:#92690b; background:#FDF4D6; padding:7px 12px; border-radius:999px; font-family:'Geist Mono',monospace;">Kicks off 03:10</span>
+        </div>
+        <div style="border-top:1px solid #F1F4F7; padding-top:10px;">
+          <div style="font-size:10px; font-weight:700; color:#94a3b8; letter-spacing:.05em; margin-bottom:8px;">PICKS REVEALED · 6 IN</div>
+          <div style="display:flex; align-items:center; gap:8px; padding:5px 0;"><span style="width:22px;height:22px;border-radius:50%;background:#15A66A;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;">YO</span><span style="font-size:13px; font-weight:600; flex:1;">You</span><span style="font-size:10px; font-weight:700; color:#0E8455; background:#E7F6EF; padding:3px 8px; border-radius:999px;">BRA</span><span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700;">2–0</span></div>
+          <div style="display:flex; align-items:center; gap:8px; padding:5px 0;"><span style="width:22px;height:22px;border-radius:50%;background:#6366f1;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;">SM</span><span style="font-size:13px; font-weight:600; flex:1;">Sam</span><span style="font-size:10px; font-weight:700; color:#475569; background:#EEF1F4; padding:3px 8px; border-radius:999px;">ARG</span><span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700;">1–2</span></div>
+        </div>
+      </div>
+
+      <!-- S5 Live -->
+      <div style="flex:1 1 380px; min-width:360px; background:#0F172A; border-radius:16px; padding:16px; box-shadow:0 8px 24px -10px rgba(15,23,42,.45);">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:600; color:#64748b;">S5 · LIVE</span><span style="display:flex; align-items:center; gap:5px; font-size:10px; font-weight:800; letter-spacing:.07em; color:#fff; background:#FF3B30; padding:5px 11px; border-radius:999px;"><span style="width:6px;height:6px;border-radius:50%;background:#fff;animation:cf-pulse 1.4s ease-in-out infinite;"></span>HT · 45'</span></div>
+        <div style="font-size:11px; color:#64748b; margin:10px 0 14px;">Group C · Estadio Azteca</div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:7px; width:78px;"><span style="width:38px;height:38px;border-radius:50%;background:#009b3a;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">BRA</span><span style="font-size:12px; font-weight:600; color:#fff;">Brazil</span></div>
+          <div style="display:flex; align-items:center; gap:12px;"><span style="font-family:'Geist Mono',monospace; font-size:40px; font-weight:700; color:#fff; line-height:1;">1</span><span style="font-family:'Geist Mono',monospace; font-size:20px; color:#475569;">:</span><span style="font-family:'Geist Mono',monospace; font-size:40px; font-weight:700; color:#fff; line-height:1;">0</span></div>
+          <div style="display:flex; flex-direction:column; align-items:center; gap:7px; width:78px;"><span style="width:38px;height:38px;border-radius:50%;background:#75aadb;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#0F172A;font-family:'Geist Mono',monospace;">ARG</span><span style="font-size:12px; font-weight:600; color:#fff;">Argentina</span></div>
+        </div>
+        <div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,.1); display:flex; align-items:center; justify-content:space-between;"><span style="font-size:12px; color:#94a3b8;">Your pick <strong style="color:#fff; font-family:'Geist Mono',monospace;">BRA 2–0</strong> · on track</span><span style="font-size:13px; font-weight:700; color:#F2C94C;">Reveal →</span></div>
+      </div>
+
+      <!-- S6 Settled · WON -->
+      <div style="flex:1 1 380px; min-width:360px; background:#F0FDF4; border:1.5px solid #16A34A; border-radius:16px; padding:16px; box-shadow:0 4px 16px -4px rgba(22,163,74,.25);">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:700; color:#16A34A;">S6 · SETTLED · WON</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#0E8455; background:#D7F0E4; padding:5px 11px; border-radius:999px;">SETTLED</span></div>
+        <div style="font-size:11px; color:#64748b; margin:10px 0 12px;">Group H · FT · Estadio Akron</div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; flex-direction:column; gap:8px;"><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#006600;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">POR</span><span style="font-size:14px;font-weight:700;">Portugal</span></div><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#f97316;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">NED</span><span style="font-size:14px;font-weight:600;">Netherlands</span></div></div>
+          <span style="font-family:'Geist Mono',monospace; font-size:30px; font-weight:700;">2–1</span>
+        </div>
+        <div style="margin-top:14px; display:flex; align-items:center; justify-content:space-between; background:#16A34A; border-radius:12px; padding:12px 14px;"><span style="font-size:13px; font-weight:700; color:#fff;">You nailed it · POR 2–1</span><span style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:700; color:#fff;">+₹500</span></div>
+      </div>
+
+      <!-- S7 Settled · LOST -->
+      <div style="flex:1 1 380px; min-width:360px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:600; color:#94a3b8;">S7 · SETTLED · LOST</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#0E8455; background:#D7F0E4; padding:5px 11px; border-radius:999px;">SETTLED</span></div>
+        <div style="font-size:11px; color:#64748b; margin:10px 0 12px;">Group B · FT · Estadio BBVA</div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; flex-direction:column; gap:8px;"><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#c8102e;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">CRO</span><span style="font-size:14px;font-weight:600;">Croatia</span></div><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#000;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">BEL</span><span style="font-size:14px;font-weight:700;">Belgium</span></div></div>
+          <span style="font-family:'Geist Mono',monospace; font-size:30px; font-weight:700;">0–1</span>
+        </div>
+        <div style="margin-top:14px; display:flex; align-items:center; justify-content:space-between; background:#FEF2F2; border-radius:12px; padding:12px 14px;"><span style="font-size:13px; font-weight:600; color:#991B1B;">Your pick CRO 1–0</span><span style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:700; color:#EF4444;">−₹250</span></div>
+      </div>
+
+      <!-- S8 Settled · PUSH -->
+      <div style="flex:1 1 380px; min-width:360px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:600; color:#94a3b8;">S8 · SETTLED · PUSH</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#0E8455; background:#D7F0E4; padding:5px 11px; border-radius:999px;">SETTLED</span></div>
+        <div style="font-size:11px; color:#64748b; margin:10px 0 12px;">Group A · FT · Estadio Akron</div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; flex-direction:column; gap:8px;"><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#0066b2;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">ITA</span><span style="font-size:14px;font-weight:600;">Italy</span></div><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#006847;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">MEX</span><span style="font-size:14px;font-weight:600;">Mexico</span></div></div>
+          <span style="font-family:'Geist Mono',monospace; font-size:30px; font-weight:700;">1–1</span>
+        </div>
+        <div style="margin-top:14px; display:flex; align-items:center; justify-content:space-between; background:#F1F4F7; border-radius:12px; padding:12px 14px;"><span style="font-size:13px; font-weight:600; color:#475569;">Exact score · push</span><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#64748B;">no money</span></div>
+      </div>
+
+      <!-- S9 Settled · sat out -->
+      <div style="flex:1 1 380px; min-width:360px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:600; color:#94a3b8;">S9 · SETTLED · sat out</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#0E8455; background:#D7F0E4; padding:5px 11px; border-radius:999px;">SETTLED</span></div>
+        <div style="font-size:11px; color:#64748b; margin:10px 0 12px;">Group D · FT · Arena MX</div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; flex-direction:column; gap:8px;"><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#bc002d;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">JPN</span><span style="font-size:14px;font-weight:700;">Japan</span></div><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#ce1126;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">GHA</span><span style="font-size:14px;font-weight:600;">Ghana</span></div></div>
+          <span style="font-family:'Geist Mono',monospace; font-size:30px; font-weight:700;">2–0</span>
+        </div>
+        <div style="margin-top:14px; display:flex; align-items:center; gap:10px; background:#F1F4F7; border-radius:12px; padding:12px 14px;"><span style="font-size:13px; font-weight:600; color:#475569;">You sat this out</span><span style="margin-left:auto; font-size:12px; color:#64748b;">5 others played</span></div>
+      </div>
+
+      <!-- S10 Void -->
+      <div style="flex:1 1 380px; min-width:360px; background:#FBFCFD; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04); opacity:.85;">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:600; color:#94a3b8;">S10 · VOID</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#64748B; background:#F1F4F7; padding:5px 11px; border-radius:999px;">VOID</span></div>
+        <div style="font-size:11px; color:#94a3b8; margin:10px 0 12px;">Group G · FT · Estadio BBVA</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; filter:grayscale(.4); opacity:.8;">
+          <div style="display:flex; flex-direction:column; gap:8px;"><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">URU</span><span style="font-size:14px;font-weight:600; color:#64748b;">Uruguay</span></div><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">KOR</span><span style="font-size:14px;font-weight:600; color:#64748b;">South Korea</span></div></div>
+          <span style="font-family:'Geist Mono',monospace; font-size:30px; font-weight:700; color:#94a3b8;">2–2</span>
+        </div>
+        <div style="margin-top:14px; font-size:13px; font-weight:600; color:#64748b; background:#F1F4F7; border-radius:12px; padding:12px 14px; text-align:center;">Voided — not enough players entered · stakes returned</div>
+      </div>
+
+      <!-- S11 Cancelled -->
+      <div style="flex:1 1 380px; min-width:360px; background:#FBFCFD; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04); opacity:.85;">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:600; color:#94a3b8;">S11 · CANCELLED</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#B91C1C; background:#FEE2E2; padding:5px 11px; border-radius:999px;">CANCELLED</span></div>
+        <div style="font-size:11px; color:#94a3b8; margin:10px 0 12px;">Group F · Sun 22 Jun · Estadio Akron</div>
+        <div style="display:flex; flex-direction:column; gap:9px; opacity:.7;">
+          <div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">SUI</span><span style="font-size:15px;font-weight:600; color:#64748b; text-decoration:line-through;">Switzerland</span></div>
+          <div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">SEN</span><span style="font-size:15px;font-weight:600; color:#64748b; text-decoration:line-through;">Senegal</span></div>
+        </div>
+        <div style="margin-top:14px; font-size:13px; font-weight:600; color:#B91C1C; background:#FEE2E2; border-radius:12px; padding:12px 14px; text-align:center;">Match cancelled · all picks voided</div>
+      </div>
+
+      <!-- S12 KO advancer -->
+      <div style="flex:1 1 380px; min-width:360px; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; font-weight:600; color:#94a3b8;">S12 · KO advancer</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#475569; background:#EEF1F4; padding:5px 11px; border-radius:999px;">FT · PENS</span></div>
+        <div style="font-size:11px; color:#64748b; margin:10px 0 12px;">Round of 16 · FT · Estadio Azteca</div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; flex-direction:column; gap:8px;"><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#009b3a;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">BRA</span><span style="font-size:14px;font-weight:700;">Brazil</span><span style="font-size:9px; font-weight:700; color:#0E8455; background:#E7F6EF; padding:2px 7px; border-radius:999px;">ADV</span></div><div style="display:flex; align-items:center; gap:10px;"><span style="width:24px;height:24px;border-radius:50%;background:#75aadb;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#0F172A;font-family:'Geist Mono',monospace;">ARG</span><span style="font-size:14px;font-weight:600;">Argentina</span></div></div>
+          <div style="text-align:right;"><span style="font-family:'Geist Mono',monospace; font-size:30px; font-weight:700;">1–1</span><div style="font-family:'Geist Mono',monospace; font-size:12px; color:#64748b; margin-top:2px;">pens 4–3</div></div>
+        </div>
+        <div style="margin-top:14px; font-size:12px; font-weight:600; color:#475569; background:#F1F4F7; border-radius:12px; padding:11px 14px; text-align:center;">Brazil advance on penalties · scoring on the <strong>90-min</strong> result</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ SCREENS ============ -->
+  <div style="margin-top:64px;">
+    <div style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700; letter-spacing:.14em; color:#94a3b8;">04 — SCREENS</div>
+    <div style="font-size:22px; font-weight:800; letter-spacing:-.01em; margin-top:4px; margin-bottom:6px;">Six flows · mobile-first</div>
+    <div style="font-size:14px; color:#475569; margin-bottom:26px; max-width:620px;">Every kickoff renders in the viewer's local timezone with a tz hint. Money is always ₹. Picks stay hidden until lock.</div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:48px; align-items:flex-start;">
+
+      <!-- A · LOGIN -->
+      <div style="flex:none; width:330px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:12px;"><span style="font-family:'Geist Mono',monospace; color:#94a3b8;">A</span> · Login</div>
+        <div style="width:330px; background:#0F172A; border-radius:42px; padding:7px; box-shadow:0 24px 50px -18px rgba(15,23,42,.4);">
+          <div style="border-radius:35px; overflow:hidden; background:#F7F8FA; height:680px; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 22px 8px; background:#fff;"><span style="font-size:13px; font-weight:700;">9:41</span><span style="width:20px;height:10px;border:1.5px solid #0F172A;border-radius:3px;position:relative;"><span style="position:absolute;inset:1.5px;right:5px;background:#0F172A;border-radius:1px;"></span></span></div>
+            <div style="padding:48px 28px 28px; display:flex; flex-direction:column; align-items:center;">
+              <div style="width:60px; height:60px; border-radius:20px; background:#15A66A; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 22px rgba(21,166,106,.4); margin-bottom:18px;"><div style="width:24px;height:24px;border-radius:50%;background:#F2C94C;"></div></div>
+              <div style="font-size:26px; font-weight:800; letter-spacing:-.025em;">Cashford</div>
+              <div style="font-size:14px; color:#64748b; margin-top:6px;">Predict. Settle. Brag.</div>
+            </div>
+            <div style="padding:8px 28px;">
+              <div style="font-size:12px; font-weight:600; color:#475569; margin-bottom:6px;">Username</div>
+              <input value="rashford07" readonly style="width:100%; padding:13px 14px; border:1px solid #E5E8EC; border-radius:12px; font-size:15px; font-family:inherit; outline:none; background:#fff; margin-bottom:14px;" />
+              <div style="font-size:12px; font-weight:600; color:#475569; margin-bottom:6px;">Password</div>
+              <div style="display:flex; align-items:center; border:1.5px solid #EF4444; border-radius:12px; padding:0 14px; background:#fff;"><input value="••••••" readonly style="flex:1; padding:13px 0; border:none; font-size:15px; outline:none; background:transparent; font-family:inherit;" /><span style="font-size:12px; font-weight:700; color:#0E8455;">Show</span></div>
+              <div style="display:flex; align-items:center; gap:6px; color:#EF4444; font-size:12px; font-weight:600; margin-top:8px;"><span style="width:14px;height:14px;border-radius:50%;background:#EF4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;">!</span>Incorrect password. Try again.</div>
+              <button style="width:100%; margin-top:18px; padding:14px; border:none; border-radius:12px; background:#15A66A; color:#fff; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer; box-shadow:0 4px 12px rgba(21,166,106,.3);">Log in</button>
+              <div style="font-size:12px; color:#64748b; text-align:center; margin-top:16px; line-height:1.5;">First time? Your captain set a temp password —<br/>you'll choose your own next.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- B · CHANGE PASSWORD -->
+      <div style="flex:none; width:330px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:12px;"><span style="font-family:'Geist Mono',monospace; color:#94a3b8;">B</span> · Set / change password</div>
+        <div style="width:330px; background:#0F172A; border-radius:42px; padding:7px; box-shadow:0 24px 50px -18px rgba(15,23,42,.4);">
+          <div style="border-radius:35px; overflow:hidden; background:#F7F8FA; height:680px; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 22px 8px; background:#fff;"><span style="font-size:13px; font-weight:700;">9:41</span><span style="width:20px;height:10px;border:1.5px solid #0F172A;border-radius:3px;position:relative;"><span style="position:absolute;inset:1.5px;right:5px;background:#0F172A;border-radius:1px;"></span></span></div>
+            <div style="padding:18px 22px 14px; background:#fff; border-bottom:1px solid #E5E8EC;"><div style="font-size:20px; font-weight:800; letter-spacing:-.01em;">Set your password</div></div>
+            <div style="padding:18px 22px;">
+              <div style="display:flex; gap:9px; align-items:flex-start; background:#FDF4D6; border-radius:12px; padding:12px 14px; margin-bottom:18px;"><span style="font-size:14px;">🔒</span><span style="font-size:13px; color:#92690b; font-weight:600; line-height:1.45;">For security, choose a new password before you start predicting.</span></div>
+              <div style="font-size:12px; font-weight:600; color:#475569; margin-bottom:6px;">New password</div>
+              <div style="display:flex; align-items:center; border:1.5px solid #15A66A; border-radius:12px; padding:0 14px; background:#fff; box-shadow:0 0 0 3px rgba(21,166,106,.12);"><input value="••••••••••" readonly style="flex:1; padding:13px 0; border:none; font-size:15px; outline:none; background:transparent; font-family:inherit;" /><span style="font-size:12px; font-weight:700; color:#0E8455;">Hide</span></div>
+              <div style="display:flex; gap:5px; margin-top:9px;"><span style="flex:1; height:4px; border-radius:2px; background:#16A34A;"></span><span style="flex:1; height:4px; border-radius:2px; background:#16A34A;"></span><span style="flex:1; height:4px; border-radius:2px; background:#16A34A;"></span><span style="flex:1; height:4px; border-radius:2px; background:#E5E8EC;"></span></div>
+              <div style="font-size:11px; color:#16A34A; font-weight:600; margin-top:5px;">Strong · 10+ chars, number, symbol</div>
+              <div style="font-size:12px; font-weight:600; color:#475569; margin:16px 0 6px;">Confirm password</div>
+              <div style="display:flex; align-items:center; border:1px solid #E5E8EC; border-radius:12px; padding:0 14px; background:#fff;"><input value="••••••••••" readonly style="flex:1; padding:13px 0; border:none; font-size:15px; outline:none; background:transparent; font-family:inherit;" /><span style="width:18px;height:18px;border-radius:50%;background:#16A34A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;">✓</span></div>
+              <button style="width:100%; margin-top:22px; padding:14px; border:none; border-radius:12px; background:#15A66A; color:#fff; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer; box-shadow:0 4px 12px rgba(21,166,106,.3);">Save & continue</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- C · LEAGUES HOME -->
+      <div style="flex:none; width:330px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:12px;"><span style="font-family:'Geist Mono',monospace; color:#94a3b8;">C</span> · Leagues home</div>
+        <div style="width:330px; background:#0F172A; border-radius:42px; padding:7px; box-shadow:0 24px 50px -18px rgba(15,23,42,.4);">
+          <div style="border-radius:35px; overflow:hidden; background:#F7F8FA; height:680px; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 22px 8px; background:#fff;"><span style="font-size:13px; font-weight:700;">9:41</span><span style="width:20px;height:10px;border:1.5px solid #0F172A;border-radius:3px;position:relative;"><span style="position:absolute;inset:1.5px;right:5px;background:#0F172A;border-radius:1px;"></span></span></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 20px 14px; background:#fff; border-bottom:1px solid #E5E8EC;"><div style="display:flex; align-items:center; gap:8px;"><div style="width:24px;height:24px;border-radius:8px;background:#15A66A;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border-radius:50%;background:#F2C94C;"></div></div><span style="font-size:18px;font-weight:800;letter-spacing:-.02em;">Cashford</span></div><span style="width:30px;height:30px;border-radius:50%;background:#E0F2EA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0E8455;">YO</span></div>
+            <div style="padding:18px 20px;">
+              <div style="font-size:20px; font-weight:800; letter-spacing:-.01em; margin-bottom:14px;">Your leagues</div>
+              <div style="background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04); margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;"><div><div style="font-size:16px; font-weight:700;">Sunday Club</div><div style="font-size:12px; color:#64748b; margin-top:3px;">6 members</div></div><div style="text-align:right;"><div style="font-size:11px; color:#64748b;">Your net</div><div style="font-family:'Geist Mono',monospace; font-size:20px; font-weight:700; color:#16A34A;">+₹1,250</div></div></div>
+                <div style="margin-top:12px;"><span style="font-size:12px; font-weight:600; color:#92690b; background:#FDF4D6; padding:6px 12px; border-radius:999px;">3 picks to make</span></div>
+              </div>
+              <div style="background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04); margin-bottom:18px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;"><div><div style="font-size:16px; font-weight:700;">Office FC</div><div style="font-size:12px; color:#64748b; margin-top:3px;">11 members</div></div><div style="text-align:right;"><div style="font-size:11px; color:#64748b;">Your net</div><div style="font-family:'Geist Mono',monospace; font-size:20px; font-weight:700; color:#EF4444;">−₹400</div></div></div>
+                <div style="margin-top:12px;"><span style="font-size:12px; font-weight:600; color:#64748b; background:#F1F4F7; padding:6px 12px; border-radius:999px;">All picks in</span></div>
+              </div>
+              <div style="border:1px dashed #CBD5E1; border-radius:14px; padding:18px; text-align:center;">
+                <div style="font-size:14px; font-weight:700;">Join another league</div>
+                <div style="font-size:12px; color:#64748b; margin-top:3px;">Got an invite code?</div>
+                <button style="margin-top:12px; padding:10px 18px; border:none; border-radius:12px; background:#0F172A; color:#fff; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer;">Enter code</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- D · LEAGUE VIEW -->
+      <div style="flex:none; width:330px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:12px;"><span style="font-family:'Geist Mono',monospace; color:#94a3b8;">D</span> · League view</div>
+        <div style="width:330px; background:#0F172A; border-radius:42px; padding:7px; box-shadow:0 24px 50px -18px rgba(15,23,42,.4);">
+          <div style="border-radius:35px; overflow:hidden; background:#F7F8FA; height:680px; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 22px 8px; background:#fff;"><span style="font-size:13px; font-weight:700;">9:41</span><span style="width:20px;height:10px;border:1.5px solid #0F172A;border-radius:3px;position:relative;"><span style="position:absolute;inset:1.5px;right:5px;background:#0F172A;border-radius:1px;"></span></span></div>
+            <div style="display:flex; align-items:center; gap:10px; padding:6px 18px 14px; background:#fff; border-bottom:1px solid #E5E8EC;"><span style="font-size:18px; color:#64748b;">‹</span><span style="font-size:17px; font-weight:800;">Sunday Club</span><span style="margin-left:auto; width:28px;height:28px;border-radius:50%;background:#E0F2EA;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#0E8455;">YO</span></div>
+            <div style="padding:14px 18px;">
+              <div style="background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:14px; box-shadow:0 2px 8px rgba(15,23,42,.04); display:flex; justify-content:space-between; align-items:center;"><div><div style="font-size:11px; color:#64748b;">Your net</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:700; color:#16A34A;">+₹1,250</div></div><div style="text-align:right;"><div style="font-size:11px; color:#64748b;">Settle-up</div><div style="font-size:13px; font-weight:700; color:#16A34A;">You're owed ₹900</div></div></div>
+              <div style="display:flex; gap:18px; margin-top:16px; border-bottom:1px solid #E5E8EC;"><div style="padding-bottom:10px; font-size:13px; font-weight:700; border-bottom:2.5px solid #15A66A;">Upcoming</div><div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#94a3b8;">Live</div><div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#94a3b8;">Done</div><div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#94a3b8;">Dues</div></div>
+              <div style="background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:14px; margin-top:14px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><span style="font-size:11px; color:#64748b;">Grp E · 9:30 PM IST</span><span style="font-size:10px; font-weight:700; color:#0E8455; background:#E7F6EF; padding:4px 9px; border-radius:999px;">OPEN</span></div>
+                <div style="display:flex; align-items:center; justify-content:space-between;"><div style="display:flex; align-items:center; gap:8px;"><span style="width:24px;height:24px;border-radius:50%;background:#C8102E;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">ESP</span><span style="font-size:14px; font-weight:700;">Spain</span></div><span style="font-size:12px; color:#94a3b8;">vs</span><div style="display:flex; align-items:center; gap:8px;"><span style="font-size:14px; font-weight:700;">Germany</span><span style="width:24px;height:24px;border-radius:50%;background:#0F172A;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">GER</span></div></div>
+                <button style="width:100%; margin-top:12px; padding:11px; border:none; border-radius:12px; background:#15A66A; color:#fff; font-size:14px; font-weight:700; font-family:inherit; cursor:pointer;">Make pick · ₹500</button>
+              </div>
+              <div style="background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:14px; margin-top:12px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><span style="font-size:11px; color:#64748b;">Grp F · 12:30 AM IST</span><span style="font-size:10px; font-weight:700; color:#475569; background:#EEF1F4; padding:4px 9px; border-radius:999px;">PICKED</span></div>
+                <div style="display:flex; align-items:center; justify-content:space-between;"><div style="display:flex; align-items:center; gap:8px;"><span style="width:24px;height:24px;border-radius:50%;background:#1e40af;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">FRA</span><span style="font-size:14px; font-weight:700;">France</span></div><span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; color:#0E8455;">FRA 2–1</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- E · MATCH DETAIL -->
+      <div style="flex:none; width:330px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:12px;"><span style="font-family:'Geist Mono',monospace; color:#94a3b8;">E</span> · Match detail · prediction form</div>
+        <div style="width:330px; background:#0F172A; border-radius:42px; padding:7px; box-shadow:0 24px 50px -18px rgba(15,23,42,.4);">
+          <div style="border-radius:35px; overflow:hidden; background:#F7F8FA; height:680px; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 22px 8px; background:#fff;"><span style="font-size:13px; font-weight:700;">9:41</span><span style="width:20px;height:10px;border:1.5px solid #0F172A;border-radius:3px;position:relative;"><span style="position:absolute;inset:1.5px;right:5px;background:#0F172A;border-radius:1px;"></span></span></div>
+            <div style="display:flex; align-items:center; gap:10px; padding:6px 18px 12px; background:#fff;"><span style="font-size:18px; color:#64748b;">‹</span><span style="font-size:15px; font-weight:700;">Match</span><span style="margin-left:auto; font-size:10px; font-weight:700; color:#0E8455; background:#E7F6EF; padding:4px 10px; border-radius:999px;">OPEN</span></div>
+            <!-- header -->
+            <div style="background:#fff; padding:6px 18px 18px; border-bottom:1px solid #E5E8EC;">
+              <div style="display:flex; align-items:center; justify-content:space-around;">
+                <div style="display:flex; flex-direction:column; align-items:center; gap:8px;"><span style="width:46px;height:46px;border-radius:50%;background:#C8102E;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">ESP</span><span style="font-size:13px; font-weight:700;">Spain</span></div>
+                <span style="font-size:13px; color:#94a3b8; font-weight:600;">vs</span>
+                <div style="display:flex; flex-direction:column; align-items:center; gap:8px;"><span style="width:46px;height:46px;border-radius:50%;background:#0F172A;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">GER</span><span style="font-size:13px; font-weight:700;">Germany</span></div>
+              </div>
+              <div style="text-align:center; font-size:12px; color:#64748b; margin-top:12px;">Group E · Sat 21 Jun, 9:30 PM IST · Estadio BBVA</div>
+            </div>
+            <div style="padding:16px 18px;">
+              <div style="font-size:12px; font-weight:700; color:#475569; margin-bottom:8px;">Who wins?</div>
+              <div style="display:flex; background:#EEF1F4; border-radius:12px; padding:4px; gap:4px; margin-bottom:16px;"><div style="flex:1; text-align:center; padding:11px; border-radius:9px; font-size:14px; font-weight:700; background:#15A66A; color:#fff;">ESP</div><div style="flex:1; text-align:center; padding:11px; border-radius:9px; font-size:14px; font-weight:600; color:#64748b;">Draw</div><div style="flex:1; text-align:center; padding:11px; border-radius:9px; font-size:14px; font-weight:600; color:#64748b;">GER</div></div>
+              <div style="font-size:12px; font-weight:700; color:#475569; margin-bottom:10px;">Predict the score</div>
+              <div style="display:flex; gap:20px; justify-content:center; margin-bottom:18px;">
+                <div style="text-align:center;"><div style="display:flex; align-items:center; gap:10px;"><button style="width:38px;height:38px;border-radius:12px;border:1px solid #E5E8EC;background:#fff;font-size:18px;font-weight:700;cursor:pointer;font-family:inherit;">−</button><span style="font-family:'Geist Mono',monospace; font-size:30px; font-weight:700; width:28px; text-align:center;">2</span><button style="width:38px;height:38px;border-radius:12px;border:none;background:#15A66A;color:#fff;font-size:18px;font-weight:700;cursor:pointer;font-family:inherit;">+</button></div><div style="font-size:12px; font-weight:600; color:#64748b; margin-top:7px;">ESP</div></div>
+                <div style="text-align:center;"><div style="display:flex; align-items:center; gap:10px;"><button style="width:38px;height:38px;border-radius:12px;border:1px solid #E5E8EC;background:#fff;font-size:18px;font-weight:700;cursor:pointer;font-family:inherit;">−</button><span style="font-family:'Geist Mono',monospace; font-size:30px; font-weight:700; width:28px; text-align:center;">1</span><button style="width:38px;height:38px;border-radius:12px;border:none;background:#15A66A;color:#fff;font-size:18px;font-weight:700;cursor:pointer;font-family:inherit;">+</button></div><div style="font-size:12px; font-weight:600; color:#64748b; margin-top:7px;">GER</div></div>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; background:#F1F4F7; border-radius:12px; padding:11px 14px; margin-bottom:8px;"><span style="font-size:13px; color:#475569; font-weight:600;">Stake</span><span style="font-family:'Geist Mono',monospace; font-size:15px; font-weight:700;">₹500</span></div>
+              <div style="display:flex; align-items:center; gap:7px; justify-content:center; font-size:11px; color:#94a3b8; margin-bottom:14px;">🔒 Everyone's picks reveal when the match locks</div>
+              <button style="width:100%; padding:14px; border:none; border-radius:12px; background:#15A66A; color:#fff; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer; box-shadow:0 4px 12px rgba(21,166,106,.3);">Save pick</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- F · PROFILE -->
+      <div style="flex:none; width:330px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:12px;"><span style="font-family:'Geist Mono',monospace; color:#94a3b8;">F</span> · Profile & settings</div>
+        <div style="width:330px; background:#0F172A; border-radius:42px; padding:7px; box-shadow:0 24px 50px -18px rgba(15,23,42,.4);">
+          <div style="border-radius:35px; overflow:hidden; background:#F7F8FA; height:680px; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 22px 8px; background:#fff;"><span style="font-size:13px; font-weight:700;">9:41</span><span style="width:20px;height:10px;border:1.5px solid #0F172A;border-radius:3px;position:relative;"><span style="position:absolute;inset:1.5px;right:5px;background:#0F172A;border-radius:1px;"></span></span></div>
+            <div style="padding:24px 22px 18px; background:#fff; border-bottom:1px solid #E5E8EC; display:flex; align-items:center; gap:14px;"><span style="width:54px;height:54px;border-radius:50%;background:#15A66A;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;">YO</span><div><div style="font-size:18px; font-weight:800;">Yash O.</div><div style="font-size:13px; color:#64748b;">@rashford07</div></div></div>
+            <div style="padding:18px 22px;">
+              <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.06em; margin-bottom:10px;">TIMEZONE</div>
+              <div style="background:#fff; border:1px solid #E5E8EC; border-radius:12px; padding:14px; margin-bottom:6px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;"><div><div style="font-size:14px; font-weight:600;">India · IST</div><div style="font-size:12px; color:#64748b; margin-top:2px;">Auto-detected · GMT+5:30</div></div><span style="font-size:12px; font-weight:700; color:#0E8455; background:#E7F6EF; padding:6px 11px; border-radius:999px;">Override ▾</span></div>
+              </div>
+              <div style="font-size:11px; color:#94a3b8; margin-bottom:18px;">All kickoffs shown in this timezone.</div>
+              <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.06em; margin-bottom:10px;">ACCOUNT</div>
+              <div style="background:#fff; border:1px solid #E5E8EC; border-radius:12px; overflow:hidden; margin-bottom:18px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:14px; border-bottom:1px solid #F1F4F7;"><span style="font-size:14px; font-weight:600;">Change password</span><span style="color:#94a3b8;">›</span></div>
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:14px;"><span style="font-size:14px; font-weight:600;">Notifications</span><span style="color:#94a3b8;">›</span></div>
+              </div>
+              <button style="width:100%; padding:14px; border:1px solid #FECACA; border-radius:12px; background:#fff; color:#EF4444; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer;">Log out</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ DESKTOP ============ -->
+  <div style="margin-top:64px;">
+    <div style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700; letter-spacing:.14em; color:#94a3b8;">05 — DESKTOP</div>
+    <div style="font-size:22px; font-weight:800; letter-spacing:-.01em; margin-top:4px; margin-bottom:6px;">Same system, three columns</div>
+    <div style="font-size:14px; color:#475569; margin-bottom:24px; max-width:620px;">The mobile screen unfolds into a leagues rail, a matches column, and a live dues panel. Identical tokens and components — nothing redrawn.</div>
+
+    <div style="background:#fff; border:1px solid #E5E8EC; border-radius:16px; overflow:hidden; box-shadow:0 12px 40px -12px rgba(15,23,42,.18); max-width:1180px;">
+      <!-- browser chrome -->
+      <div style="display:flex; align-items:center; gap:7px; padding:12px 16px; background:#F7F8FA; border-bottom:1px solid #E5E8EC;">
+        <span style="width:11px;height:11px;border-radius:50%;background:#ff5f57;"></span><span style="width:11px;height:11px;border-radius:50%;background:#febc2e;"></span><span style="width:11px;height:11px;border-radius:50%;background:#28c840;"></span>
+        <span style="margin-left:14px; font-size:12px; color:#94a3b8; font-family:'Geist Mono',monospace; background:#fff; padding:5px 14px; border-radius:8px; border:1px solid #E5E8EC;">cashford.app/sunday-club</span>
+      </div>
+      <div style="display:flex; height:620px; background:#F7F8FA;">
+
+        <!-- left rail -->
+        <div style="width:230px; background:#fff; border-right:1px solid #E5E8EC; padding:20px 16px; display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; align-items:center; gap:9px; padding:4px 8px 18px;"><div style="width:30px;height:30px;border-radius:10px;background:#15A66A;display:flex;align-items:center;justify-content:center;"><div style="width:11px;height:11px;border-radius:50%;background:#F2C94C;"></div></div><span style="font-size:19px;font-weight:800;letter-spacing:-.02em;">Cashford</span></div>
+          <div style="font-size:10px; font-weight:700; color:#94a3b8; letter-spacing:.08em; padding:0 8px 6px;">LEAGUES</div>
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 12px; border-radius:12px; background:#E7F6EF;"><span style="font-size:14px; font-weight:700; color:#0E8455;">Sunday Club</span><span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700; color:#16A34A;">+1,250</span></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 12px; border-radius:12px;"><span style="font-size:14px; font-weight:600; color:#475569;">Office FC</span><span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700; color:#EF4444;">−400</span></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 12px; border-radius:12px;"><span style="font-size:14px; font-weight:600; color:#475569;">College Crew</span><span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700; color:#16A34A;">+80</span></div>
+          <button style="margin-top:8px; padding:10px; border:1px dashed #CBD5E1; border-radius:12px; background:transparent; color:#64748b; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer;">+ Join league</button>
+          <div style="margin-top:auto; display:flex; align-items:center; gap:10px; padding:10px 8px;"><span style="width:32px;height:32px;border-radius:50%;background:#15A66A;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;">YO</span><div><div style="font-size:13px; font-weight:700;">Yash O.</div><div style="font-size:11px; color:#94a3b8;">IST · GMT+5:30</div></div></div>
+        </div>
+
+        <!-- center matches -->
+        <div style="flex:1; padding:24px 26px; overflow:hidden;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;"><div style="font-size:24px; font-weight:800; letter-spacing:-.01em;">Sunday Club</div><div style="display:flex; gap:8px;"><span style="font-size:13px; font-weight:700; color:#fff; background:#15A66A; padding:8px 16px; border-radius:999px;">Upcoming</span><span style="font-size:13px; font-weight:600; color:#64748b; background:#fff; padding:8px 16px; border-radius:999px; border:1px solid #E5E8EC;">Live</span><span style="font-size:13px; font-weight:600; color:#64748b; background:#fff; padding:8px 16px; border-radius:999px; border:1px solid #E5E8EC;">Completed</span></div></div>
+          <div style="font-size:13px; color:#64748b; margin-bottom:18px;">6 members · 3 picks to make · Sat 21 Jun</div>
+
+          <!-- live wide card -->
+          <div style="background:#0F172A; border-radius:16px; padding:18px 20px; margin-bottom:14px;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:14px;"><span style="display:flex; align-items:center; gap:5px; font-size:10px; font-weight:800; letter-spacing:.07em; color:#fff; background:#FF3B30; padding:5px 11px; border-radius:999px;"><span style="width:6px;height:6px;border-radius:50%;background:#fff;animation:cf-pulse 1.4s ease-in-out infinite;"></span>LIVE 67'</span><span style="font-size:12px; color:#64748b;">Group C · Estadio Azteca</span></div>
+              <span style="font-size:13px; font-weight:700; color:#F2C94C;">View reveal →</span>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:center; gap:28px; margin-top:14px;">
+              <div style="display:flex; align-items:center; gap:11px;"><span style="font-size:15px; font-weight:600; color:#fff;">Brazil</span><span style="width:34px;height:34px;border-radius:50%;background:#009b3a;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">BRA</span></div>
+              <div style="display:flex; align-items:center; gap:12px;"><span style="font-family:'Geist Mono',monospace; font-size:38px; font-weight:700; color:#fff;">1</span><span style="font-family:'Geist Mono',monospace; font-size:20px; color:#475569;">:</span><span style="font-family:'Geist Mono',monospace; font-size:38px; font-weight:700; color:#fff;">0</span></div>
+              <div style="display:flex; align-items:center; gap:11px;"><span style="width:34px;height:34px;border-radius:50%;background:#75aadb;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#0F172A;font-family:'Geist Mono',monospace;">ARG</span><span style="font-size:15px; font-weight:600; color:#fff;">Argentina</span></div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:14px;">
+            <div style="flex:1; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><span style="font-size:11px; color:#64748b;">Grp E · 9:30 PM IST</span><span style="font-size:10px; font-weight:700; color:#0E8455; background:#E7F6EF; padding:4px 9px; border-radius:999px;">OPEN</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;"><div style="display:flex; align-items:center; gap:9px;"><span style="width:24px;height:24px;border-radius:50%;background:#C8102E;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">ESP</span><span style="font-size:14px; font-weight:600;">Spain</span></div><div style="display:flex; align-items:center; gap:9px;"><span style="width:24px;height:24px;border-radius:50%;background:#0F172A;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">GER</span><span style="font-size:14px; font-weight:600;">Germany</span></div></div>
+              <button style="width:100%; padding:11px; border:none; border-radius:12px; background:#15A66A; color:#fff; font-size:14px; font-weight:700; font-family:inherit; cursor:pointer;">Make pick · ₹500</button>
+            </div>
+            <div style="flex:1; background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><span style="font-size:11px; color:#64748b;">Grp F · 12:30 AM IST</span><span style="font-size:10px; font-weight:700; color:#475569; background:#EEF1F4; padding:4px 9px; border-radius:999px;">PICKED</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;"><div style="display:flex; align-items:center; gap:9px;"><span style="width:24px;height:24px;border-radius:50%;background:#1e40af;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">FRA</span><span style="font-size:14px; font-weight:600;">France</span></div><div style="display:flex; align-items:center; gap:9px;"><span style="width:24px;height:24px;border-radius:50%;background:#cf142b;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">ENG</span><span style="font-size:14px; font-weight:600;">England</span></div></div>
+              <div style="display:flex; align-items:center; justify-content:space-between;"><span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; color:#0E8455;">FRA 2–1</span><button style="padding:8px 16px; border:1px solid #E5E8EC; border-radius:10px; background:#fff; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer;">Edit</button></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- right dues -->
+        <div style="width:268px; background:#fff; border-left:1px solid #E5E8EC; padding:22px 18px;">
+          <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.06em; margin-bottom:12px;">YOUR NET</div>
+          <div style="background:#0F172A; border-radius:14px; padding:16px; margin-bottom:18px;"><div style="font-family:'Geist Mono',monospace; font-size:26px; font-weight:700; color:#fff;">+₹1,250</div><div style="font-size:12px; color:#94a3b8; margin-top:2px;">across 24 settled matches</div></div>
+          <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.06em; margin-bottom:10px;">LEADERBOARD</div>
+          <div style="display:flex; flex-direction:column; gap:9px; margin-bottom:18px;">
+            <div style="display:flex; align-items:center; gap:9px;"><span style="font-family:'Geist Mono',monospace; font-size:12px; color:#94a3b8; width:14px;">1</span><span style="width:24px;height:24px;border-radius:50%;background:#15A66A;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;">YO</span><span style="font-size:13px; font-weight:700; flex:1;">You</span><span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; color:#16A34A;">+1,250</span></div>
+            <div style="display:flex; align-items:center; gap:9px;"><span style="font-family:'Geist Mono',monospace; font-size:12px; color:#94a3b8; width:14px;">2</span><span style="width:24px;height:24px;border-radius:50%;background:#6366f1;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;">SM</span><span style="font-size:13px; font-weight:600; flex:1;">Sam</span><span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; color:#16A34A;">+300</span></div>
+            <div style="display:flex; align-items:center; gap:9px;"><span style="font-family:'Geist Mono',monospace; font-size:12px; color:#94a3b8; width:14px;">3</span><span style="width:24px;height:24px;border-radius:50%;background:#F2994A;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;">DV</span><span style="font-size:13px; font-weight:600; flex:1;">Dev</span><span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; color:#EF4444;">−550</span></div>
+          </div>
+          <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.06em; margin-bottom:10px;">SETTLE UP</div>
+          <div style="display:flex; align-items:center; justify-content:space-between; background:#FEF2F2; border-radius:12px; padding:10px 12px; margin-bottom:8px;"><span style="font-size:12px; font-weight:600;">You owe Sam</span><div style="display:flex; align-items:center; gap:8px;"><span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; color:#EF4444;">₹250</span><button style="padding:5px 11px; border:none; border-radius:999px; background:#0F172A; color:#fff; font-size:11px; font-weight:700; font-family:inherit; cursor:pointer;">Settle</button></div></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; background:#F0FDF4; border-radius:12px; padding:10px 12px;"><span style="font-size:12px; font-weight:600;">Dev owes you</span><span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; color:#16A34A;">₹500</span></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DUES TAB ============ -->
+  <div style="margin-top:64px;">
+    <div style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700; letter-spacing:.14em; color:#94a3b8;">06 — DUES TAB</div>
+    <div style="font-size:22px; font-weight:800; letter-spacing:-.01em; margin-top:4px; margin-bottom:6px;">Who owes who, settled simply</div>
+    <div style="font-size:14px; color:#475569; margin-bottom:26px; max-width:620px;">Net leaderboard up top, then the minimum set of pairwise transfers to square everyone up. One tap to settle each line.</div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:48px; align-items:flex-start;">
+
+      <!-- Dues phone -->
+      <div style="flex:none; width:330px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:12px;"><span style="font-family:'Geist Mono',monospace; color:#94a3b8;">D · Dues</span> · league view → Dues</div>
+        <div style="width:330px; background:#0F172A; border-radius:42px; padding:7px; box-shadow:0 24px 50px -18px rgba(15,23,42,.4);">
+          <div style="border-radius:35px; overflow:hidden; background:#F7F8FA; height:720px; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 22px 8px; background:#fff;"><span style="font-size:13px; font-weight:700;">9:41</span><span style="width:20px;height:10px;border:1.5px solid #0F172A;border-radius:3px;position:relative;"><span style="position:absolute;inset:1.5px;right:5px;background:#0F172A;border-radius:1px;"></span></span></div>
+            <div style="display:flex; align-items:center; gap:10px; padding:6px 18px 14px; background:#fff; border-bottom:1px solid #E5E8EC;"><span style="font-size:18px; color:#64748b;">‹</span><span style="font-size:17px; font-weight:800;">Sunday Club</span><span style="margin-left:auto; width:28px;height:28px;border-radius:50%;background:#E0F2EA;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#0E8455;">YO</span></div>
+            <!-- tabbar -->
+            <div style="display:flex; gap:16px; padding:14px 18px 0; background:#fff; border-bottom:1px solid #E5E8EC;"><div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#94a3b8;">Upcoming</div><div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#94a3b8;">Live</div><div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#94a3b8;">Done</div><div style="padding-bottom:10px; font-size:13px; font-weight:700; border-bottom:2.5px solid #15A66A;">Dues</div></div>
+            <div style="padding:16px 18px; overflow:hidden;">
+              <!-- leaderboard -->
+              <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.06em; margin-bottom:10px;">STANDINGS</div>
+              <div style="background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:6px 14px; box-shadow:0 2px 8px rgba(15,23,42,.04); margin-bottom:18px;">
+                <div style="display:flex; align-items:center; gap:11px; padding:9px 0; border-bottom:1px solid #F1F4F7;"><span style="font-family:'Geist Mono',monospace; font-size:13px; color:#94a3b8; width:16px;">1</span><span style="width:26px;height:26px;border-radius:50%;background:#15A66A;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">YO</span><span style="font-size:14px; font-weight:700; flex:1;">You</span><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#16A34A;">+₹1,250</span></div>
+                <div style="display:flex; align-items:center; gap:11px; padding:9px 0; border-bottom:1px solid #F1F4F7;"><span style="font-family:'Geist Mono',monospace; font-size:13px; color:#94a3b8; width:16px;">2</span><span style="width:26px;height:26px;border-radius:50%;background:#6366f1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">SM</span><span style="font-size:14px; font-weight:600; flex:1;">Sam</span><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#16A34A;">+₹300</span></div>
+                <div style="display:flex; align-items:center; gap:11px; padding:9px 0; border-bottom:1px solid #F1F4F7;"><span style="font-family:'Geist Mono',monospace; font-size:13px; color:#94a3b8; width:16px;">3</span><span style="width:26px;height:26px;border-radius:50%;background:#0ea5e9;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">MA</span><span style="font-size:14px; font-weight:600; flex:1;">Maya</span><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#16A34A;">+₹120</span></div>
+                <div style="display:flex; align-items:center; gap:11px; padding:9px 0; border-bottom:1px solid #F1F4F7;"><span style="font-family:'Geist Mono',monospace; font-size:13px; color:#94a3b8; width:16px;">4</span><span style="width:26px;height:26px;border-radius:50%;background:#8b5cf6;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">AR</span><span style="font-size:14px; font-weight:600; flex:1;">Arjun</span><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#EF4444;">−₹90</span></div>
+                <div style="display:flex; align-items:center; gap:11px; padding:9px 0; border-bottom:1px solid #F1F4F7;"><span style="font-family:'Geist Mono',monospace; font-size:13px; color:#94a3b8; width:16px;">5</span><span style="width:26px;height:26px;border-radius:50%;background:#F2994A;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">DV</span><span style="font-size:14px; font-weight:600; flex:1;">Dev</span><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#EF4444;">−₹550</span></div>
+                <div style="display:flex; align-items:center; gap:11px; padding:9px 0;"><span style="font-family:'Geist Mono',monospace; font-size:13px; color:#94a3b8; width:16px;">6</span><span style="width:26px;height:26px;border-radius:50%;background:#ec4899;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">RI</span><span style="font-size:14px; font-weight:600; flex:1;">Ria</span><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#EF4444;">−₹1,030</span></div>
+              </div>
+              <!-- pairwise -->
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;"><span style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.06em;">SETTLE UP</span><span style="font-size:11px; font-weight:600; color:#64748b;">3 transfers</span></div>
+              <div style="display:flex; align-items:center; justify-content:space-between; background:#FEF2F2; border-radius:12px; padding:12px 14px; margin-bottom:9px;"><div style="display:flex; align-items:center; gap:10px;"><span style="width:28px;height:28px;border-radius:50%;background:#6366f1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">SM</span><span style="font-size:13px; font-weight:600;">You owe <strong>Sam</strong></span></div><div style="display:flex; align-items:center; gap:10px;"><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#EF4444;">₹250</span><button style="padding:7px 14px; border:none; border-radius:999px; background:#0F172A; color:#fff; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer;">Settle</button></div></div>
+              <div style="display:flex; align-items:center; justify-content:space-between; background:#F0FDF4; border-radius:12px; padding:12px 14px; margin-bottom:9px;"><div style="display:flex; align-items:center; gap:10px;"><span style="width:28px;height:28px;border-radius:50%;background:#F2994A;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">DV</span><span style="font-size:13px; font-weight:600;"><strong>Dev</strong> owes you</span></div><div style="display:flex; align-items:center; gap:10px;"><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#16A34A;">₹500</span><button style="padding:7px 14px; border:1px solid #E5E8EC; border-radius:999px; background:#fff; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer;">Remind</button></div></div>
+              <div style="display:flex; align-items:center; justify-content:space-between; background:#F0FDF4; border-radius:12px; padding:12px 14px;"><div style="display:flex; align-items:center; gap:10px;"><span style="width:28px;height:28px;border-radius:50%;background:#ec4899;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">RI</span><span style="font-size:13px; font-weight:600;"><strong>Ria</strong> owes you</span></div><div style="display:flex; align-items:center; gap:10px;"><span style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:700; color:#16A34A;">₹400</span><button style="padding:7px 14px; border:1px solid #E5E8EC; border-radius:999px; background:#fff; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer;">Remind</button></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- explainer -->
+      <div style="flex:none; width:300px; padding-top:38px;">
+        <div style="background:#fff; border:1px solid #E5E8EC; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(15,23,42,.04);">
+          <div style="font-size:14px; font-weight:700; margin-bottom:12px;">How settle-up works</div>
+          <div style="display:flex; gap:11px; margin-bottom:14px;"><span style="width:24px;height:24px;border-radius:50%;background:#E7F6EF;color:#0E8455;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:none;">1</span><span style="font-size:13px; color:#475569; line-height:1.5;">Each settled match adds to or subtracts from your net.</span></div>
+          <div style="display:flex; gap:11px; margin-bottom:14px;"><span style="width:24px;height:24px;border-radius:50%;background:#E7F6EF;color:#0E8455;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:none;">2</span><span style="font-size:13px; color:#475569; line-height:1.5;">We collapse everyone's net into the fewest possible transfers.</span></div>
+          <div style="display:flex; gap:11px;"><span style="width:24px;height:24px;border-radius:50%;background:#E7F6EF;color:#0E8455;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:none;">3</span><span style="font-size:13px; color:#475569; line-height:1.5;">Tap <strong>Settle</strong> to mark a debt paid; the other person confirms.</span></div>
+          <div style="margin-top:18px; padding-top:16px; border-top:1px solid #F1F4F7; font-size:12px; color:#64748b;">Net always sums to ₹0 across the league — no money is created or lost.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ DARK THEME ============ -->
+  <div style="margin-top:64px; background:#0B0F14; border-radius:24px; padding:40px 36px; margin-left:-8px; margin-right:-8px;">
+    <div style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:700; letter-spacing:.14em; color:#475569;">07 — DARK THEME</div>
+    <div style="font-size:22px; font-weight:800; letter-spacing:-.01em; margin-top:4px; margin-bottom:6px; color:#E6EAF0;">Same components, night mode</div>
+    <div style="font-size:14px; color:#94a3b8; margin-bottom:24px; max-width:620px;">Tokens remap, structure holds. Surfaces lift to <code style="font-family:'Geist Mono',monospace; background:#131922; padding:1px 6px; border-radius:5px; color:#E6EAF0;">#131922</code> on a <code style="font-family:'Geist Mono',monospace; background:#131922; padding:1px 6px; border-radius:5px; color:#E6EAF0;">#0B0F14</code> base; primary green and cash gold stay constant for brand continuity.</div>
+
+    <!-- dark tokens -->
+    <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:30px;">
+      <div style="width:120px;"><div style="height:50px; border-radius:12px; background:#0B0F14; border:1px solid #232B36;"></div><div style="font-size:12px; font-weight:700; margin-top:7px; color:#E6EAF0;">BG</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#64748b;">#0B0F14</div></div>
+      <div style="width:120px;"><div style="height:50px; border-radius:12px; background:#131922; border:1px solid #232B36;"></div><div style="font-size:12px; font-weight:700; margin-top:7px; color:#E6EAF0;">Surface</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#64748b;">#131922</div></div>
+      <div style="width:120px;"><div style="height:50px; border-radius:12px; background:#232B36;"></div><div style="font-size:12px; font-weight:700; margin-top:7px; color:#E6EAF0;">Border</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#64748b;">#232B36</div></div>
+      <div style="width:120px;"><div style="height:50px; border-radius:12px; background:#E6EAF0;"></div><div style="font-size:12px; font-weight:700; margin-top:7px; color:#E6EAF0;">Text</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#64748b;">#E6EAF0</div></div>
+      <div style="width:120px;"><div style="height:50px; border-radius:12px; background:#15A66A;"></div><div style="font-size:12px; font-weight:700; margin-top:7px; color:#E6EAF0;">Primary</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#64748b;">#15A66A</div></div>
+      <div style="width:120px;"><div style="height:50px; border-radius:12px; background:#F2C94C;"></div><div style="font-size:12px; font-weight:700; margin-top:7px; color:#E6EAF0;">Accent</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#64748b;">#F2C94C</div></div>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:40px; align-items:flex-start;">
+
+      <!-- dark League View phone -->
+      <div style="flex:none; width:330px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:12px; color:#E6EAF0;">League view · dark</div>
+        <div style="width:330px; background:#000; border-radius:42px; padding:7px; box-shadow:0 24px 50px -18px rgba(0,0,0,.6);">
+          <div style="border-radius:35px; overflow:hidden; background:#0B0F14; height:680px; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 22px 8px; background:#131922;"><span style="font-size:13px; font-weight:700; color:#E6EAF0;">9:41</span><span style="width:20px;height:10px;border:1.5px solid #E6EAF0;border-radius:3px;position:relative;"><span style="position:absolute;inset:1.5px;right:5px;background:#E6EAF0;border-radius:1px;"></span></span></div>
+            <div style="display:flex; align-items:center; gap:10px; padding:6px 18px 14px; background:#131922; border-bottom:1px solid #232B36;"><span style="font-size:18px; color:#64748b;">‹</span><span style="font-size:17px; font-weight:800; color:#E6EAF0;">Sunday Club</span><span style="margin-left:auto; width:28px;height:28px;border-radius:50%;background:#15A66A;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">YO</span></div>
+            <div style="padding:14px 18px;">
+              <div style="background:#131922; border:1px solid #232B36; border-radius:16px; padding:14px; display:flex; justify-content:space-between; align-items:center;"><div><div style="font-size:11px; color:#64748b;">Your net</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:700; color:#4ade80;">+₹1,250</div></div><div style="text-align:right;"><div style="font-size:11px; color:#64748b;">Settle-up</div><div style="font-size:13px; font-weight:700; color:#4ade80;">You're owed ₹900</div></div></div>
+              <div style="display:flex; gap:18px; margin-top:16px; border-bottom:1px solid #232B36;"><div style="padding-bottom:10px; font-size:13px; font-weight:700; color:#E6EAF0; border-bottom:2.5px solid #15A66A;">Upcoming</div><div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#64748b;">Live</div><div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#64748b;">Done</div><div style="padding-bottom:10px; font-size:13px; font-weight:500; color:#64748b;">Dues</div></div>
+              <div style="background:#131922; border:1px solid #232B36; border-radius:16px; padding:14px; margin-top:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><span style="font-size:11px; color:#64748b;">Grp E · 9:30 PM IST</span><span style="font-size:10px; font-weight:700; color:#4ade80; background:rgba(21,166,106,.18); padding:4px 9px; border-radius:999px;">OPEN</span></div>
+                <div style="display:flex; align-items:center; justify-content:space-between;"><div style="display:flex; align-items:center; gap:8px;"><span style="width:24px;height:24px;border-radius:50%;background:#C8102E;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">ESP</span><span style="font-size:14px; font-weight:700; color:#E6EAF0;">Spain</span></div><span style="font-size:12px; color:#64748b;">vs</span><div style="display:flex; align-items:center; gap:8px;"><span style="font-size:14px; font-weight:700; color:#E6EAF0;">Germany</span><span style="width:24px;height:24px;border-radius:50%;background:#475569;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">GER</span></div></div>
+                <button style="width:100%; margin-top:12px; padding:11px; border:none; border-radius:12px; background:#15A66A; color:#fff; font-size:14px; font-weight:700; font-family:inherit; cursor:pointer;">Make pick · ₹500</button>
+              </div>
+              <div style="background:#131922; border:1px solid #232B36; border-radius:16px; padding:14px; margin-top:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><span style="font-size:11px; color:#64748b;">Grp F · 12:30 AM IST</span><span style="font-size:10px; font-weight:700; color:#94a3b8; background:#232B36; padding:4px 9px; border-radius:999px;">PICKED</span></div>
+                <div style="display:flex; align-items:center; justify-content:space-between;"><div style="display:flex; align-items:center; gap:8px;"><span style="width:24px;height:24px;border-radius:50%;background:#1e40af;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">FRA</span><span style="font-size:14px; font-weight:700; color:#E6EAF0;">France</span></div><span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:700; color:#4ade80;">FRA 2–1</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dark MatchCard states -->
+      <div style="flex:1; min-width:340px; display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:13px; font-weight:700; color:#E6EAF0;">MatchCard states · dark</div>
+        <!-- live -->
+        <div style="background:#131922; border:1px solid #232B36; border-radius:16px; padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; color:#64748b;">Group C · Estadio Azteca</span><span style="display:flex; align-items:center; gap:5px; font-size:10px; font-weight:800; letter-spacing:.07em; color:#fff; background:#FF3B30; padding:5px 11px; border-radius:999px;"><span style="width:6px;height:6px;border-radius:50%;background:#fff;animation:cf-pulse 1.4s ease-in-out infinite;"></span>LIVE 67'</span></div>
+          <div style="display:flex; align-items:center; justify-content:center; gap:24px; margin-top:14px;">
+            <div style="display:flex; align-items:center; gap:10px;"><span style="font-size:14px; font-weight:600; color:#E6EAF0;">Brazil</span><span style="width:30px;height:30px;border-radius:50%;background:#009b3a;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">BRA</span></div>
+            <div style="display:flex; align-items:center; gap:10px;"><span style="font-family:'Geist Mono',monospace; font-size:30px; font-weight:700; color:#fff;">1</span><span style="font-family:'Geist Mono',monospace; font-size:16px; color:#475569;">:</span><span style="font-family:'Geist Mono',monospace; font-size:30px; font-weight:700; color:#fff;">0</span></div>
+            <div style="display:flex; align-items:center; gap:10px;"><span style="width:30px;height:30px;border-radius:50%;background:#75aadb;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#0F172A;font-family:'Geist Mono',monospace;">ARG</span><span style="font-size:14px; font-weight:600; color:#E6EAF0;">Argentina</span></div>
+          </div>
+        </div>
+        <!-- won -->
+        <div style="background:rgba(22,163,74,.1); border:1.5px solid #16A34A; border-radius:16px; padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; color:#64748b;">Group H · FT · Estadio Akron</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#4ade80; background:rgba(22,163,74,.2); padding:5px 11px; border-radius:999px;">SETTLED</span></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px;"><div style="display:flex; flex-direction:column; gap:7px;"><div style="display:flex; align-items:center; gap:9px;"><span style="width:22px;height:22px;border-radius:50%;background:#006600;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">POR</span><span style="font-size:14px; font-weight:700; color:#E6EAF0;">Portugal</span></div><div style="display:flex; align-items:center; gap:9px;"><span style="width:22px;height:22px;border-radius:50%;background:#f97316;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">NED</span><span style="font-size:14px; font-weight:600; color:#94a3b8;">Netherlands</span></div></div><span style="font-family:'Geist Mono',monospace; font-size:26px; font-weight:700; color:#E6EAF0;">2–1</span></div>
+          <div style="margin-top:12px; display:flex; align-items:center; justify-content:space-between; background:#16A34A; border-radius:12px; padding:11px 14px;"><span style="font-size:13px; font-weight:700; color:#fff;">You nailed it · POR 2–1</span><span style="font-family:'Geist Mono',monospace; font-size:17px; font-weight:700; color:#fff;">+₹500</span></div>
+        </div>
+        <!-- lost -->
+        <div style="background:#131922; border:1px solid #232B36; border-radius:16px; padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px; color:#64748b;">Group B · FT · Estadio BBVA</span><span style="font-size:10px; font-weight:700; letter-spacing:.06em; color:#4ade80; background:rgba(21,166,106,.18); padding:5px 11px; border-radius:999px;">SETTLED</span></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px;"><div style="display:flex; flex-direction:column; gap:7px;"><div style="display:flex; align-items:center; gap:9px;"><span style="width:22px;height:22px;border-radius:50%;background:#c8102e;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">CRO</span><span style="font-size:14px; font-weight:600; color:#94a3b8;">Croatia</span></div><div style="display:flex; align-items:center; gap:9px;"><span style="width:22px;height:22px;border-radius:50%;background:#475569;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;font-family:'Geist Mono',monospace;">BEL</span><span style="font-size:14px; font-weight:700; color:#E6EAF0;">Belgium</span></div></div><span style="font-family:'Geist Mono',monospace; font-size:26px; font-weight:700; color:#E6EAF0;">0–1</span></div>
+          <div style="margin-top:12px; display:flex; align-items:center; justify-content:space-between; background:rgba(239,68,68,.12); border-radius:12px; padding:11px 14px;"><span style="font-size:13px; font-weight:600; color:#fca5a5;">Your pick CRO 1–0</span><span style="font-family:'Geist Mono',monospace; font-size:17px; font-weight:700; color:#f87171;">−₹250</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+</x-dc>
+</body>
+</html>
