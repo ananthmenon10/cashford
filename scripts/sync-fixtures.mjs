@@ -12,7 +12,7 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SR = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!URL || !SR) { console.error("Missing Supabase env"); process.exit(1); }
 const MODE = process.argv[2] === "apply" ? "apply" : "probe";
-const LOCK_MS = 30 * 60 * 1000;
+const LOCK_MS = 0; // predictions lock at kickoff (previously 30 min before)
 const BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
 
 const db = createClient(URL, SR, { auth: { persistSession: false }, db: { schema: "cashford" } });

@@ -94,7 +94,7 @@ begin
      or new.status is distinct from old.status then
 
     update cashford.contests
-       set lock_at = new.kickoff_at - interval '30 minutes'
+       set lock_at = new.kickoff_at
      where fixture_id = new.id and status = 'open';
 
     if new.status in ('postponed','cancelled','abandoned') then
@@ -103,9 +103,9 @@ begin
        where fixture_id = new.id and status in ('open','locked');
 
     elsif new.status = 'scheduled'
-          and new.kickoff_at - interval '30 minutes' > now() then
+          and new.kickoff_at > now() then
       update cashford.contests
-         set status = 'open', lock_at = new.kickoff_at - interval '30 minutes'
+         set status = 'open', lock_at = new.kickoff_at
        where fixture_id = new.id and status = 'locked';
     end if;
   end if;

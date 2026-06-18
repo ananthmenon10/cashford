@@ -130,7 +130,7 @@ create table if not exists cashford.contests (
   stake_inr    int  not null check (stake_inr > 0),
   status       text not null default 'open'
                  check (status in ('open','locked','settling','void','cancelled','settled')),
-  lock_at      timestamptz not null,               -- = kickoff_at - 30 min (denormalized)
+  lock_at      timestamptz not null,               -- = kickoff_at (lock at kickoff; denormalized)
   is_knockout  boolean not null default false,      -- denormalized for the no-draw guard / UI
   void_reason  text,
   settled_at   timestamptz,

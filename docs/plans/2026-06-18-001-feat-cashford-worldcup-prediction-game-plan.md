@@ -36,12 +36,12 @@ Deepened with **6 parallel agents** — 4 adversarial reviewers (correctness, se
 
 ## 1. Overview
 
-Cashford is a mobile-first web app for a closed group of friends to run a World Cup prediction pool. There are **two independent leagues** (separate friend groups). For each match, every league runs a **contest**: members predict the **outcome** (Team A win / Draw / Team B win) and a **scoreline**. Predictions **lock 30 minutes before kickoff** and are then revealed to the whole league. After full-time, the app **automatically settles** who owes whom, in **₹ (INR)**, and maintains a running net + pairwise dues ledger per league.
+Cashford is a mobile-first web app for a closed group of friends to run a World Cup prediction pool. There are **two independent leagues** (separate friend groups). For each match, every league runs a **contest**: members predict the **outcome** (Team A win / Draw / Team B win) and a **scoreline**. Predictions **lock at kickoff** and are then revealed to the whole league. After full-time, the app **automatically settles** who owes whom, in **₹ (INR)**, and maintains a running net + pairwise dues ledger per league.
 
 Everything administrative — creating accounts, assigning people to leagues, setting the wager amount — is done by **Ananth via the backend only**. There is **no public signup, no self-serve league creation, and no admin UI** in v1.
 
 ### Goals
-- Predict every WC2026 match; lock 30 min before KO; reveal after lock.
+- Predict every WC2026 match; lock at KO (kickoff); reveal after lock.
 - Auto-fetch fixtures (incl. knockout slots that fill in over time) and live/final scores.
 - Auto-settle stakes on confirmed full-time; track a per-league ₹ ledger (net + pairwise).
 - Dead-simple username/password login with forced first-login password change.
@@ -210,7 +210,7 @@ erDiagram
         uuid fixture_id FK
         int stake_inr "copied from league default, admin-overridable"
         text status "open|locked|void|cancelled|settled"
-        timestamptz lock_at "= kickoff_at - 30min (denormalized)"
+        timestamptz lock_at "= kickoff_at (denormalized)"
         text void_reason "insufficient_entries|all_wrong_mixed|..."
         timestamptz settled_at
     }
@@ -276,7 +276,7 @@ erDiagram
 ### 7.1 Prediction
 - **Group stage:** outcome ∈ `{home, draw, away}`; scoreline `(pred_home, pred_away)`, integers ≥ 0.
 - **Knockout (advance-based, D1):** outcome ∈ `{home, away}` (no draw); scoreline = predicted **90-minute** score.
-- Editable any time while contest is `open`; **frozen at `lock_at` = kickoff − 30 min**.
+- Editable any time while contest is `open`; **frozen at `lock_at` = kickoff**.
 - Enforced in two layers: RLS `with check (lock_at > now())` on insert/update **and** the locker cron.
 
 ### 7.2 Grading inputs (what "actual result" means)
@@ -537,7 +537,7 @@ Bring the output (screens/tokens/Figma) back here. I'll wire components to the l
 - [ ] First login forces a password change; subsequent logins go straight to Leagues Home.
 - [ ] A user sees only the leagues they belong to; many-to-many works (a user can be in both).
 - [ ] All 104 fixtures sync with correct **UTC kickoff**; knockout TBD slots resolve after group stage.
-- [ ] Predictions editable until **lock = KO − 30 min**, then frozen (UI + RLS).
+- [ ] Predictions editable until **lock = KO (kickoff)**, then frozen (UI + RLS).
 - [ ] Others' predictions are **invisible before lock**, **visible after** (incl. live/settled).
 - [ ] Group games offer Home/Draw/Away; **knockouts offer Home/Away only**; scoreline captured.
 - [ ] `<2` valid entries → contest **void**; settlement only on **confirmed full-time**.
