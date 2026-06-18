@@ -19,6 +19,8 @@ const mono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Cashford",
   description: "World Cup 2026 prediction & settle-up game",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Cashford", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
