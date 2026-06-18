@@ -74,7 +74,7 @@ create table if not exists cashford.teams (
 create table if not exists cashford.fixtures (
   id                    uuid primary key default gen_random_uuid(),
   external_id           int  unique not null,
-  round                 text not null check (round in ('group','r32','r16','qf','sf','final')),
+  round                 text not null check (round in ('group','r32','r16','qf','sf','final','third')),
   group_label           text,
   is_knockout           boolean not null default false,
   home_team_id          uuid references cashford.teams(id) on delete set null,

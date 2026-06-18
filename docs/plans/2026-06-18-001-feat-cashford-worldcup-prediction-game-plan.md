@@ -62,7 +62,7 @@ Everything administrative — creating accounts, assigning people to leagues, se
 | D1 | **Knockout predictions** | **Advance-based.** Outcome is *who advances* (Team A / Team B — **no Draw** button in knockouts). Predicted scoreline = the **90-minute (regulation) score**. Winner-by-outcome = whoever actually advances, incl. via extra time/penalties. |
 | D2 | **Scoreline tie-break** (only when *everyone* picked the same outcome) | **Layered:** ① exact score → ② smallest total goal error `\|pH−aH\|+\|pA−aA\|` → ③ closest goal margin → ④ closest total goals → ⑤ still tied = split. |
 | D3 | **Same-outcome money flow** | **"Least-wrong always wins."** When all entrants pick the same outcome, the single closest scoreline wins and collects the stake from each other player — **even if the shared outcome was wrong**. (Same-outcome contests therefore always settle, never void on that basis.) |
-| D4 | **Scores/fixtures API** | **Free tier only** → **API-Football (api-sports.io) free tier** (only free tier with live scores + WC2026). |
+| D4 | **Scores/fixtures API** | **Free, no key** → **ESPN public API** (`site.api.espn.com`, `soccer/fifa.world`). *(Revised at build time: API-Football's free tier turned out to be season-capped to 2022–2024 — no WC2026. ESPN serves WC2026 fixtures + live/final scores + a `winner` flag for knockouts, free and key-less.)* |
 | D5 | **Settlement trigger** | **Fully automatic**, firing **only on the API's confirmed full-time/finished status** (`FT`/`AET`/`PEN`). Backend correction path if Ananth spots a mistake. |
 | D6 | **Dues display** | **Net + pairwise** — each player's running net *and* a "who owes whom" breakdown. |
 | D7 | **League membership** | **Many-to-many** — a player (incl. Ananth) can be in both leagues. |
@@ -578,7 +578,7 @@ Bring the output (screens/tokens/Figma) back here. I'll wire components to the l
    - `ananth` = admin **+** player; `ananth` & `utkarsh` are in **both** leagues (many-to-many confirmed). I generate temp passwords at account creation for Ananth to share.
 3. ✅ **League names:** "KK Bois" / "PES Bois" (renamable later via backend; no rename UI needed).
 4. ⏳ **Supabase project** — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` → fill into `.env.local`.
-5. ⏳ **API-Football key** — `API_FOOTBALL_KEY` (free `x-apisports-key`) → fill into `.env.local`.
+5. ✅ **Scores/fixtures source** — **ESPN public API** (no key needed). API-Football's free tier is season-capped (2022–2024) so it can't serve WC2026; switched to ESPN (`soccer/fifa.world` scoreboard).
 6. ✅ **Live updates:** 30s client polling, no Realtime in v1 (§17.3). **Palette:** standalone Cashford (§12).
 
 ---

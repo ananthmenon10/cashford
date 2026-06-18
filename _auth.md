@@ -5,7 +5,7 @@ Records **which account / which method** per service. **No secrets here** — ke
 | Service | Account / Project | Method | Where the secret lives | Notes |
 |---------|-------------------|--------|------------------------|-------|
 | Supabase | _(TBD — Ananth's project)_ | Project URL + anon key (client) / service-role key (server) | `.env.local` | Postgres + Auth + Edge Functions + pg_cron |
-| API-Football (api-sports.io) | _(TBD — free-tier signup)_ | `x-apisports-key` header | `.env.local` (`API_FOOTBALL_KEY`) | WC2026: `league=1, season=2026`; 100 req/day |
+| ESPN (public API) | none — public, key-less | unauthenticated GET `site.api.espn.com` | n/a | WC2026 via `soccer/fifa.world` scoreboard. Chosen because API-Football's free tier is season-capped (2022–2024). `API_FOOTBALL_KEY` in `.env.local` is now unused. |
 | GitHub | `ananthmenon10` | `gh` CLI / SSH | system keychain | repo `ananthmenon10/cashford` (private) — not yet created |
 | Vercel | _(TBD)_ | Git integration (auto-deploy on push to main) | Vercel dashboard | env vars mirrored from `.env.local` |
 
