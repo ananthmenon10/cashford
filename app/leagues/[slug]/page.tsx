@@ -14,7 +14,8 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
   const { data: league } = await supabase.from("leagues").select("id, name, slug").eq("slug", slug).single();
   if (!league) notFound(); // not a member (RLS) or bad slug
 
-  const [{ data: contests }, { data: teams }, { data: myPreds }, { data: myResults }, { data: members }] =
+  const memberIds = (await supabase.from("league_members").select("user_id").eq("league_id", league.id)).data?.map((m) => m.user_id) ?? [];
+  const [{ data: contests }, { data: teams }, { data: myPreds }, { data: myResults }, { data: members }, { data: allResults }, { data: ledger }] =
     await Promise.all([
       supabase.from("contests")
         .select("id, status, lock_at, stake_inr, is_knockout, fixtures(round, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, advancer_team_id)")
@@ -22,8 +23,9 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
       supabase.from("teams").select("id, short_name"),
       supabase.from("predictions").select("contest_id, outcome, pred_home, pred_away").eq("user_id", user!.id),
       supabase.from("contest_results").select("contest_id, result, net_inr").eq("user_id", user!.id),
-      supabase.from("profiles").select("id, display_name, username")
-        .in("id", (await supabase.from("league_members").select("user_id").eq("league_id", league.id)).data?.map((m) => m.user_id) ?? []),
+      supabase.from("profiles").select("id, display_name, username").in("id", memberIds),
+      supabase.from("contest_results").select("user_id, net_inr, contests!inner(league_id)").eq("contests.league_id", league.id),
+      supabase.from("transfers").select("from_user_id, to_user_id, amount_inr").eq("league_id", league.id).eq("reversed", false),
     ]);
 
   const short = new Map((teams ?? []).map((t) => [t.id, t.short_name as string | null]));
@@ -75,6 +77,21 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
   // Your net in this league = Σ contest_results.net_inr
   const myNet = (myResults ?? []).reduce((t, r) => t + (r.net_inr ?? 0), 0);
 
+  // Dues: net leaderboard + per-viewer "who owes whom" from the transfers ledger
+  const nameById = new Map((members ?? []).map((m) => [m.id, m.display_name || m.username]));
+  const netByUser = new Map<string, number>(memberIds.map((id) => [id, 0]));
+  for (const r of allResults ?? []) netByUser.set(r.user_id, (netByUser.get(r.user_id) ?? 0) + (r.net_inr ?? 0));
+  const leaderboard = [...netByUser.entries()]
+    .map(([id, net]) => ({ id, name: nameById.get(id) ?? "?", net }))
+    .sort((a, b) => b.net - a.net);
+  const pair = new Map<string, number>(); // other → (owed-to-me − I-owe)
+  for (const t of ledger ?? []) {
+    if (t.to_user_id === user!.id) pair.set(t.from_user_id, (pair.get(t.from_user_id) ?? 0) + t.amount_inr);
+    if (t.from_user_id === user!.id) pair.set(t.to_user_id, (pair.get(t.to_user_id) ?? 0) - t.amount_inr);
+  }
+  const owes = [...pair.entries()].filter(([, v]) => v !== 0).map(([id, v]) => ({ id, name: nameById.get(id) ?? "?", v }));
+  const settleUp = (ledger ?? []).length > 0;
+
   const list = (arr: CardData[], empty: string) =>
     arr.length ? (
       <div className="flex flex-col gap-3">{arr.map((d) => <MatchCard key={d.contestId} d={d} />)}</div>
@@ -105,15 +122,31 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
           live={list(groups.live, "No live matches right now.")}
           done={list(groups.done, "Nothing settled yet.")}
           dues={
-            <div className="flex flex-col gap-2">
-              {(members ?? []).map((m) => (
-                <div key={m.id} className="flex items-center gap-3 rounded-card border border-border bg-surface px-4 py-3">
-                  <Avatar label={m.display_name || m.username} size={26} />
-                  <span className="text-[14px] font-semibold">{m.display_name || m.username}</span>
-                  <span className="ml-auto font-mono text-[14px] font-bold text-muted tabular">{inr(0)}</span>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                {leaderboard.map((m, i) => (
+                  <div key={m.id} className="flex items-center gap-3 rounded-card border border-border bg-surface px-4 py-2.5">
+                    <span className="w-4 font-mono text-[13px] text-muted">{i + 1}</span>
+                    <Avatar label={m.name} size={26} />
+                    <span className="text-[14px] font-semibold">{m.name}{m.id === user!.id ? " (you)" : ""}</span>
+                    <span className={`ml-auto font-mono text-[14px] font-bold tabular ${m.net > 0 ? "text-win" : m.net < 0 ? "text-loss" : "text-muted"}`}>{inr(m.net)}</span>
+                  </div>
+                ))}
+              </div>
+              {settleUp && owes.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">Settle up</div>
+                  {owes.map((o) => (
+                    <div key={o.id} className={`flex items-center justify-between rounded-card px-4 py-3 ${o.v < 0 ? "bg-[#FEF2F2]" : "bg-[#F0FDF4]"}`}>
+                      <span className="text-[13px] font-semibold">
+                        {o.v < 0 ? <>You owe <strong>{o.name}</strong></> : <><strong>{o.name}</strong> owes you</>}
+                      </span>
+                      <span className={`font-mono text-[14px] font-bold tabular ${o.v < 0 ? "text-loss" : "text-win"}`}>₹{Math.abs(o.v).toLocaleString("en-IN")}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              <p className="mt-2 text-center text-[12px] text-muted">Dues update as matches settle.</p>
+              )}
+              {!settleUp && <p className="text-center text-[12px] text-muted">Dues update as matches settle.</p>}
             </div>
           }
         />
