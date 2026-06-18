@@ -80,8 +80,11 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
   const groups = { upcoming: [] as CardData[], live: [] as CardData[], done: [] as CardData[] };
   for (const c of cards) groups[tabForState(c.state)].push(c);
 
-  // Your net in this league = Σ contest_results.net_inr
-  const myNet = (myResults ?? []).reduce((t, r) => t + (r.net_inr ?? 0), 0);
+  // Your net in THIS league = Σ of your contest_results scoped to this league's
+  // contests (allResults is filtered to league.id; myResults spans all leagues).
+  const myNet = (allResults ?? [])
+    .filter((r) => r.user_id === user!.id)
+    .reduce((t, r) => t + (r.net_inr ?? 0), 0);
 
   // Dues: net leaderboard + per-viewer "who owes whom" from the transfers ledger
   const nameById = new Map((members ?? []).map((m) => [m.id, m.display_name || m.username]));

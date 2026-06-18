@@ -23,14 +23,23 @@ export default async function Home() {
     user?.email?.split("@")[0] ??
     "you";
 
-  const [{ data: leagues }, { data: members }] = await Promise.all([
+  const [{ data: leagues }, { data: members }, { data: myResults }] = await Promise.all([
     supabase.from("leagues").select("id, name, slug").order("name"),
     supabase.from("league_members").select("league_id"),
+    supabase.from("contest_results").select("net_inr, contests!inner(league_id)").eq("user_id", user!.id),
   ]);
 
   const counts = new Map<string, number>();
   for (const m of members ?? []) {
     counts.set(m.league_id, (counts.get(m.league_id) ?? 0) + 1);
+  }
+
+  // Net per league (scoped via the contest→league join), so each card shows the
+  // right standing — not a global total.
+  const netByLeague = new Map<string, number>();
+  for (const r of myResults ?? []) {
+    const lid = (Array.isArray(r.contests) ? r.contests[0] : r.contests)?.league_id;
+    if (lid) netByLeague.set(lid, (netByLeague.get(lid) ?? 0) + (r.net_inr ?? 0));
   }
 
   return (
@@ -84,8 +93,8 @@ export default async function Home() {
                   </div>
                   <div className="text-right">
                     <div className="text-[11px] text-muted">Your net</div>
-                    <div className="font-mono text-xl font-bold text-muted tabular">
-                      {inr(0)}
+                    <div className={`font-mono text-xl font-bold tabular ${(netByLeague.get(lg.id) ?? 0) > 0 ? "text-win" : (netByLeague.get(lg.id) ?? 0) < 0 ? "text-loss" : "text-muted"}`}>
+                      {(netByLeague.get(lg.id) ?? 0) === 0 ? "₹0" : inr(netByLeague.get(lg.id) ?? 0)}
                     </div>
                   </div>
                 </div>
