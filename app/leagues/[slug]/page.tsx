@@ -5,6 +5,7 @@ import { deriveCardState, tabForState, type ContestStatus, type FixtureStatus, t
 import { MatchCard, type CardData } from "@/components/MatchCard";
 import { LeagueTabs } from "@/components/LeagueTabs";
 import { Avatar, inr } from "@/components/ui";
+import { AutoRefresh } from "@/components/AutoRefresh";
 
 export default async function LeaguePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -101,6 +102,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
 
   return (
     <main className="min-h-screen bg-bg">
+      <AutoRefresh seconds={30} />
       <header className="flex items-center gap-2.5 border-b border-border bg-surface px-4 py-3">
         <Link href="/" className="text-lg text-muted">‹</Link>
         <span className="text-[17px] font-extrabold">{league.name}</span>

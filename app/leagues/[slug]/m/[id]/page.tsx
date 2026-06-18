@@ -6,6 +6,7 @@ import { PredictionForm } from "@/components/PredictionForm";
 import { RevealGrid, type RevealRow } from "@/components/RevealGrid";
 import { StatusBadge, Avatar, inr } from "@/components/ui";
 import { LocalTime } from "@/components/LocalTime";
+import { AutoRefresh } from "@/components/AutoRefresh";
 
 export default async function MatchPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
@@ -70,6 +71,7 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
 
   return (
     <main className="min-h-screen bg-bg">
+      {(state === "live" || state === "settling") && <AutoRefresh seconds={20} />}
       <header className="flex items-center gap-2.5 border-b border-border bg-surface px-4 py-3">
         <Link href={`/leagues/${slug}`} className="text-lg text-muted">‹</Link>
         <span className="text-[15px] font-bold">{roundTxt}</span>
