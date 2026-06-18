@@ -34,3 +34,7 @@ yarn-error.log*
 
 # ledger backups (contain settlement data)
 /backups/
+
+# vercel
+/.vercel
+.vercel
