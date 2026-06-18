@@ -26,6 +26,13 @@ const numScore = (s: any) => (s === undefined || s === null || s === "" ? null :
 
 export async function pollScores(admin: Admin) {
   const now = new Date();
+  // Guard: skip the ESPN call unless something is live or kicking off soon (§17.6).
+  const since = new Date(now.getTime() - 3 * 3600e3).toISOString();
+  const until = new Date(now.getTime() + 30 * 60e3).toISOString();
+  const { count } = await admin.from("fixtures").select("*", { count: "exact", head: true })
+    .or(`status.eq.live,and(status.eq.scheduled,kickoff_at.gte.${since},kickoff_at.lte.${until})`);
+  if (!count) return { fetched: 0, updated: 0, resolved: 0, skipped: true };
+
   const from = ymd(new Date(now.getTime() - 36 * 3600e3)); // catch late-finishing US night games
   const to = ymd(new Date(now.getTime() + 24 * 3600e3));
   let events: any[] = [];
