@@ -45,9 +45,11 @@ export default function RulesPage() {
             <li>Everyone who got the result right is a <strong className="text-win">winner</strong>; everyone else is a <strong className="text-loss">loser</strong>.</li>
             <li>Each loser pays the stake. The total pot is split <strong>equally</strong> among the winners.</li>
           </ul>
-          <div className="rounded-[10px] bg-bg p-3 text-[12px]">
-            <div>1 right vs 3 wrong → the one wins <span className="font-mono text-win">+₹1,500</span> (₹500 from each).</div>
-            <div className="mt-1">3 right vs 1 wrong → each winner <span className="font-mono text-win">+₹250</span>, the loser <span className="font-mono text-loss">−₹500</span>.</div>
+          <div className="rounded-[10px] bg-bg p-3 text-[12px] leading-relaxed">
+            <div className="mb-1.5 text-muted">The pot = the <em>losers&apos;</em> stakes, split equally among winners:</div>
+            <div>1 winner, 3 losers → winner <span className="font-mono text-win">+₹1,500</span> (₹500 × 3).</div>
+            <div className="mt-1">2 winners, 1 loser → each <span className="font-mono text-win">+₹250</span> (₹500 ÷ 2); loser <span className="font-mono text-loss">−₹500</span>.</div>
+            <div className="mt-1">3 winners, 1 loser → each <span className="font-mono text-win">≈ +₹167</span> (₹500 ÷ 3); loser <span className="font-mono text-loss">−₹500</span>.</div>
           </div>
           <p className="text-[12px] text-muted">When the result splits players like this, the scoreline is <em>ignored</em> — it&apos;s only a tiebreaker (below).</p>
         </Card>
