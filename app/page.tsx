@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "./actions";
+import { LinkPending } from "@/components/LinkPending";
 
 function initials(name: string) {
   const clean = name.replace(/[^A-Za-z]/g, "");
@@ -67,8 +68,9 @@ export default async function Home() {
               <Link
                 key={lg.id}
                 href={`/leagues/${lg.slug}`}
-                className="block rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)] active:scale-[.99] transition-transform"
+                className="relative block rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)] transition-transform active:scale-[.99]"
               >
+                <LinkPending />
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="text-base font-bold">{lg.name}</div>

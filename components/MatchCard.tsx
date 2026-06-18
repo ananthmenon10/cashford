@@ -2,6 +2,7 @@ import Link from "next/link";
 import { type CardState, ROUND_LABEL } from "@/lib/contest-state";
 import { LocalTime, Countdown } from "./LocalTime";
 import { StatusBadge, Avatar, inr } from "./ui";
+import { LinkPending } from "./LinkPending";
 
 export interface CardData {
   contestId: string;
@@ -49,8 +50,9 @@ export function MatchCard({ d }: { d: CardData }) {
   return (
     <Link
       href={`/leagues/${d.slug}/m/${d.contestId}`}
-      className="block rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)] active:scale-[.99] transition-transform"
+      className="relative block rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)] transition-transform active:scale-[.99]"
     >
+      <LinkPending />
       <div className="mb-2.5 flex items-center justify-between">
         <span className="text-[11px] text-muted">
           {roundTxt} · <LocalTime iso={d.kickoffIso} />
