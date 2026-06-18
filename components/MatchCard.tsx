@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { type CardState, ROUND_LABEL, liveLabel } from "@/lib/contest-state";
 import { LocalTime, Countdown } from "./LocalTime";
-import { StatusBadge, Avatar, inr } from "./ui";
+import { StatusBadge, Avatar } from "./ui";
 import { LinkPending } from "./LinkPending";
 
 export interface CardData {
@@ -105,11 +105,19 @@ function footer(d: CardData) {
     case "settling":
       return <span className="text-muted">Full time · settling…</span>;
     case "won":
-      return <span className="font-mono font-bold text-win">{inr(d.myNet ?? 0)}</span>;
+      return (
+        <span className="font-semibold text-win">
+          You win <span className="font-mono">₹{Math.abs(d.myNet ?? 0).toLocaleString("en-IN")}</span>
+        </span>
+      );
     case "lost":
-      return <span className="font-mono font-bold text-loss">{inr(d.myNet ?? 0)}</span>;
+      return (
+        <span className="font-semibold text-loss">
+          You lose <span className="font-mono">₹{Math.abs(d.myNet ?? 0).toLocaleString("en-IN")}</span>
+        </span>
+      );
     case "push":
-      return <span className="font-semibold text-push">Push · no money</span>;
+      return <span className="font-semibold text-push">No winner · nothing owed</span>;
     case "notentered":
       return <span className="text-muted">You sat this one out</span>;
     case "void":

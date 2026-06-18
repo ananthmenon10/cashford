@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { deriveCardState, ROUND_LABEL, liveLabel, type ContestStatus, type FixtureStatus, type ResultKind } from "@/lib/contest-state";
 import { PredictionForm } from "@/components/PredictionForm";
 import { RevealGrid, type RevealRow } from "@/components/RevealGrid";
-import { StatusBadge, Avatar, inr } from "@/components/ui";
+import { StatusBadge, Avatar } from "@/components/ui";
 import { LocalTime } from "@/components/LocalTime";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { BackLink } from "@/components/BackLink";
@@ -128,10 +128,12 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
           <div className="rounded-card border border-border bg-surface p-6 text-center text-[13px] text-[#B91C1C]">Match cancelled — no contest.</div>
         ) : (
           <>
-            {myRes && (state === "won" || state === "lost" || state === "push") && (
-              <div className="mb-3 text-center font-mono text-2xl font-bold tabular"
+            {(state === "won" || state === "lost" || state === "push") && (
+              <div className="mb-3 text-center text-xl font-extrabold"
                    style={{ color: state === "won" ? "var(--color-win)" : state === "lost" ? "var(--color-loss)" : "var(--color-push)" }}>
-                {state === "push" ? "Push" : inr(myRes.net_inr ?? 0)}
+                {state === "won" ? <>You win <span className="font-mono">₹{Math.abs(myRes?.net_inr ?? 0).toLocaleString("en-IN")}</span></>
+                  : state === "lost" ? <>You lose <span className="font-mono">₹{Math.abs(myRes?.net_inr ?? 0).toLocaleString("en-IN")}</span></>
+                  : "No winner · nothing owed"}
               </div>
             )}
             <RevealGrid rows={rows} settled={["won", "lost", "push", "notentered"].includes(state)} />

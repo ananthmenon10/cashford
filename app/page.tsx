@@ -93,6 +93,14 @@ export default async function Home() {
             ))}
           </div>
         )}
+
+        <Link
+          href="/rules"
+          className="mt-5 flex items-center justify-between rounded-card border border-border bg-surface px-4 py-3.5 text-[14px] font-semibold shadow-[0_2px_8px_rgba(15,23,42,.04)] transition-transform active:scale-[.99]"
+        >
+          <span>📖 How scoring &amp; tiebreakers work</span>
+          <span className="text-muted">›</span>
+        </Link>
       </div>
     </main>
   );
