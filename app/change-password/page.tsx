@@ -8,13 +8,21 @@ const initial: AuthState = { error: null };
 
 // Cheap strength estimate (length + variety), 0–4 bars.
 function strength(pw: string): { bars: number; label: string; ok: boolean } {
+  const longEnough = pw.length >= 10;
+  const hasNum = /\d/.test(pw);
+  const hasSym = /[^A-Za-z0-9]/.test(pw);
   let score = 0;
-  if (pw.length >= 10) score++;
+  if (longEnough) score++;
   if (pw.length >= 14) score++;
-  if (/\d/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  const ok = pw.length >= 10;
-  const label = !pw ? "" : score >= 4 ? "Strong · 10+ chars, number, symbol" : score >= 2 ? "Okay — add a number or symbol" : "Too weak";
+  if (hasNum) score++;
+  if (hasSym) score++;
+  const ok = longEnough;
+  let label = "";
+  if (pw) {
+    if (!longEnough) label = "Too short — use at least 10 characters";
+    else if (hasNum && hasSym) label = "Strong password";
+    else label = "Good — add a number or symbol to strengthen it";
+  }
   return { bars: Math.min(score, 4), label, ok };
 }
 
