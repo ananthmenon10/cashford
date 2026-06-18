@@ -30,6 +30,8 @@ supabase db push
 ```
 `0001_schema.sql` — tables + constraints · `0002_rls_functions.sql` — RLS, helpers, triggers · `0003_seed.sql` — the two leagues.
 
+All app objects live in a dedicated **`cashford`** Postgres schema (not `public`). After applying migrations, add `cashford` to the project's **Exposed Schemas** (Dashboard → Settings → API → "Exposed schemas") so PostgREST/`supabase-js` can reach it. The clients are already configured with `db: { schema: "cashford" }`.
+
 Player accounts are created by the admin (no public signup) — see the create-user flow (Phase 2) and [`_auth.md`](./_auth.md).
 
 ## Project structure
