@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/*
+  Cashford design tokens (plan §12.1). Light theme primary; dark variant via .dark.
+  Exposed as Tailwind v4 theme variables so components use e.g. bg-surface, text-win.
+*/
+@theme {
+  --color-bg: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-primary: #15a66a;
+  --color-primary-press: #0e8455;
+  --color-accent: #f2c94c;
+  --color-win: #16a34a;
+  --color-loss: #ef4444;
+  --color-push: #64748b;
+  --color-live: #ff3b30;
+  --color-fg: #0f172a;
+  --color-muted: #64748b;
+  --color-border: #e5e8ec;
+
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter,
+    sans-serif;
+}
+
+/* Dark variant — toggled by adding .dark to <html> */
+.dark {
+  --color-bg: #0b0f14;
+  --color-surface: #131922;
+  --color-fg: #e6eaf0;
+  --color-border: #232b36;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+}
+
+/* Money / score numerals use tabular figures so columns line up. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.animate-live-pulse {
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
