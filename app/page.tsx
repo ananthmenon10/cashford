@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "./actions";
 
@@ -63,9 +64,10 @@ export default async function Home() {
         ) : (
           <div className="flex flex-col gap-3">
             {(leagues ?? []).map((lg) => (
-              <div
+              <Link
                 key={lg.id}
-                className="rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]"
+                href={`/leagues/${lg.slug}`}
+                className="block rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)] active:scale-[.99] transition-transform"
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -81,7 +83,7 @@ export default async function Home() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
