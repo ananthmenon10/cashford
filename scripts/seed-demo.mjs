@@ -93,6 +93,7 @@ for (let i = 0; i < CASES.length; i++) {
     home_label: `Demo ${i + 1} Home`, away_label: `Demo ${i + 1} Away`,
     kickoff_at: past(60), status: "finished", status_detail: cse.ko ? "PEN" : "FT",
     ft_home: cse.ft[0], ft_away: cse.ft[1],
+    ...(cse.ko ? { pen_home: 4, pen_away: 3 } : {}),
   }, { onConflict: "external_id" }).select("id, home_team_id, away_team_id").single();
   // advancer for KO: we have no real teams, so set advancer_team_id null but encode side via a sentinel?
   // settle() needs advancer side; with null team ids we can't store advancer_team_id. So for KO demo,
