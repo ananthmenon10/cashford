@@ -60,6 +60,22 @@ export function tabForState(s: CardState): Tab {
   return "upcoming"; // open_nopick, open_picked, tbd, locked
 }
 
+// Short live-status label. Halftime/breaks show a frozen label (not a ticking
+// minute), since the minute is a server-polled value, not a client timer.
+export function liveLabel(statusDetail?: string | null, minute?: number | null): string {
+  switch (statusDetail) {
+    case "STATUS_HALFTIME": return "HT";
+    case "STATUS_END_OF_REGULATION":
+    case "STATUS_END_OF_EXTRATIME": return "Break";
+    case "STATUS_SHOOTOUT":
+    case "STATUS_PENALTIES": return "Pens";
+    case "STATUS_OVERTIME":
+    case "STATUS_FIRST_EXTRA":
+    case "STATUS_SECOND_EXTRA": return minute ? `ET ${minute}'` : "Extra time";
+  }
+  return minute ? `${minute}'` : "Live";
+}
+
 export const ROUND_LABEL: Record<string, string> = {
   group: "Group", r32: "Round of 32", r16: "Round of 16",
   qf: "Quarter-final", sf: "Semi-final", third: "3rd place", final: "Final",

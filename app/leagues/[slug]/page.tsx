@@ -6,9 +6,14 @@ import { MatchCard, type CardData } from "@/components/MatchCard";
 import { LeagueTabs } from "@/components/LeagueTabs";
 import { Avatar, inr } from "@/components/ui";
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { BackLink } from "@/components/BackLink";
+import { createServiceRoleClient } from "@/lib/supabase/service";
+import { pollScores } from "@/lib/espn";
 
 export default async function LeaguePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  // Freshen live scores from ESPN on load (guard inside skips if nothing live).
+  try { await pollScores(createServiceRoleClient()); } catch {}
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -61,7 +66,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
         homeLabel: f.home_label, awayLabel: f.away_label,
         homeShort: short.get(f.home_team_id), awayShort: short.get(f.away_team_id),
         kickoffIso: f.kickoff_at, lockIso: c.lock_at, stake: c.stake_inr,
-        ftHome: f.ft_home, ftAway: f.ft_away, minute: f.minute,
+        ftHome: f.ft_home, ftAway: f.ft_away, minute: f.minute, statusDetail: f.status_detail,
         advancerSide,
         my: mine ? { outcome: mine.outcome, predHome: mine.pred_home, predAway: mine.pred_away } : null,
         myNet: res?.net_inr ?? null,
@@ -104,7 +109,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
     <main className="min-h-screen bg-bg">
       <AutoRefresh seconds={30} />
       <header className="flex items-center gap-2.5 border-b border-border bg-surface px-4 py-3">
-        <Link href="/" className="text-lg text-muted">‹</Link>
+        <BackLink href="/" />
         <span className="text-[17px] font-extrabold">{league.name}</span>
         <span className="ml-auto"><Avatar label={(user?.user_metadata?.username as string) ?? "you"} size={28} /></span>
       </header>

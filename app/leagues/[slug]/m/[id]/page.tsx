@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { deriveCardState, ROUND_LABEL, type ContestStatus, type FixtureStatus, type ResultKind } from "@/lib/contest-state";
+import { deriveCardState, ROUND_LABEL, liveLabel, type ContestStatus, type FixtureStatus, type ResultKind } from "@/lib/contest-state";
 import { PredictionForm } from "@/components/PredictionForm";
 import { RevealGrid, type RevealRow } from "@/components/RevealGrid";
 import { StatusBadge, Avatar, inr } from "@/components/ui";
 import { LocalTime } from "@/components/LocalTime";
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { BackLink } from "@/components/BackLink";
+import { createServiceRoleClient } from "@/lib/supabase/service";
+import { pollScores } from "@/lib/espn";
 
 export default async function MatchPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
+  // Freshen live scores from ESPN on load (guard inside skips if nothing live).
+  try { await pollScores(createServiceRoleClient()); } catch {}
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -73,7 +78,7 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
     <main className="min-h-screen bg-bg">
       {(state === "live" || state === "settling") && <AutoRefresh seconds={20} />}
       <header className="flex items-center gap-2.5 border-b border-border bg-surface px-4 py-3">
-        <Link href={`/leagues/${slug}`} className="text-lg text-muted">‹</Link>
+        <BackLink href={`/leagues/${slug}`} />
         <span className="text-[15px] font-bold">{roundTxt}</span>
         <span className="ml-auto"><StatusBadge state={state} /></span>
       </header>
@@ -81,8 +86,15 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
       <div className="mx-auto max-w-[480px] px-4 py-4">
         {/* Fixture header */}
         <div className="mb-4 rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]">
-          <div className="mb-3 text-[12px] text-muted">
-            <LocalTime iso={f.kickoff_at} />{f.venue ? ` · ${f.venue}` : ""}
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px] text-muted">
+            {state === "live" && (
+              <span className="inline-flex items-center gap-1.5 rounded-pill bg-[#FFECEC] px-2 py-0.5 font-semibold text-live">
+                <span className="h-1.5 w-1.5 rounded-full bg-live animate-live-pulse" />
+                {liveLabel(f.status_detail, f.minute)}
+              </span>
+            )}
+            <LocalTime iso={f.kickoff_at} />
+            {f.venue ? <span>· {f.venue}</span> : null}
           </div>
           {[{ label: f.home_label, sc: f.ft_home }, { label: f.away_label, sc: f.ft_away }].map((t, i) => (
             <div key={i} className="flex items-center gap-2.5 py-1">

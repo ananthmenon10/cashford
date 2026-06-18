@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { type CardState, ROUND_LABEL } from "@/lib/contest-state";
+import { type CardState, ROUND_LABEL, liveLabel } from "@/lib/contest-state";
 import { LocalTime, Countdown } from "./LocalTime";
 import { StatusBadge, Avatar, inr } from "./ui";
 import { LinkPending } from "./LinkPending";
@@ -20,6 +20,7 @@ export interface CardData {
   ftHome?: number | null;
   ftAway?: number | null;
   minute?: number | null;
+  statusDetail?: string | null;
   advancerSide?: "home" | "away" | null;
   my?: { outcome: "home" | "draw" | "away"; predHome: number; predAway: number } | null;
   myNet?: number | null;
@@ -100,7 +101,7 @@ function footer(d: CardData) {
         </div>
       );
     case "live":
-      return <span className="font-semibold text-live">● Live{d.minute ? ` · ${d.minute}'` : ""}</span>;
+      return <span className="font-semibold text-live">● {liveLabel(d.statusDetail, d.minute)}</span>;
     case "settling":
       return <span className="text-muted">Full time · settling…</span>;
     case "won":

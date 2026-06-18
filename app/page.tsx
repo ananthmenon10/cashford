@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "./actions";
 import { LinkPending } from "@/components/LinkPending";
+import { APP_VERSION } from "@/lib/version";
 
 function initials(name: string) {
   const clean = name.replace(/[^A-Za-z]/g, "");
@@ -43,6 +44,9 @@ export default async function Home() {
           <span className="text-lg font-extrabold tracking-[-.02em]">Cashford</span>
         </div>
         <div className="flex items-center gap-3">
+          <span className="rounded-pill bg-subtle px-2 py-0.5 font-mono text-[10px] font-semibold text-muted" title="Build version">
+            v{APP_VERSION}
+          </span>
           <span className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-mint text-[11px] font-bold text-primary-press">
             {initials(username)}
           </span>
