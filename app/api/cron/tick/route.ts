@@ -14,7 +14,7 @@ function authorized(req: NextRequest) {
 }
 
 // Lock due contests, then settle finished ones. Idempotent — safe to call often.
-export async function GET(req: NextRequest) {
+async function handle(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const admin = createServiceRoleClient();
   const poll = await pollScores(admin);          // ESPN: live scores + KO team resolution
@@ -22,3 +22,7 @@ export async function GET(req: NextRequest) {
   const settles = await settleFinishedContests(admin); // finished → settle
   return NextResponse.json({ ok: true, poll, locks, settles, at: new Date().toISOString() });
 }
+
+// pg_cron calls this via net.http_post (POST); manual triggers use GET ?secret=
+export const GET = handle;
+export const POST = handle;
