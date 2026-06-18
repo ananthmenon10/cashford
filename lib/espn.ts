@@ -33,45 +33,59 @@ export async function pollScores(admin: Admin) {
     .or(`status.eq.live,and(status.eq.scheduled,kickoff_at.gte.${since},kickoff_at.lte.${until})`);
   if (!count) return { fetched: 0, updated: 0, resolved: 0, skipped: true };
 
-  const from = ymd(new Date(now.getTime() - 36 * 3600e3)); // catch late-finishing US night games
-  const to = ymd(new Date(now.getTime() + 24 * 3600e3));
+  // Window covering recently-started + about-to-start matches (not the whole tournament).
+  const from = ymd(new Date(now.getTime() - 12 * 3600e3));
+  const to = ymd(new Date(now.getTime() + 12 * 3600e3));
   let events: any[] = [];
   try {
     const res = await fetch(`${BASE}?dates=${from}-${to}`);
-    const json = await res.json();
-    events = json.events ?? [];
+    events = (await res.json()).events ?? [];
   } catch {
     return { fetched: 0, updated: 0, resolved: 0, error: "espn fetch failed" };
   }
 
+  // One lookup of our fixtures for the window — no per-event round trip.
+  const ids = events.map((e) => Number(e.id));
+  const { data: rows } = await admin.from("fixtures")
+    .select("id, external_id, status, home_team_id, away_team_id").in("external_id", ids);
+  const byExt = new Map((rows ?? []).map((r) => [r.external_id, r]));
+
   let updated = 0, resolved = 0;
   for (const e of events) {
-    const externalId = Number(e.id);
-    const { data: fx } = await admin.from("fixtures")
-      .select("id, status, home_team_id, away_team_id").eq("external_id", externalId).maybeSingle();
+    const fx = byExt.get(Number(e.id));
     if (!fx) continue;
 
     const comp = e.competitions?.[0];
     const cs = comp?.competitors ?? [];
     const home = cs.find((c: any) => c.homeAway === "home") ?? cs[0];
     const away = cs.find((c: any) => c.homeAway === "away") ?? cs[1];
-    const status = mapStatus(e.status?.type?.name, e.status?.type?.state);
-    const scored = status === "live" || status === "finished";
+    const state = e.status?.type?.state;
+    const status = mapStatus(e.status?.type?.name, state);
+
+    // Only touch games *by their start time*: live now, a just-changed terminal
+    // state (finished/postponed/cancelled/abandoned), or a knockout whose teams
+    // just got decided. Scheduled-future / already-recorded games are skipped.
+    const isLive = state === "in";
+    const terminalChange =
+      (status === "finished" || status === "postponed" || status === "cancelled" || status === "abandoned") &&
+      fx.status !== status;
+    const needsResolve = isReal(home) && isReal(away) && (!fx.home_team_id || !fx.away_team_id);
+    if (!isLive && !terminalChange && !needsResolve) continue;
 
     const patch: Record<string, any> = {
       status,
       status_detail: e.status?.type?.name ?? null,
-      updated_at: new Date().toISOString(),
+      updated_at: now.toISOString(),
     };
-    if (scored) {
+    if (isLive || status === "finished") {
       patch.ft_home = numScore(home?.score);
       patch.ft_away = numScore(away?.score);
     }
-    if (status === "live") patch.minute = Number.parseInt(e.status?.displayClock ?? "", 10) || null;
-    if (status === "finished") patch.finished_at = new Date().toISOString();
+    if (isLive) patch.minute = Number.parseInt(e.status?.displayClock ?? "", 10) || null;
+    if (status === "finished") patch.finished_at = now.toISOString();
 
     // Resolve knockout teams once ESPN has real countries (bracket filled in)
-    if (isReal(home) && isReal(away) && (!fx.home_team_id || !fx.away_team_id)) {
+    if (needsResolve) {
       const { data: t } = await admin.from("teams").upsert(
         [
           { external_id: Number(home.team.id), name: home.team.displayName, short_name: home.team.abbreviation, flag_url: home.team.logo },

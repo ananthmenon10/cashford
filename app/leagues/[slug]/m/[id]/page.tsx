@@ -10,11 +10,12 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { BackLink } from "@/components/BackLink";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { pollScores } from "@/lib/espn";
+import { after } from "next/server";
 
 export default async function MatchPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  // Freshen live scores from ESPN on load (guard inside skips if nothing live).
-  try { await pollScores(createServiceRoleClient()); } catch {}
+  // Freshen live scores from ESPN AFTER the response is sent (non-blocking).
+  after(async () => { try { await pollScores(createServiceRoleClient()); } catch {} });
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

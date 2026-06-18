@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+// Run functions in Mumbai, next to Supabase (ap-south-1) — kills cross-region DB latency.
+export const preferredRegion = "bom1";
+
 const sans = Hanken_Grotesk({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],

@@ -4,6 +4,7 @@ import { lockDueContests, settleFinishedContests } from "@/lib/settle-contest";
 import { pollScores } from "@/lib/espn";
 
 export const dynamic = "force-dynamic";
+export const preferredRegion = "bom1"; // co-located with Supabase (ap-south-1)
 
 function authorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
