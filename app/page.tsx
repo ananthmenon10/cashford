@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "./actions";
@@ -47,9 +48,7 @@ export default async function Home() {
       {/* TopBar */}
       <header className="flex items-center justify-between border-b border-border bg-surface px-5 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary">
-            <div className="h-[9px] w-[9px] rounded-full bg-accent" />
-          </div>
+          <Image src="/icon-512.png" alt="" width={26} height={26} className="rounded-[7px]" />
           <span className="text-lg font-extrabold tracking-[-.02em]">Cashford</span>
         </div>
         <div className="flex items-center gap-3">

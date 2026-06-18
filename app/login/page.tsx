@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useActionState, useState } from "react";
 import { login, type AuthState } from "./actions";
 
@@ -14,9 +15,14 @@ export default function LoginPage() {
       <div className="w-full max-w-[360px]">
         {/* Brand */}
         <div className="mb-7 flex flex-col items-center">
-          <div className="mb-[18px] flex h-[60px] w-[60px] items-center justify-center rounded-[20px] bg-primary shadow-[0_8px_22px_rgba(21,166,106,.4)]">
-            <div className="h-6 w-6 rounded-full bg-accent" />
-          </div>
+          <Image
+            src="/icon-512.png"
+            alt="Cashford"
+            width={64}
+            height={64}
+            priority
+            className="mb-[18px] rounded-[18px] shadow-[0_8px_22px_rgba(21,166,106,.4)]"
+          />
           <div className="text-[26px] font-extrabold tracking-[-.025em]">Cashford</div>
           <div className="mt-1.5 text-sm text-muted">Predict. Settle. Brag.</div>
         </div>
