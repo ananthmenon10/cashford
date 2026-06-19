@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { predictionConsistencyError } from "@/lib/prediction-validation";
 import { revalidatePath } from "next/cache";
 
 export type MirrorResult = { contestId: string; ok: boolean; reason: string | null };
@@ -19,6 +20,20 @@ export async function submitPrediction(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in." };
 
+  const { data: primary, error: primaryError } = await supabase.from("contests")
+    .select("fixture_id, is_knockout")
+    .eq("id", input.contestId)
+    .single();
+  if (primaryError || !primary) return { error: "Contest not found." };
+
+  const consistencyError = predictionConsistencyError({
+    isKnockout: primary.is_knockout,
+    outcome: input.outcome,
+    predHome: input.predHome,
+    predAway: input.predAway,
+  });
+  if (consistencyError) return { error: consistencyError };
+
   const row = (contestId: string) => ({
     contest_id: contestId,
     user_id: user.id,
@@ -29,11 +44,12 @@ export async function submitPrediction(
   });
 
   // Primary write first. RLS enforces: own row, password changed, league member, before lock
-  // (+10s); the trigger rejects a draw on a knockout contest.
+  // (+10s); the trigger rejects scorelines that contradict the selected result.
   const { error } = await supabase.from("predictions").upsert(row(input.contestId), { onConflict: "contest_id,user_id" });
   if (error) {
     if (/row-level security/i.test(error.message)) return { error: "This contest is locked." };
     if (/knockout/i.test(error.message)) return { error: "No draws in a knockout — pick a side." };
+    if (/scoreline|selected result|selected team/i.test(error.message)) return { error: "Scoreline doesn't match the selected result." };
     return { error: error.message };
   }
 
@@ -45,15 +61,22 @@ export async function submitPrediction(
   const mirrored: MirrorResult[] = [];
   const targets = (input.alsoTargets ?? []).filter((id) => id !== input.contestId);
   if (targets.length) {
-    const { data: primary } = await supabase.from("contests").select("fixture_id").eq("id", input.contestId).single();
-    const { data: valid } = primary
-      ? await supabase.from("contests")
-          .select("id, leagues(slug)")
-          .eq("fixture_id", primary.fixture_id)
-          .in("id", targets)
-          .neq("id", input.contestId)
-      : { data: [] as { id: string; leagues: unknown }[] };
+    const { data: valid } = await supabase.from("contests")
+      .select("id, is_knockout, leagues(slug)")
+      .eq("fixture_id", primary.fixture_id)
+      .in("id", targets)
+      .neq("id", input.contestId);
     for (const t of valid ?? []) {
+      const targetConsistencyError = predictionConsistencyError({
+        isKnockout: t.is_knockout,
+        outcome: input.outcome,
+        predHome: input.predHome,
+        predAway: input.predAway,
+      });
+      if (targetConsistencyError) {
+        mirrored.push({ contestId: t.id, ok: false, reason: "invalid" });
+        continue;
+      }
       const { error: e } = await supabase.from("predictions").upsert(row(t.id), { onConflict: "contest_id,user_id" });
       const ok = !e;
       mirrored.push({ contestId: t.id, ok, reason: e ? (/row-level security/i.test(e.message) ? "locked" : "error") : null });

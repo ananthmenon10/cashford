@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { submitPrediction, type MirrorResult } from "@/app/leagues/[slug]/m/[id]/actions";
 import { Countdown } from "./LocalTime";
 import { defaultCheckedTargets, samePick, type OtherLeague, type PickShape } from "@/lib/cross-league";
+import { deriveOutcomeFromScore, predictionConsistencyError, type Outcome } from "@/lib/prediction-validation";
 
-type Outcome = "home" | "draw" | "away";
+const clampScore = (value: number) => Math.max(0, Math.min(20, value));
+
+type ScoreSide = "home" | "away";
 
 export function PredictionForm({
   contestId, slug, isKnockout, homeLabel, awayLabel, homeShort, awayShort, lockIso, stake, initial,
@@ -33,9 +36,11 @@ export function PredictionForm({
     () => new Set(defaultCheckedTargets(otherLeagues, initial ?? null)),
   );
 
+  const homeName = homeShort || homeLabel;
+  const awayName = awayShort || awayLabel;
   const opts: { v: Outcome; label: string }[] = isKnockout
-    ? [{ v: "home", label: homeShort || homeLabel }, { v: "away", label: awayShort || awayLabel }]
-    : [{ v: "home", label: homeShort || homeLabel }, { v: "draw", label: "Draw" }, { v: "away", label: awayShort || awayLabel }];
+    ? [{ v: "home", label: `${homeName} advances` }, { v: "away", label: `${awayName} advances` }]
+    : [{ v: "home", label: homeName }, { v: "draw", label: "Draw" }, { v: "away", label: awayName }];
 
   const labelFor = (o: Outcome) => (o === "home" ? homeShort || "Home" : o === "away" ? awayShort || "Away" : "Draw");
   const pickText = (p: PickShape) => `${labelFor(p.outcome)} ${p.predHome}–${p.predAway}`;
@@ -46,8 +51,61 @@ export function PredictionForm({
   const toggle = (id: string) =>
     setApplyTo((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
+  const chooseOutcome = (next: Outcome) => {
+    setError(null);
+    setOutcome(next);
+
+    if (!isKnockout) {
+      if (next === "home" && h <= a) {
+        if (a < 20) setH(a + 1);
+        else { setH(20); setA(19); }
+      } else if (next === "away" && a <= h) {
+        if (h < 20) setA(h + 1);
+        else { setH(19); setA(20); }
+      } else if (next === "draw") {
+        const level = Math.max(h, a);
+        setH(level);
+        setA(level);
+      }
+      return;
+    }
+
+    // Knockout outcome means selected advancer. A level 90-minute scoreline is valid.
+    if (next === "home" && h < a) setH(a);
+    if (next === "away" && a < h) setA(h);
+  };
+
+  const updateScore = (side: ScoreSide, nextValue: number) => {
+    const value = clampScore(nextValue);
+    const nextH = side === "home" ? value : h;
+    const nextA = side === "away" ? value : a;
+
+    setError(null);
+    setH(nextH);
+    setA(nextA);
+
+    if (!isKnockout) {
+      setOutcome(deriveOutcomeFromScore(nextH, nextA));
+      return;
+    }
+
+    if (nextH > nextA) setOutcome("home");
+    else if (nextA > nextH) setOutcome("away");
+    else setOutcome((prev) => (prev === "home" || prev === "away" ? prev : null));
+  };
+
+  const usePrefill = () => {
+    if (!prefillFrom) return;
+    setError(null);
+    setOutcome(prefillFrom.outcome);
+    setH(prefillFrom.predHome);
+    setA(prefillFrom.predAway);
+  };
+
   const submit = () => {
     if (!outcome) { setError("Pick a result first."); return; }
+    const consistencyError = predictionConsistencyError({ isKnockout, outcome, predHome: h, predAway: a });
+    if (consistencyError) { setError(consistencyError); return; }
     setError(null); setResults(null);
     start(async () => {
       const r = await submitPrediction({ contestId, slug, outcome, predHome: h, predAway: a, alsoTargets: [...applyTo] });
@@ -65,7 +123,7 @@ export function PredictionForm({
       <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Your prediction</div>
 
       {showPrefill && (
-        <button onClick={() => { setOutcome(prefillFrom!.outcome); setH(prefillFrom!.predHome); setA(prefillFrom!.predAway); }}
+        <button onClick={usePrefill}
           disabled={pending}
           className="mb-3 flex w-full items-center justify-between gap-2 rounded-control border border-border bg-subtle px-3 py-2 text-left">
           <span className="text-[12px] font-semibold text-label">
@@ -80,7 +138,7 @@ export function PredictionForm({
         {opts.map((o) => (
           <button
             key={o.v}
-            onClick={() => setOutcome(o.v)}
+            onClick={() => chooseOutcome(o.v)}
             disabled={pending}
             className={`flex-1 rounded-[9px] py-2.5 text-[14px] font-bold ${
               outcome === o.v ? "bg-primary text-white shadow-[0_1px_4px_rgba(21,166,106,.3)]" : "text-muted"
@@ -93,12 +151,12 @@ export function PredictionForm({
 
       {/* ScoreStepper */}
       <div className="flex justify-center gap-6">
-        {[{ lbl: homeLabel, val: h, set: setH }, { lbl: awayLabel, val: a, set: setA }].map((s, i) => (
-          <div key={i} className="text-center">
+        {[{ side: "home" as const, lbl: homeLabel, val: h }, { side: "away" as const, lbl: awayLabel, val: a }].map((s) => (
+          <div key={s.side} className="text-center">
             <div className="flex items-center gap-3">
-              <button onClick={() => s.set(Math.max(0, s.val - 1))} disabled={pending} className="h-10 w-10 rounded-control border border-border text-xl font-bold disabled:opacity-50">−</button>
+              <button onClick={() => updateScore(s.side, s.val - 1)} disabled={pending} className="h-10 w-10 rounded-control border border-border text-xl font-bold disabled:opacity-50">−</button>
               <span className="w-9 text-center font-mono text-[34px] font-bold tabular">{s.val}</span>
-              <button onClick={() => s.set(Math.min(20, s.val + 1))} disabled={pending} className="h-10 w-10 rounded-control bg-primary text-xl font-bold text-white disabled:opacity-50">+</button>
+              <button onClick={() => updateScore(s.side, s.val + 1)} disabled={pending} className="h-10 w-10 rounded-control bg-primary text-xl font-bold text-white disabled:opacity-50">+</button>
             </div>
             <div className="mt-2 text-[12px] font-semibold text-muted">{s.lbl}</div>
           </div>
