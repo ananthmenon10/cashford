@@ -37,7 +37,7 @@ export function LeagueTabs({
             <button
               key={t}
               onClick={() => setActive(t)}
-              className={`flex flex-1 flex-col items-center gap-0.5 -mb-px border-b-[2.5px] pb-2 pt-1 text-[13px] ${
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 -mb-px border-b-[2.5px] py-2 text-[13px] ${
                 on ? "border-primary font-bold text-fg" : "border-transparent font-medium text-muted"
               }`}
             >
