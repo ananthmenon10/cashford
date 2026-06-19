@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { deriveCardState, ROUND_LABEL, liveLabel, type ContestStatus, type FixtureStatus, type ResultKind } from "@/lib/contest-state";
 import { PredictionForm } from "@/components/PredictionForm";
+import { isEligible, RENDER_MARGIN_MS, type OtherLeague, type PickShape } from "@/lib/cross-league";
 import { RevealGrid, type RevealRow } from "@/components/RevealGrid";
 import { StatusBadge, Avatar } from "@/components/ui";
 import { LocalTime } from "@/components/LocalTime";
@@ -20,7 +21,7 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
   const { data: { user } } = await supabase.auth.getUser();
 
   const { data: c } = await supabase.from("contests")
-    .select("id, league_id, status, lock_at, stake_inr, is_knockout, fixtures(round, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, venue, advancer_team_id)")
+    .select("id, league_id, fixture_id, status, lock_at, stake_inr, is_knockout, fixtures(round, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, venue, advancer_team_id)")
     .eq("id", id).single();
   if (!c) notFound();
   const f = (Array.isArray(c.fixtures) ? c.fixtures[0] : c.fixtures) as any;
@@ -45,6 +46,44 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
   });
   const scored = ["live", "settling", "won", "lost", "push", "notentered"].includes(state);
   const roundTxt = f.round === "group" ? "Group stage" : ROUND_LABEL[f.round] ?? f.round;
+
+  // Cross-league duplication: when the form will render, find the user's sibling contests for
+  // THIS fixture (RLS scopes to their leagues) so the form can offer "also save to <league>"
+  // and a copy-from-other-league prefill (plan 2026-06-19-001).
+  let otherLeagues: OtherLeague[] = [];
+  let prefillFrom: (PickShape & { leagueName: string }) | null = null;
+  if (state === "open_nopick" || state === "open_picked") {
+    const { data: siblings } = await supabase.from("contests")
+      .select("id, status, lock_at, leagues(name)")
+      .eq("fixture_id", c.fixture_id).neq("id", c.id);
+    const sibIds = (siblings ?? []).map((s) => s.id);
+    const { data: sibPreds } = sibIds.length
+      ? await supabase.from("predictions")
+          .select("contest_id, outcome, pred_home, pred_away, updated_at")
+          .in("contest_id", sibIds).eq("user_id", user!.id)
+      : { data: [] as { contest_id: string; outcome: string; pred_home: number; pred_away: number; updated_at: string }[] };
+    const pickBy = new Map((sibPreds ?? []).map((p) => [p.contest_id, p]));
+    const leagueName = (s: { leagues: unknown }) =>
+      ((Array.isArray(s.leagues) ? s.leagues[0] : s.leagues) as { name?: string } | null)?.name ?? "League";
+    otherLeagues = (siblings ?? []).map((s) => {
+      const p = pickBy.get(s.id);
+      return {
+        contestId: s.id,
+        leagueName: leagueName(s),
+        eligible: isEligible(s.status, new Date(s.lock_at).getTime(), now, RENDER_MARGIN_MS),
+        existingPick: p ? { outcome: p.outcome as PickShape["outcome"], predHome: p.pred_home, predAway: p.pred_away } : null,
+      };
+    });
+    // Prefill = the most-recently-updated existing sibling pick (parse dates, never localeCompare).
+    const latest = (sibPreds ?? []).slice().sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
+    if (latest) {
+      const src = (siblings ?? []).find((s) => s.id === latest.contest_id);
+      prefillFrom = {
+        leagueName: src ? leagueName(src) : "other league",
+        outcome: latest.outcome as PickShape["outcome"], predHome: latest.pred_home, predAway: latest.pred_away,
+      };
+    }
+  }
 
   // Build reveal rows (only meaningful once revealed; RLS returns others' picks then)
   let rows: RevealRow[] = [];
@@ -118,6 +157,7 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
             homeLabel={f.home_label} awayLabel={f.away_label} homeShort={homeShort} awayShort={awayShort}
             lockIso={c.lock_at} stake={c.stake_inr}
             initial={mine ? { outcome: mine.outcome, predHome: mine.pred_home, predAway: mine.pred_away } : null}
+            otherLeagues={otherLeagues} prefillFrom={prefillFrom}
           />
         ) : state === "tbd" ? (
           <div className="rounded-card border border-dashed border-[#CBD5E1] p-8 text-center text-[13px] text-muted">
