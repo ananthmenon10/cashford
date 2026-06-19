@@ -114,8 +114,11 @@ export function settle(preds: Prediction[], actual: Actual, stake: number): Sett
 export function simplifyDebts(nets: Record<string, number>): Transfer[] {
   const creditors = Object.entries(nets).filter(([, n]) => n > 0).map(([id, n]) => ({ id, n }));
   const debtors = Object.entries(nets).filter(([, n]) => n < 0).map(([id, n]) => ({ id, n: -n }));
-  creditors.sort((a, b) => b.n - a.n);
-  debtors.sort((a, b) => b.n - a.n);
+  // Magnitude desc, then id asc — the id tiebreak makes the plan identical no matter
+  // what order `nets` is iterated (memberIds has no ORDER BY), so every viewer of a
+  // league sees the same "who owes whom". Without it, ties produce divergent plans.
+  creditors.sort((a, b) => b.n - a.n || (a.id < b.id ? -1 : 1));
+  debtors.sort((a, b) => b.n - a.n || (a.id < b.id ? -1 : 1));
   const out: Transfer[] = [];
   let ci = 0, di = 0;
   while (ci < creditors.length && di < debtors.length) {

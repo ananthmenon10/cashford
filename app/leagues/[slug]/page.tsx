@@ -9,6 +9,7 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { BackLink } from "@/components/BackLink";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { pollScores } from "@/lib/espn";
+import { simplifyDebts } from "@/lib/settlement";
 import { after } from "next/server";
 
 export default async function LeaguePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -23,7 +24,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
   if (!league) notFound(); // not a member (RLS) or bad slug
 
   const memberIds = (await supabase.from("league_members").select("user_id").eq("league_id", league.id)).data?.map((m) => m.user_id) ?? [];
-  const [{ data: contests }, { data: teams }, { data: myPreds }, { data: myResults }, { data: members }, { data: allResults }, { data: ledger }] =
+  const [{ data: contests }, { data: teams }, { data: myPreds }, { data: myResults }, { data: members }, { data: allResults }] =
     await Promise.all([
       supabase.from("contests")
         .select("id, status, lock_at, stake_inr, is_knockout, fixtures(round, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, advancer_team_id)")
@@ -33,7 +34,6 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
       supabase.from("contest_results").select("contest_id, result, net_inr").eq("user_id", user!.id),
       supabase.from("profiles").select("id, display_name, username").in("id", memberIds),
       supabase.from("contest_results").select("user_id, net_inr, contests!inner(league_id)").eq("contests.league_id", league.id),
-      supabase.from("transfers").select("from_user_id, to_user_id, amount_inr").eq("league_id", league.id).eq("reversed", false),
     ]);
 
   const short = new Map((teams ?? []).map((t) => [t.id, t.short_name as string | null]));
@@ -88,20 +88,26 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
     .filter((r) => r.user_id === user!.id)
     .reduce((t, r) => t + (r.net_inr ?? 0), 0);
 
-  // Dues: net leaderboard + per-viewer "who owes whom" from the transfers ledger
+  // Dues: net leaderboard + per-viewer "who owes whom".
   const nameById = new Map((members ?? []).map((m) => [m.id, m.display_name || m.username]));
   const netByUser = new Map<string, number>(memberIds.map((id) => [id, 0]));
   for (const r of allResults ?? []) netByUser.set(r.user_id, (netByUser.get(r.user_id) ?? 0) + (r.net_inr ?? 0));
   const leaderboard = [...netByUser.entries()]
     .map(([id, net]) => ({ id, name: nameById.get(id) ?? "?", net }))
     .sort((a, b) => b.net - a.net);
-  const pair = new Map<string, number>(); // other → (owed-to-me − I-owe)
-  for (const t of ledger ?? []) {
-    if (t.to_user_id === user!.id) pair.set(t.from_user_id, (pair.get(t.from_user_id) ?? 0) + t.amount_inr);
-    if (t.from_user_id === user!.id) pair.set(t.to_user_id, (pair.get(t.to_user_id) ?? 0) - t.amount_inr);
-  }
-  const owes = [...pair.entries()].filter(([, v]) => v !== 0).map(([id, v]) => ({ id, name: nameById.get(id) ?? "?", v }));
-  const settleUp = (ledger ?? []).length > 0;
+  // Simplified settle-up: build the league-wide minimal payment plan ONCE from the
+  // same nets as the leaderboard (so the two can never disagree), then filter to the
+  // viewer. A single canonical plan means both ends of a transfer see matching amounts;
+  // losers only pay, winners only receive, break-even players never appear (plan §17.8).
+  const plan = simplifyDebts(Object.fromEntries(netByUser));
+  const owes = plan
+    .filter((t) => t.from === user!.id || t.to === user!.id)
+    .map((t) =>
+      t.from === user!.id
+        ? { id: t.to, name: nameById.get(t.to) ?? "?", v: -t.amount }   // you owe them
+        : { id: t.from, name: nameById.get(t.from) ?? "?", v: t.amount }, // they owe you
+    );
+  const settleUp = plan.length > 0;
 
   const list = (arr: CardData[], empty: string) =>
     arr.length ? (
