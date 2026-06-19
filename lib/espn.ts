@@ -47,7 +47,7 @@ export async function pollScores(admin: Admin) {
   // One lookup of our fixtures for the window — no per-event round trip.
   const ids = events.map((e) => Number(e.id));
   const { data: rows } = await admin.from("fixtures")
-    .select("id, external_id, status, home_team_id, away_team_id").in("external_id", ids);
+    .select("id, external_id, status, is_knockout, home_team_id, away_team_id").in("external_id", ids);
   const byExt = new Map((rows ?? []).map((r) => [r.external_id, r]));
 
   let updated = 0, resolved = 0;
@@ -101,15 +101,17 @@ export async function pollScores(admin: Admin) {
       resolved++;
     }
 
-    // Knockout advancer
+    // Knockout advancer — ONLY for knockout fixtures (a group fixture must keep
+    // advancer_team_id null per chk_advancer_ko_only, else the update fails).
     const hid = patch.home_team_id ?? fx.home_team_id;
     const aid = patch.away_team_id ?? fx.away_team_id;
-    if (status === "finished") {
+    if (status === "finished" && fx.is_knockout) {
       if (home?.winner && hid) patch.advancer_team_id = hid;
       else if (away?.winner && aid) patch.advancer_team_id = aid;
     }
 
-    await admin.from("fixtures").update(patch).eq("id", fx.id);
+    const { error: upErr } = await admin.from("fixtures").update(patch).eq("id", fx.id);
+    if (upErr) { console.error(`poll: fixture ${fx.external_id} update failed: ${upErr.message}`); continue; }
     updated++;
   }
   return { fetched: events.length, updated, resolved };
