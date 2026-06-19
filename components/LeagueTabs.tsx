@@ -2,33 +2,47 @@
 
 import { useState, type ReactNode } from "react";
 
-const TABS = ["Upcoming", "Live", "Done", "Dues"] as const;
+const TABS = ["Next 24h", "Later", "Live", "Done", "Dues"] as const;
 type TabName = (typeof TABS)[number];
 
 export function LeagueTabs({
-  upcoming, live, done, dues, counts,
+  next24, later, live, done, dues, counts, next24Predicted, next24Predictable,
 }: {
-  upcoming: ReactNode; live: ReactNode; done: ReactNode; dues: ReactNode;
-  counts: { Upcoming: number; Live: number; Done: number };
+  next24: ReactNode; later: ReactNode; live: ReactNode; done: ReactNode; dues: ReactNode;
+  counts: { "Next 24h": number; Later: number; Live: number; Done: number };
+  next24Predicted: number;   // X — open matches already predicted
+  next24Predictable: number; // Y — open (predictable) matches in next 24h
 }) {
-  const [active, setActive] = useState<TabName>("Upcoming");
-  const panels: Record<TabName, ReactNode> = { Upcoming: upcoming, Live: live, Done: done, Dues: dues };
+  // Default to the first time tab that has matches, so a quiet "Next 24h" (rest days
+  // between rounds) doesn't open empty while "Later" has matches.
+  const initial: TabName = counts["Next 24h"] > 0 ? "Next 24h" : counts.Later > 0 ? "Later" : "Next 24h";
+  const [active, setActive] = useState<TabName>(initial);
+  const panels: Record<TabName, ReactNode> = { "Next 24h": next24, Later: later, Live: live, Done: done, Dues: dues };
 
   return (
     <>
-      <div className="sticky top-0 z-10 flex gap-5 border-b border-border bg-bg">
+      <div className="sticky top-0 z-10 flex border-b border-border bg-bg">
         {TABS.map((t) => {
-          const n = t !== "Dues" ? counts[t] : undefined;
           const on = active === t;
+          // Next 24h shows a colored predicted fraction; the rest show a muted count.
+          const secondLine =
+            t === "Next 24h"
+              ? next24Predictable > 0
+                ? <span className={`text-[11px] font-semibold ${next24Predicted === next24Predictable ? "text-win" : "text-loss"}`}>{next24Predicted}/{next24Predictable}</span>
+                : null
+              : t !== "Dues" && counts[t] > 0
+                ? <span className="text-[11px] text-muted">{counts[t]}</span>
+                : null;
           return (
             <button
               key={t}
               onClick={() => setActive(t)}
-              className={`-mb-px border-b-[2.5px] pb-2.5 text-[13px] ${
+              className={`flex flex-1 flex-col items-center gap-0.5 -mb-px border-b-[2.5px] pb-2 pt-1 text-[13px] ${
                 on ? "border-primary font-bold text-fg" : "border-transparent font-medium text-muted"
               }`}
             >
-              {t}{n != null && n > 0 ? <span className="ml-1 text-muted">{n}</span> : null}
+              <span>{t}</span>
+              {secondLine}
             </button>
           );
         })}

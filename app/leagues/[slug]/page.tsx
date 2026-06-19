@@ -41,7 +41,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
   const resByContest = new Map((myResults ?? []).map((r) => [r.contest_id, r]));
   const now = Date.now();
 
-  const cards: CardData[] = (contests ?? [])
+  const cards: (CardData & { _kickoff: number })[] = (contests ?? [])
     .map((c) => {
       // supabase returns embedded one-to-one as object (typed as array by the client) — normalize
       const f = (Array.isArray(c.fixtures) ? c.fixtures[0] : c.fixtures) as any;
@@ -79,8 +79,20 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
 
   cards.sort((a: any, b: any) => a._kickoff - b._kickoff);
 
-  const groups = { upcoming: [] as CardData[], live: [] as CardData[], done: [] as CardData[] };
+  type TimedCard = CardData & { _kickoff: number };
+  const groups = { upcoming: [] as TimedCard[], live: [] as TimedCard[], done: [] as TimedCard[] };
   for (const c of cards) groups[tabForState(c.state)].push(c);
+
+  // Split upcoming into "Next 24h" vs "Later" by kickoff (= lock; lock_at is denormalized
+  // to kickoff_at). filter() preserves the kickoff-ascending order. Then count predictions
+  // on the Next-24h matches you can STILL act on: open states only — locked/tbd are excluded
+  // so the "predicted" fraction can always reach all-done (green).
+  const soonCutoff = now + 24 * 60 * 60 * 1000;
+  const next24 = groups.upcoming.filter((c) => c._kickoff <= soonCutoff);
+  const later = groups.upcoming.filter((c) => c._kickoff > soonCutoff);
+  const predictable = next24.filter((c) => c.state === "open_nopick" || c.state === "open_picked");
+  const predicted = predictable.filter((c) => c.state === "open_picked").length; // X
+  const predictableCount = predictable.length; // Y
 
   // Your net in THIS league = Σ of your contest_results scoped to this league's
   // contests (allResults is filtered to league.id; myResults spans all leagues).
@@ -135,8 +147,20 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
         </div>
 
         <LeagueTabs
-          counts={{ Upcoming: groups.upcoming.length, Live: groups.live.length, Done: groups.done.length }}
-          upcoming={list(groups.upcoming, "No upcoming contests.")}
+          counts={{ "Next 24h": next24.length, Later: later.length, Live: groups.live.length, Done: groups.done.length }}
+          next24Predicted={predicted}
+          next24Predictable={predictableCount}
+          next24={
+            <div className="flex flex-col gap-3">
+              {predictableCount > 0 && (
+                <div className={`text-[13px] font-bold ${predicted === predictableCount ? "text-win" : "text-loss"}`}>
+                  {predicted}/{predictableCount} Predicted
+                </div>
+              )}
+              {list(next24, "No matches in the next 24 hours.")}
+            </div>
+          }
+          later={list(later, "Nothing further scheduled.")}
           live={list(groups.live, "No live matches right now.")}
           done={list(groups.done, "Nothing settled yet.")}
           dues={
