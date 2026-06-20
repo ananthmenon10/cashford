@@ -1,7 +1,7 @@
 ---
 title: "feat: Predict-screen redesign — tabbed Match insights (Predict | Full insight)"
 type: feat
-status: active
+status: completed
 date: 2026-06-20
 supersedes: docs/plans/2026-06-20-002-feat-predict-screen-match-insights-plan.md
 ---
