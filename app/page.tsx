@@ -130,17 +130,20 @@ export default async function Home() {
                   {next && (
                     <Link
                       href={`/leagues/${lg.slug}/m/${next.contestId}`}
-                      className="flex items-center justify-between gap-2 border-t border-border px-4 py-2.5 text-[12px] active:bg-subtle"
+                      className="block border-t border-border px-4 py-2.5 text-[12px] active:bg-subtle"
                     >
-                      <span className="truncate">
+                      <div className="truncate">
                         <span className="text-muted">Next · </span>
                         <span className="font-semibold">{next.home} v {next.away}</span>
-                        <span className="text-muted"> · </span>
-                        {pickLabel
-                          ? <span className="font-semibold text-fg">your pick {pickLabel}</span>
-                          : <LocalTime iso={next.kickoffIso} className="text-muted" />}
-                      </span>
-                      <span className="shrink-0 font-semibold text-primary-press">{pickLabel ? "Edit →" : "Predict →"}</span>
+                      </div>
+                      <div className="mt-0.5 flex items-center justify-between gap-2">
+                        <span className="truncate text-muted">
+                          {pickLabel
+                            ? <>your pick <span className="font-semibold text-fg">{pickLabel}</span></>
+                            : <LocalTime iso={next.kickoffIso} />}
+                        </span>
+                        <span className="shrink-0 font-semibold text-primary-press">{pickLabel ? "Edit →" : "Predict →"}</span>
+                      </div>
                     </Link>
                   )}
                 </div>
