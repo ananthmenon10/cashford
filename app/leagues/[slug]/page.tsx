@@ -9,7 +9,7 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { BackLink } from "@/components/BackLink";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { pollScores } from "@/lib/espn";
-import { simplifyDebts } from "@/lib/settlement";
+import { simplifyDebts, settle, type Prediction } from "@/lib/settlement";
 import { after } from "next/server";
 
 export default async function LeaguePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -40,6 +40,17 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
   const predByContest = new Map((myPreds ?? []).map((p) => [p.contest_id, p]));
   const resByContest = new Map((myResults ?? []).map((r) => [r.contest_id, r]));
   const now = Date.now();
+
+  // "X/Y joined": how many league members have predicted each contest. Counted via the
+  // service-role client because RLS hides others' predictions before lock (no-peek) — we
+  // expose only the COUNT here, never the picks, so the reveal rule is preserved.
+  const memberCount = memberIds.length;
+  const contestIds = (contests ?? []).map((c) => c.id);
+  const { data: predRows } = contestIds.length
+    ? await createServiceRoleClient().from("predictions").select("contest_id").in("contest_id", contestIds)
+    : { data: [] as { contest_id: string }[] };
+  const joinedByContest = new Map<string, number>();
+  for (const p of predRows ?? []) joinedByContest.set(p.contest_id, (joinedByContest.get(p.contest_id) ?? 0) + 1);
 
   const cards: (CardData & { _kickoff: number })[] = (contests ?? [])
     .map((c) => {
@@ -72,6 +83,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
         advancerSide,
         my: mine ? { outcome: mine.outcome, predHome: mine.pred_home, predAway: mine.pred_away } : null,
         myNet: res?.net_inr ?? null,
+        joined: joinedByContest.get(c.id) ?? 0, members: memberCount,
         _kickoff: new Date(f.kickoff_at).getTime(),
       } as CardData & { _kickoff: number };
     })
@@ -79,9 +91,35 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
 
   cards.sort((a: any, b: any) => a._kickoff - b._kickoff);
 
+  // Live "on track" provisional: if a live match ended at the current score, what would I net?
+  // Picks are visible post-lock (live ⇒ locked), so plain RLS reads suffice. settle() is pure.
+  const liveIds = cards.filter((c) => c.state === "live").map((c) => c.contestId);
+  if (liveIds.length) {
+    const { data: livePreds } = await supabase.from("predictions")
+      .select("contest_id, user_id, outcome, pred_home, pred_away").in("contest_id", liveIds);
+    const byContest = new Map<string, Prediction[]>();
+    for (const p of livePreds ?? []) {
+      const arr = byContest.get(p.contest_id) ?? [];
+      arr.push({ userId: p.user_id, outcome: p.outcome, predHome: p.pred_home, predAway: p.pred_away });
+      byContest.set(p.contest_id, arr);
+    }
+    for (const c of cards) {
+      if (c.state !== "live" || !c.my) continue;
+      const preds = byContest.get(c.contestId) ?? [];
+      if (preds.length < 2) continue;                       // void if <2 entrants — no provisional
+      const hh = c.ftHome ?? 0, aa = c.ftAway ?? 0;
+      const adv = c.isKnockout ? (hh > aa ? "home" : aa > hh ? "away" : undefined) : undefined;
+      if (c.isKnockout && !adv) continue;                   // level knockout — too close to call
+      const s = settle(preds, { isKnockout: c.isKnockout, ftHome: hh, ftAway: aa, advancer: adv }, c.stake);
+      c.provisionalNet = s.results.find((r) => r.userId === user!.id)?.net ?? null;
+    }
+  }
+
   type TimedCard = CardData & { _kickoff: number };
   const groups = { upcoming: [] as TimedCard[], live: [] as TimedCard[], done: [] as TimedCard[] };
   for (const c of cards) groups[tabForState(c.state)].push(c);
+  // Done tab: most recent match first (cards are kickoff-ascending; Done reads better reversed).
+  groups.done.sort((a, b) => b._kickoff - a._kickoff);
 
   // Split upcoming into "Next 24h" vs "Later" by kickoff (= lock; lock_at is denormalized
   // to kickoff_at). filter() preserves the kickoff-ascending order. Then count predictions

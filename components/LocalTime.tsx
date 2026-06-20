@@ -8,12 +8,17 @@ export function LocalTime({ iso, className }: { iso: string; className?: string 
   const [txt, setTxt] = useState<string | null>(null);
   useEffect(() => {
     const d = new Date(iso);
-    setTxt(
-      new Intl.DateTimeFormat("en-GB", {
-        weekday: "short", day: "numeric", month: "short",
-        hour: "numeric", minute: "2-digit", timeZoneName: "short",
-      }).format(d),
-    );
+    const main = new Intl.DateTimeFormat("en-GB", {
+      weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
+    }).format(d);
+    // Short timezone label. Intl gives real abbreviations (EST/PST…) for most zones but a
+    // bare "GMT+5:30" offset for India, so special-case India → IST. Other offset-only zones
+    // keep the native short form.
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    let abbr = new Intl.DateTimeFormat("en-US", { hour: "numeric", timeZoneName: "short" })
+      .formatToParts(d).find((p) => p.type === "timeZoneName")?.value ?? "";
+    if (tz === "Asia/Kolkata" || tz === "Asia/Calcutta") abbr = "IST";
+    setTxt(abbr ? `${main} ${abbr}` : main);
   }, [iso]);
   return (
     <time dateTime={iso} className={className} suppressHydrationWarning>

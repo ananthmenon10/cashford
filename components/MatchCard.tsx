@@ -24,6 +24,9 @@ export interface CardData {
   advancerSide?: "home" | "away" | null;
   my?: { outcome: "home" | "draw" | "away"; predHome: number; predAway: number } | null;
   myNet?: number | null;
+  joined?: number;
+  members?: number;
+  provisionalNet?: number | null;
 }
 
 const OUTCOME_WORD = { home: "Home", draw: "Draw", away: "Away" } as const;
@@ -47,6 +50,8 @@ export function MatchCard({ d }: { d: CardData }) {
   const scored = showScore(d.state);
   const homeWon = d.advancerSide === "home" || (scored && (d.ftHome ?? 0) > (d.ftAway ?? 0));
   const awayWon = d.advancerSide === "away" || (scored && (d.ftAway ?? 0) > (d.ftHome ?? 0));
+  const showJoined =
+    d.members != null && d.members > 0 && d.joined != null && !["tbd", "cancelled", "void"].includes(d.state);
 
   return (
     <Link
@@ -57,6 +62,7 @@ export function MatchCard({ d }: { d: CardData }) {
       <div className="mb-2.5 flex items-center justify-between">
         <span className="text-[11px] text-muted">
           {roundTxt} · <LocalTime iso={d.kickoffIso} />
+          {showJoined && <> · <span className="font-semibold text-label">{d.joined}/{d.members} joined</span></>}
         </span>
         <StatusBadge state={d.state} />
       </div>
@@ -100,8 +106,28 @@ function footer(d: CardData) {
           <span>Locked · picks revealed</span>
         </div>
       );
-    case "live":
-      return <span className="font-semibold text-live">● {liveLabel(d.statusDetail, d.minute)}</span>;
+    case "live": {
+      const pn = d.provisionalNet;
+      const pickShort = d.my
+        ? `${d.my.outcome === "home" ? d.homeShort || "Home" : d.my.outcome === "away" ? d.awayShort || "Away" : "Draw"} ${d.my.predHome}–${d.my.predAway}`
+        : null;
+      const track =
+        pn == null ? null
+        : pn > 0 ? <span className="font-semibold text-win">on track to win +₹{Math.abs(pn).toLocaleString("en-IN")}</span>
+        : pn < 0 ? <span className="font-semibold text-loss">on track to lose ₹{Math.abs(pn).toLocaleString("en-IN")}</span>
+        : <span className="text-push">level right now</span>;
+      return (
+        <div className="flex items-center justify-between gap-2">
+          <span className="shrink-0 font-semibold text-live">● {liveLabel(d.statusDetail, d.minute)}</span>
+          {pickShort && (
+            <span className="truncate text-right text-muted">
+              Your pick <span className="font-semibold text-fg">{pickShort}</span>
+              {track && <> · {track}</>}
+            </span>
+          )}
+        </div>
+      );
+    }
     case "settling":
       return <span className="text-muted">Full time · settling…</span>;
     case "won":

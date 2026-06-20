@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "./actions";
 import { LinkPending } from "@/components/LinkPending";
+import { LocalTime } from "@/components/LocalTime";
 import { APP_VERSION } from "@/lib/version";
 
 function initials(name: string) {
@@ -24,11 +25,26 @@ export default async function Home() {
     user?.email?.split("@")[0] ??
     "you";
 
-  const [{ data: leagues }, { data: members }, { data: myResults }] = await Promise.all([
+  const [{ data: leagues }, { data: members }, { data: myResults }, { data: openContests }] = await Promise.all([
     supabase.from("leagues").select("id, name, slug").order("name"),
     supabase.from("league_members").select("league_id"),
     supabase.from("contest_results").select("net_inr, contests!inner(league_id)").eq("user_id", user!.id),
+    supabase.from("contests")
+      .select("id, league_id, lock_at, fixtures(home_label, away_label, kickoff_at)")
+      .eq("status", "open").order("lock_at", { ascending: true }),
   ]);
+
+  // Next fixture still open for prediction in each league (earliest lock that hasn't passed),
+  // even if already predicted. Excludes locked/live/done — those aren't status "open".
+  const now = Date.now();
+  const nextByLeague = new Map<string, { contestId: string; home: string; away: string; kickoffIso: string }>();
+  for (const c of openContests ?? []) {
+    if (new Date(c.lock_at).getTime() <= now) continue;        // lock passed (cron lag) → not open
+    if (nextByLeague.has(c.league_id)) continue;               // keep earliest (ordered by lock asc)
+    const f = (Array.isArray(c.fixtures) ? c.fixtures[0] : c.fixtures) as { home_label: string; away_label: string; kickoff_at: string } | null;
+    if (!f) continue;
+    nextByLeague.set(c.league_id, { contestId: c.id, home: f.home_label, away: f.away_label, kickoffIso: f.kickoff_at });
+  }
 
   const counts = new Map<string, number>();
   for (const m of members ?? []) {
@@ -76,29 +92,47 @@ export default async function Home() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {(leagues ?? []).map((lg) => (
-              <Link
-                key={lg.id}
-                href={`/leagues/${lg.slug}`}
-                className="relative block rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)] transition-transform active:scale-[.99]"
-              >
-                <LinkPending />
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="text-base font-bold">{lg.name}</div>
-                    <div className="mt-0.5 text-xs text-muted">
-                      {counts.get(lg.id) ?? 0} members
+            {(leagues ?? []).map((lg) => {
+              const next = nextByLeague.get(lg.id);
+              return (
+                <div
+                  key={lg.id}
+                  className="relative overflow-hidden rounded-card border border-border bg-surface shadow-[0_2px_8px_rgba(15,23,42,.04)] transition-transform active:scale-[.99]"
+                >
+                  <Link href={`/leagues/${lg.slug}`} className="relative block p-4">
+                    <LinkPending />
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-base font-bold">{lg.name}</div>
+                        <div className="mt-0.5 text-xs text-muted">
+                          {counts.get(lg.id) ?? 0} members
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[11px] text-muted">Your net</div>
+                        <div className={`font-mono text-xl font-bold tabular ${(netByLeague.get(lg.id) ?? 0) > 0 ? "text-win" : (netByLeague.get(lg.id) ?? 0) < 0 ? "text-loss" : "text-muted"}`}>
+                          {(netByLeague.get(lg.id) ?? 0) === 0 ? "₹0" : inr(netByLeague.get(lg.id) ?? 0)}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[11px] text-muted">Your net</div>
-                    <div className={`font-mono text-xl font-bold tabular ${(netByLeague.get(lg.id) ?? 0) > 0 ? "text-win" : (netByLeague.get(lg.id) ?? 0) < 0 ? "text-loss" : "text-muted"}`}>
-                      {(netByLeague.get(lg.id) ?? 0) === 0 ? "₹0" : inr(netByLeague.get(lg.id) ?? 0)}
-                    </div>
-                  </div>
+                  </Link>
+                  {next && (
+                    <Link
+                      href={`/leagues/${lg.slug}/m/${next.contestId}`}
+                      className="flex items-center justify-between gap-2 border-t border-border px-4 py-2.5 text-[12px] active:bg-subtle"
+                    >
+                      <span className="truncate">
+                        <span className="text-muted">Next · </span>
+                        <span className="font-semibold">{next.home} v {next.away}</span>
+                        <span className="text-muted"> · </span>
+                        <LocalTime iso={next.kickoffIso} className="text-muted" />
+                      </span>
+                      <span className="shrink-0 font-semibold text-primary-press">Predict →</span>
+                    </Link>
+                  )}
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         )}
 
