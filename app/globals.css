@@ -25,6 +25,8 @@
   --color-mint: #e7f6ef;         /* open/success soft bg */
   --color-amber-bg: #fdf4d6;     /* HT / warning soft bg */
   --color-amber-fg: #92690b;
+  --color-draw: #cbd5e1;         /* 1X2 draw segment/dot (neutral) */
+  --color-away: #2563eb;         /* 1X2 away segment/dot — blue-600 (white-on-blue passes WCAG AA) */
 
   --radius-card: 16px;
   --radius-control: 12px;
@@ -55,6 +57,8 @@ html.dark {
   --color-primary-press: #34d399;
   --color-win: #4ade80;
   --color-loss: #f87171;
+  --color-draw: #475569;         /* draw segment/dot on dark */
+  --color-away: #60a5fa;         /* away blue lightened for dark legibility */
   color-scheme: dark;
 }
 

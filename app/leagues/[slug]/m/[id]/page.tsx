@@ -1,17 +1,26 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { deriveCardState, ROUND_LABEL, liveLabel, type ContestStatus, type FixtureStatus, type ResultKind } from "@/lib/contest-state";
+import { deriveCardState, ROUND_LABEL, type ContestStatus, type FixtureStatus, type ResultKind } from "@/lib/contest-state";
 import { PredictionForm } from "@/components/PredictionForm";
 import { isEligible, RENDER_MARGIN_MS, type OtherLeague, type PickShape } from "@/lib/cross-league";
 import { RevealGrid, type RevealRow } from "@/components/RevealGrid";
-import { StatusBadge, Avatar } from "@/components/ui";
-import { LocalTime } from "@/components/LocalTime";
+import { StatusBadge } from "@/components/ui";
+import { FixtureHeader } from "@/components/FixtureHeader";
+import { WinProbBar } from "@/components/WinProbBar";
+import { MatchInsights } from "@/components/MatchInsights";
+import { MatchTabs } from "./MatchTabs";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { BackLink } from "@/components/BackLink";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { pollScores } from "@/lib/espn";
+import { refreshInsights, mapInsightsView, INSIGHTS_WINDOW_MS, type InsightsView } from "@/lib/espn-insights";
 import { after } from "next/server";
+
+const EMPTY_INSIGHTS: InsightsView = {
+  oddsAvailable: false, provider: null, ml: null, probs: null, totalLine: null, pOver: null,
+  topScores: [], btts: null, cleanSheet: { home: null, away: null }, formHome: [], formAway: [],
+  h2h: null, standings: null,
+};
 
 export default async function MatchPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
@@ -21,15 +30,21 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
   const { data: { user } } = await supabase.auth.getUser();
 
   const { data: c } = await supabase.from("contests")
-    .select("id, league_id, fixture_id, status, lock_at, stake_inr, is_knockout, fixtures(round, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, venue, advancer_team_id)")
+    .select("id, league_id, fixture_id, status, lock_at, stake_inr, is_knockout, fixtures(external_id, round, group_label, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, venue, advancer_team_id)")
     .eq("id", id).single();
   if (!c) notFound();
   const f = (Array.isArray(c.fixtures) ? c.fixtures[0] : c.fixtures) as any;
 
-  const { data: teams } = await supabase.from("teams").select("id, short_name");
+  const { data: teams } = await supabase.from("teams").select("id, short_name, external_id");
   const short = new Map((teams ?? []).map((t) => [t.id, t.short_name as string | null]));
+  const extId = new Map((teams ?? []).map((t) => [t.id, t.external_id as number | null]));
   const homeShort = short.get(f.home_team_id) ?? null;
   const awayShort = short.get(f.away_team_id) ?? null;
+  // ESPN team ids of the two sides — used to bold them in the group standings table.
+  const highlightTeamIds = [f.home_team_id, f.away_team_id]
+    .map((tid) => extId.get(tid))
+    .filter((v): v is number => v != null)
+    .map(String);
 
   const { data: mine } = await supabase.from("predictions")
     .select("outcome, pred_home, pred_away").eq("contest_id", id).eq("user_id", user!.id).maybeSingle();
@@ -44,15 +59,17 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
     homeKnown: !!f.home_team_id, awayKnown: !!f.away_team_id, hasMyPrediction: !!mine,
     myResult: (myRes?.result ?? (mine ? null : "not_entered")) as ResultKind | null,
   });
-  const scored = ["live", "settling", "won", "lost", "push", "notentered"].includes(state);
+  const isOpen = state === "open_nopick" || state === "open_picked";
   const roundTxt = f.round === "group" ? "Group stage" : ROUND_LABEL[f.round] ?? f.round;
+  const roundLabel = f.round === "group" ? (f.group_label ? `Group ${f.group_label}` : "Group stage") : ROUND_LABEL[f.round] ?? f.round;
+  const advancerLabel = f.advancer_team_id ? (f.advancer_team_id === f.home_team_id ? f.home_label : f.away_label) : null;
 
-  // Cross-league duplication: when the form will render, find the user's sibling contests for
-  // THIS fixture (RLS scopes to their leagues) so the form can offer "also save to <league>"
-  // and a copy-from-other-league prefill (plan 2026-06-19-001).
+  // Cross-league duplication (plan 2026-06-19-001): only when the form renders.
   let otherLeagues: OtherLeague[] = [];
   let prefillFrom: (PickShape & { leagueName: string }) | null = null;
-  if (state === "open_nopick" || state === "open_picked") {
+  // Match insights (plan 2026-06-20-003): only for open/pre-kickoff contests.
+  let insightsView: InsightsView | null = null;
+  if (isOpen) {
     const { data: siblings } = await supabase.from("contests")
       .select("id, status, lock_at, leagues(name)")
       .eq("fixture_id", c.fixture_id).neq("id", c.id);
@@ -74,7 +91,6 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
         existingPick: p ? { outcome: p.outcome as PickShape["outcome"], predHome: p.pred_home, predAway: p.pred_away } : null,
       };
     });
-    // Prefill = the most-recently-updated existing sibling pick (parse dates, never localeCompare).
     const latest = (sibPreds ?? []).slice().sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
     if (latest) {
       const src = (siblings ?? []).find((s) => s.id === latest.contest_id);
@@ -82,6 +98,30 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
         leagueName: src ? leagueName(src) : "other league",
         outcome: latest.outcome as PickShape["outcome"], predHome: latest.pred_home, predAway: latest.pred_away,
       };
+    }
+
+    // Read cached insights; on a cold miss within the odds window, do a tight bounded fill so the
+    // Predict tab's hero/chips aren't empty on first view. Cron + after() keep misses rare.
+    const kickoffMs = new Date(f.kickoff_at).getTime();
+    const inWindow = kickoffMs > now && kickoffMs - now <= INSIGHTS_WINDOW_MS;
+    const { data: cachedRow } = await supabase.from("fixture_insights").select("*").eq("fixture_id", c.fixture_id).maybeSingle();
+    let row: any = cachedRow;
+    if (!row && inWindow && f.external_id) {
+      try {
+        const r = await refreshInsights(
+          createServiceRoleClient(),
+          { id: c.fixture_id, external_id: f.external_id },
+          { ttlMs: 0, signal: AbortSignal.timeout(2000) },
+        );
+        row = r.row ?? null;
+      } catch {}
+    }
+    insightsView = mapInsightsView(row);
+    // Warm for the next view (TTL-guarded no-op when fresh).
+    if (inWindow && f.external_id) {
+      const fxId = c.fixture_id;
+      const ext = f.external_id as number;
+      after(async () => { try { await refreshInsights(createServiceRoleClient(), { id: fxId, external_id: ext }); } catch {} });
     }
   }
 
@@ -110,9 +150,21 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
           winner: r?.result === "win",
         };
       })
-      // entered first, then sat-out
       .sort((a, b) => (a.pickLabel === "—" ? 1 : 0) - (b.pickLabel === "—" ? 1 : 0));
   }
+
+  const predictForm = (
+    <PredictionForm
+      contestId={c.id} slug={slug} isKnockout={c.is_knockout}
+      homeLabel={f.home_label} awayLabel={f.away_label} homeShort={homeShort} awayShort={awayShort}
+      lockIso={c.lock_at} stake={c.stake_inr}
+      initial={mine ? { outcome: mine.outcome, predHome: mine.pred_home, predAway: mine.pred_away } : null}
+      otherLeagues={otherLeagues} prefillFrom={prefillFrom}
+      insights={insightsView?.oddsAvailable
+        ? { oddsAvailable: true, topScores: insightsView.topScores, totalLine: insightsView.totalLine, pOver: insightsView.pOver }
+        : null}
+    />
+  );
 
   return (
     <main className="min-h-screen bg-bg">
@@ -124,40 +176,38 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
       </header>
 
       <div className="mx-auto max-w-[480px] px-4 py-4">
-        {/* Fixture header */}
-        <div className="mb-4 rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]">
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px] text-muted">
-            {state === "live" && (
-              <span className="inline-flex items-center gap-1.5 rounded-pill bg-[#FFECEC] px-2 py-0.5 font-semibold text-live dark:bg-[#ff3b301f]">
-                <span className="h-1.5 w-1.5 rounded-full bg-live animate-live-pulse" />
-                {liveLabel(f.status_detail, f.minute)}
-              </span>
-            )}
-            <LocalTime iso={f.kickoff_at} />
-            {f.venue ? <span>· {f.venue}</span> : null}
-          </div>
-          {[{ label: f.home_label, sc: f.ft_home }, { label: f.away_label, sc: f.ft_away }].map((t, i) => (
-            <div key={i} className="flex items-center gap-2.5 py-1">
-              <Avatar label={(i === 0 ? homeShort : awayShort) || t.label} size={28} />
-              <span className="text-[16px] font-semibold">{t.label}</span>
-              {scored && <span className="ml-auto font-mono text-xl font-bold tabular">{t.sc ?? 0}</span>}
-            </div>
-          ))}
-          {f.advancer_team_id && (
-            <div className="mt-2 text-[12px] font-semibold text-primary-press">
-              {f.advancer_team_id === f.home_team_id ? f.home_label : f.away_label} advance
-              {f.status_detail === "PEN" ? " on penalties" : f.status_detail === "AET" ? " after extra time" : ""}
-            </div>
-          )}
-        </div>
+        <FixtureHeader
+          d={{
+            state, homeLabel: f.home_label, awayLabel: f.away_label, homeShort, awayShort,
+            kickoffIso: f.kickoff_at, venue: f.venue, roundLabel,
+            ftHome: f.ft_home, ftAway: f.ft_away, minute: f.minute, statusDetail: f.status_detail,
+            advancerLabel,
+          }}
+        />
 
-        {state === "open_nopick" || state === "open_picked" ? (
-          <PredictionForm
-            contestId={c.id} slug={slug} isKnockout={c.is_knockout}
-            homeLabel={f.home_label} awayLabel={f.away_label} homeShort={homeShort} awayShort={awayShort}
-            lockIso={c.lock_at} stake={c.stake_inr}
-            initial={mine ? { outcome: mine.outcome, predHome: mine.pred_home, predAway: mine.pred_away } : null}
-            otherLeagues={otherLeagues} prefillFrom={prefillFrom}
+        {isOpen ? (
+          <MatchTabs
+            predict={
+              <div className="flex flex-col gap-3">
+                {insightsView?.oddsAvailable && insightsView.probs && (
+                  <WinProbBar
+                    probs={insightsView.probs}
+                    homeShort={homeShort || f.home_label}
+                    awayShort={awayShort || f.away_label}
+                  />
+                )}
+                {predictForm}
+              </div>
+            }
+            insight={
+              <MatchInsights
+                d={insightsView ?? EMPTY_INSIGHTS}
+                home={{ label: f.home_label, short: homeShort || f.home_label }}
+                away={{ label: f.away_label, short: awayShort || f.away_label }}
+                groupLabel={f.round === "group" ? f.group_label : null}
+                highlightTeamIds={highlightTeamIds}
+              />
+            }
           />
         ) : state === "tbd" ? (
           <div className="rounded-card border border-dashed border-[#CBD5E1] p-8 text-center text-[13px] text-muted dark:border-[#2f3a48]">

@@ -11,9 +11,18 @@ const clampScore = (value: number) => Math.max(0, Math.min(20, value));
 
 type ScoreSide = "home" | "away";
 
+// Slim slice of the match insights the form renders inline (chips + over/under). Null when odds
+// aren't available — the form then behaves exactly as before.
+export type PredictInsights = {
+  oddsAvailable: boolean;
+  topScores: { h: number; a: number; p: number }[];
+  totalLine: number | null;
+  pOver: number | null;
+};
+
 export function PredictionForm({
   contestId, slug, isKnockout, homeLabel, awayLabel, homeShort, awayShort, lockIso, stake, initial,
-  otherLeagues = [], prefillFrom = null,
+  otherLeagues = [], prefillFrom = null, insights = null,
 }: {
   contestId: string; slug: string; isKnockout: boolean;
   homeLabel: string; awayLabel: string; homeShort?: string | null; awayShort?: string | null;
@@ -21,6 +30,7 @@ export function PredictionForm({
   initial?: { outcome: Outcome; predHome: number; predAway: number } | null;
   otherLeagues?: OtherLeague[];
   prefillFrom?: (PickShape & { leagueName: string }) | null;
+  insights?: PredictInsights | null;
 }) {
   const router = useRouter();
   const [outcome, setOutcome] = useState<Outcome | null>(initial?.outcome ?? null);
@@ -102,6 +112,18 @@ export function PredictionForm({
     setA(prefillFrom.predAway);
   };
 
+  // Tap a likely-score chip → set the whole pick atomically (one render, no stale-closure double
+  // setState). Only offered for non-knockout matches, where the score fully derives the outcome.
+  const applyChip = (ch: number, ca: number) => {
+    setError(null);
+    setH(ch);
+    setA(ca);
+    setOutcome(deriveOutcomeFromScore(ch, ca));
+  };
+  const showChips = !isKnockout && !!insights?.oddsAvailable && (insights?.topScores.length ?? 0) > 0;
+  const showOverUnder = !!insights?.oddsAvailable && insights?.totalLine != null;
+  const leansHigh = (insights?.pOver ?? 0) >= 0.5;
+
   const submit = () => {
     if (!outcome) { setError("Pick a result first."); return; }
     const consistencyError = predictionConsistencyError({ isKnockout, outcome, predHome: h, predAway: a });
@@ -120,7 +142,7 @@ export function PredictionForm({
 
   return (
     <div className="rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Your prediction</div>
+      <div className="mb-2 text-[11px] font-semibold text-muted">Who wins?</div>
 
       {showPrefill && (
         <button onClick={usePrefill}
@@ -162,6 +184,54 @@ export function PredictionForm({
           </div>
         ))}
       </div>
+
+      {/* Likely-score chips (non-knockout, odds available) — model estimate, tap to fill */}
+      {showChips && (
+        <div className="mt-4">
+          <div className="mb-2 text-[11px] font-semibold text-muted">Or tap a likely score · model estimate</div>
+          <div className="flex flex-wrap gap-1.5">
+            {insights!.topScores.map((s, i) => {
+              const active = s.h === h && s.a === a;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={pending}
+                  onClick={() => applyChip(s.h, s.a)}
+                  aria-pressed={active}
+                  className={`flex items-center gap-1.5 rounded-[10px] border px-2.5 py-1.5 ${
+                    active ? "border-[1.5px] border-primary bg-mint" : "border-border bg-surface"
+                  }`}
+                >
+                  {active && <span className="text-[11px] font-bold text-primary-press">✓</span>}
+                  <span className={`font-mono text-[13px] font-bold ${active ? "text-primary-press" : "text-fg"}`}>
+                    {s.h}–{s.a}
+                  </span>
+                  <span className={`text-[10px] font-semibold ${active ? "text-primary" : "text-muted"}`}>
+                    {Math.round(s.p * 100)}%
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Over/under read — from the de-vigged total */}
+      {showOverUnder && (
+        <div className="mt-4 flex items-center justify-between rounded-control border border-border bg-subtle px-3 py-2.5">
+          <span className="text-[12px] font-semibold text-label">
+            Total goals · {leansHigh ? "leans high-scoring" : "leans low-scoring"}
+          </span>
+          <span
+            className={`rounded-pill px-2.5 py-1 font-mono text-[12px] font-bold ${
+              leansHigh ? "bg-mint text-primary-press" : "border border-border bg-surface text-label"
+            }`}
+          >
+            {leansHigh ? "Over" : "Under"} {insights!.totalLine}
+          </span>
+        </div>
+      )}
 
       {/* Also save to (other leagues) */}
       {otherLeagues.length > 0 && (
