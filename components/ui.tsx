@@ -12,7 +12,7 @@ const BADGE: Record<string, { label: string; cls: string; pulse?: boolean }> = {
   push: { label: "SETTLED", cls: "text-primary-press bg-mint" },
   notentered: { label: "SETTLED", cls: "text-primary-press bg-mint" },
   void: { label: "VOID", cls: "text-push bg-subtle" },
-  cancelled: { label: "CANCELLED", cls: "text-[#B91C1C] bg-[#FEE2E2]" },
+  cancelled: { label: "CANCELLED", cls: "text-[#B91C1C] bg-[#FEE2E2] dark:text-[#fca5a5] dark:bg-[#ef44441f]" },
 };
 
 export function StatusBadge({ state }: { state: CardState }) {
@@ -26,7 +26,7 @@ export function StatusBadge({ state }: { state: CardState }) {
 }
 
 // Deterministic colour for an avatar / flag chip from a short code.
-const PALETTE = ["#15A66A", "#6366f1", "#F2994A", "#0EA5E9", "#E11D48", "#7C3AED", "#0F172A", "#0E8455"];
+const PALETTE = ["#15A66A", "#6366f1", "#F2994A", "#0EA5E9", "#E11D48", "#7C3AED", "#334155", "#0E8455"];
 export function chipColor(seed: string) {
   let h = 0;
   for (const c of seed) h = (h * 31 + c.charCodeAt(0)) >>> 0;

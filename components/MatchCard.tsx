@@ -57,9 +57,9 @@ function wonPhrase(seed: string) {
 
 // Card container varies for the celebratory / dimmed states (per design S6/S10/S11).
 const CONTAINER: Partial<Record<CardState, string>> = {
-  won: "border-[1.5px] border-win bg-[#F0FDF4] shadow-[0_4px_16px_-4px_rgba(22,163,74,.25)]",
-  void: "border border-border bg-[#FBFCFD] opacity-[.85] shadow-[0_2px_8px_rgba(15,23,42,.04)]",
-  cancelled: "border border-border bg-[#FBFCFD] opacity-[.85] shadow-[0_2px_8px_rgba(15,23,42,.04)]",
+  won: "border-[1.5px] border-[#16A34A] bg-[#F0FDF4] dark:bg-[#16a34a1a] shadow-[0_4px_16px_-4px_rgba(22,163,74,.25)]",
+  void: "border border-border bg-[#FBFCFD] dark:bg-surface opacity-[.85] shadow-[0_2px_8px_rgba(15,23,42,.04)]",
+  cancelled: "border border-border bg-[#FBFCFD] dark:bg-surface opacity-[.85] shadow-[0_2px_8px_rgba(15,23,42,.04)]",
 };
 const DEFAULT_BOX = "border border-border bg-surface shadow-[0_2px_8px_rgba(15,23,42,.04)]";
 
@@ -155,7 +155,7 @@ function footer(d: CardData) {
             <span>Locked</span>
           </div>
           {reveal.length > 0 && (
-            <div className="mt-2.5 border-t border-[#F1F4F7] pt-2.5">
+            <div className="mt-2.5 border-t border-border pt-2.5">
               <div className="mb-1.5 text-[10px] font-bold tracking-[.05em] text-muted">
                 PICKS REVEALED · {reveal.length} IN
               </div>
@@ -197,28 +197,28 @@ function footer(d: CardData) {
       return <span className="text-muted">Full time · settling…</span>;
     case "won":
       return (
-        <div className="flex items-center justify-between rounded-control bg-win px-3.5 py-3 text-white">
+        <div className="flex items-center justify-between rounded-control bg-[#16A34A] px-3.5 py-3 text-white">
           <span className="text-[13px] font-bold">{wonPhrase(d.contestId)}{pickShort ? ` · ${pickShort}` : ""}</span>
           <span className="font-mono text-[18px] font-bold">+{money(d.myNet ?? 0)}</span>
         </div>
       );
     case "lost":
       return (
-        <div className="flex items-center justify-between rounded-control bg-[#FEF2F2] px-3.5 py-3">
-          <span className="text-[13px] font-semibold text-[#991B1B]">{pickShort ? `Your pick ${pickShort}` : "You lose"}</span>
+        <div className="flex items-center justify-between rounded-control bg-[#FEF2F2] px-3.5 py-3 dark:bg-[#ef44441f]">
+          <span className="text-[13px] font-semibold text-[#991B1B] dark:text-[#fca5a5]">{pickShort ? `Your pick ${pickShort}` : "You lose"}</span>
           <span className="font-mono text-[18px] font-bold text-loss">−{money(d.myNet ?? 0)}</span>
         </div>
       );
     case "push":
       return (
-        <div className="flex items-center justify-between rounded-control bg-[#F1F4F7] px-3.5 py-3">
+        <div className="flex items-center justify-between rounded-control bg-subtle px-3.5 py-3">
           <span className="text-[13px] font-semibold text-label">Push · no winner</span>
           <span className="font-mono text-[14px] font-bold text-push">nothing owed</span>
         </div>
       );
     case "notentered":
       return (
-        <div className="flex items-center gap-2 rounded-control bg-[#F1F4F7] px-3.5 py-3">
+        <div className="flex items-center gap-2 rounded-control bg-subtle px-3.5 py-3">
           <span className="text-[13px] font-semibold text-label">You sat this out</span>
           {d.joined != null && d.joined > 0 && (
             <span className="ml-auto text-[12px] text-muted">{d.joined} {d.joined === 1 ? "other played" : "others played"}</span>
@@ -227,13 +227,13 @@ function footer(d: CardData) {
       );
     case "void":
       return (
-        <div className="rounded-control bg-[#F1F4F7] px-3.5 py-3 text-center text-[13px] font-semibold text-muted">
+        <div className="rounded-control bg-subtle px-3.5 py-3 text-center text-[13px] font-semibold text-muted">
           Voided — not enough players entered · stakes returned
         </div>
       );
     case "cancelled":
       return (
-        <div className="rounded-control bg-[#FEE2E2] px-3.5 py-3 text-center text-[13px] font-semibold text-[#B91C1C]">
+        <div className="rounded-control bg-[#FEE2E2] px-3.5 py-3 text-center text-[13px] font-semibold text-[#B91C1C] dark:bg-[#ef44441f] dark:text-[#fca5a5]">
           Match cancelled · all picks voided
         </div>
       );

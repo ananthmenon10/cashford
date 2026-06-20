@@ -128,7 +128,7 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
         <div className="mb-4 rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]">
           <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px] text-muted">
             {state === "live" && (
-              <span className="inline-flex items-center gap-1.5 rounded-pill bg-[#FFECEC] px-2 py-0.5 font-semibold text-live">
+              <span className="inline-flex items-center gap-1.5 rounded-pill bg-[#FFECEC] px-2 py-0.5 font-semibold text-live dark:bg-[#ff3b301f]">
                 <span className="h-1.5 w-1.5 rounded-full bg-live animate-live-pulse" />
                 {liveLabel(f.status_detail, f.minute)}
               </span>
@@ -160,13 +160,13 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
             otherLeagues={otherLeagues} prefillFrom={prefillFrom}
           />
         ) : state === "tbd" ? (
-          <div className="rounded-card border border-dashed border-[#CBD5E1] p-8 text-center text-[13px] text-muted">
+          <div className="rounded-card border border-dashed border-[#CBD5E1] p-8 text-center text-[13px] text-muted dark:border-[#2f3a48]">
             Teams to be decided — this contest opens once the bracket is set.
           </div>
         ) : state === "void" ? (
           <div className="rounded-card border border-border bg-surface p-6 text-center text-[13px] text-push">Contest void — not enough players entered.</div>
         ) : state === "cancelled" ? (
-          <div className="rounded-card border border-border bg-surface p-6 text-center text-[13px] text-[#B91C1C]">Match cancelled — no contest.</div>
+          <div className="rounded-card border border-border bg-surface p-6 text-center text-[13px] text-[#B91C1C] dark:text-[#fca5a5]">Match cancelled — no contest.</div>
         ) : (
           <>
             {(state === "won" || state === "lost" || state === "push") && (

@@ -192,7 +192,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
     arr.length ? (
       <div className="flex flex-col gap-3">{arr.map((d) => <MatchCard key={d.contestId} d={d} />)}</div>
     ) : (
-      <div className="rounded-card border border-dashed border-[#CBD5E1] p-8 text-center text-[13px] text-muted">{empty}</div>
+      <div className="rounded-card border border-dashed border-[#CBD5E1] dark:border-[#2f3a48] p-8 text-center text-[13px] text-muted">{empty}</div>
     );
 
   return (
@@ -246,7 +246,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
                 <div className="flex flex-col gap-2">
                   <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">Settle up</div>
                   {owes.map((o) => (
-                    <div key={o.id} className={`flex items-center justify-between rounded-card px-4 py-3 ${o.v < 0 ? "bg-[#FEF2F2]" : "bg-[#F0FDF4]"}`}>
+                    <div key={o.id} className={`flex items-center justify-between rounded-card px-4 py-3 ${o.v < 0 ? "bg-[#FEF2F2] dark:bg-[#ef44441f]" : "bg-[#F0FDF4] dark:bg-[#16a34a1a]"}`}>
                       <span className="text-[13px] font-semibold">
                         {o.v < 0 ? <>You owe <strong>{o.name}</strong></> : <><strong>{o.name}</strong> owes you</>}
                       </span>

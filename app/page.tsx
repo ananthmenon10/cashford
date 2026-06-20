@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logout } from "./actions";
 import { LinkPending } from "@/components/LinkPending";
 import { LocalTime } from "@/components/LocalTime";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { APP_VERSION } from "@/lib/version";
 
 function initials(name: string) {
@@ -78,6 +79,7 @@ export default async function Home() {
           <span className="rounded-pill bg-subtle px-2 py-0.5 font-mono text-[10px] font-semibold text-muted" title="Build version">
             v{APP_VERSION}
           </span>
+          <ThemeToggle />
           <span className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-mint text-[11px] font-bold text-primary-press">
             {initials(username)}
           </span>
@@ -91,7 +93,7 @@ export default async function Home() {
         <h1 className="mb-3.5 text-xl font-extrabold tracking-[-.01em]">Your leagues</h1>
 
         {(leagues ?? []).length === 0 ? (
-          <div className="rounded-card border border-dashed border-[#CBD5E1] p-6 text-center">
+          <div className="rounded-card border border-dashed border-[#CBD5E1] dark:border-[#2f3a48] p-6 text-center">
             <div className="text-[15px] font-bold">No leagues yet</div>
             <div className="mt-1 text-[13px] text-muted">
               Your captain will add you to a league. Check back soon.

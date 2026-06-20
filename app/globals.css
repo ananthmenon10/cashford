@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Class-based dark mode: dark: utilities apply under html.dark (and its descendants). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
   Cashford design tokens — from the Claude Design handoff ("Clean Sheet v1").
   Fonts: Hanken Grotesk (sans) + Geist Mono (numerals/scores).
@@ -29,6 +32,30 @@
 
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist), ui-monospace, monospace;
+}
+
+/*
+  Dark theme — design §07 ("DARK THEME"). One block re-themes the app: every component
+  consumes these semantic tokens, so flipping the variables here cascades everywhere.
+  Brand hues (primary, accent, live) stay constant for continuity. win/loss/primary-press
+  brighten for text legibility on dark; the one solid bg-win fill (won banner) is pinned
+  to an explicit hex in MatchCard so it stays solid green.
+*/
+html.dark {
+  --color-bg: #0b0f14;
+  --color-surface: #131922;
+  --color-fg: #e6eaf0;
+  --color-border: #232b36;
+  --color-muted: #8b98a9;
+  --color-label: #cbd5e1;
+  --color-subtle: #232b36;
+  --color-mint: rgba(21, 166, 106, 0.18);
+  --color-amber-bg: rgba(242, 201, 76, 0.14);
+  --color-amber-fg: #e8c466;
+  --color-primary-press: #34d399;
+  --color-win: #4ade80;
+  --color-loss: #f87171;
+  color-scheme: dark;
 }
 
 html,

@@ -26,8 +26,15 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#15A66A",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#15A66A" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0F14" },
+  ],
 };
+
+// Applied before first paint (and before hydration) so there's no flash of the wrong theme:
+// honor a stored choice, else the device's prefers-color-scheme.
+const THEME_INIT = `(function(){try{var s=localStorage.getItem('cf-theme');var d=s?s==='dark':matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d);}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -35,7 +42,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${sans.variable} ${mono.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+      </head>
       <body className="min-h-screen">{children}</body>
     </html>
   );
