@@ -46,6 +46,13 @@ export default async function Home() {
     nextByLeague.set(c.league_id, { contestId: c.id, home: f.home_label, away: f.away_label, kickoffIso: f.kickoff_at });
   }
 
+  // Has the viewer already predicted that next fixture? If so, show the pick + "Edit" instead of "Predict".
+  const nextIds = [...nextByLeague.values()].map((n) => n.contestId);
+  const { data: nextPreds } = nextIds.length
+    ? await supabase.from("predictions").select("contest_id, outcome, pred_home, pred_away").eq("user_id", user!.id).in("contest_id", nextIds)
+    : { data: [] as { contest_id: string; outcome: "home" | "draw" | "away"; pred_home: number; pred_away: number }[] };
+  const myPickByContest = new Map((nextPreds ?? []).map((p) => [p.contest_id, p]));
+
   const counts = new Map<string, number>();
   for (const m of members ?? []) {
     counts.set(m.league_id, (counts.get(m.league_id) ?? 0) + 1);
@@ -94,6 +101,10 @@ export default async function Home() {
           <div className="flex flex-col gap-3">
             {(leagues ?? []).map((lg) => {
               const next = nextByLeague.get(lg.id);
+              const myPick = next ? myPickByContest.get(next.contestId) : undefined;
+              const pickLabel = next && myPick
+                ? `${myPick.outcome === "home" ? next.home : myPick.outcome === "away" ? next.away : "Draw"} ${myPick.pred_home}–${myPick.pred_away}`
+                : null;
               return (
                 <div
                   key={lg.id}
@@ -125,9 +136,11 @@ export default async function Home() {
                         <span className="text-muted">Next · </span>
                         <span className="font-semibold">{next.home} v {next.away}</span>
                         <span className="text-muted"> · </span>
-                        <LocalTime iso={next.kickoffIso} className="text-muted" />
+                        {pickLabel
+                          ? <span className="font-semibold text-fg">your pick {pickLabel}</span>
+                          : <LocalTime iso={next.kickoffIso} className="text-muted" />}
                       </span>
-                      <span className="shrink-0 font-semibold text-primary-press">Predict →</span>
+                      <span className="shrink-0 font-semibold text-primary-press">{pickLabel ? "Edit →" : "Predict →"}</span>
                     </Link>
                   )}
                 </div>
