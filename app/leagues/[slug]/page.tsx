@@ -39,6 +39,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
   const short = new Map((teams ?? []).map((t) => [t.id, t.short_name as string | null]));
   const predByContest = new Map((myPreds ?? []).map((p) => [p.contest_id, p]));
   const resByContest = new Map((myResults ?? []).map((r) => [r.contest_id, r]));
+  const nameById = new Map((members ?? []).map((m) => [m.id, m.display_name || m.username]));
   const now = Date.now();
 
   // "X/Y joined": how many league members have predicted each contest. Counted via the
@@ -115,6 +116,35 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
     }
   }
 
+  // Locked cards reveal everyone's picks inline (design S4). RLS exposes others' picks once
+  // lock has passed (10s skew margin), so a plain read returns them — same rule the match
+  // detail page uses. We only expose picks here for LOCKED contests, never pre-lock.
+  const lockedIds = cards.filter((c) => c.state === "locked").map((c) => c.contestId);
+  if (lockedIds.length) {
+    type LP = { contest_id: string; user_id: string; outcome: "home" | "draw" | "away"; pred_home: number; pred_away: number };
+    const { data: lockedPreds } = await supabase.from("predictions")
+      .select("contest_id, user_id, outcome, pred_home, pred_away").in("contest_id", lockedIds);
+    const byContest = new Map<string, LP[]>();
+    for (const p of (lockedPreds ?? []) as LP[]) {
+      const arr = byContest.get(p.contest_id) ?? [];
+      arr.push(p);
+      byContest.set(p.contest_id, arr);
+    }
+    for (const c of cards) {
+      if (c.state !== "locked") continue;
+      const preds = byContest.get(c.contestId) ?? [];
+      c.reveal = preds
+        .map((p) => ({
+          userId: p.user_id,
+          name: nameById.get(p.user_id) ?? "?",
+          isMe: p.user_id === user!.id,
+          pickLabel: p.outcome === "home" ? (c.homeShort || "Home") : p.outcome === "away" ? (c.awayShort || "Away") : "Draw",
+          predHome: p.pred_home, predAway: p.pred_away,
+        }))
+        .sort((a, b) => (b.isMe ? 1 : 0) - (a.isMe ? 1 : 0)); // you first
+    }
+  }
+
   type TimedCard = CardData & { _kickoff: number };
   const groups = { upcoming: [] as TimedCard[], live: [] as TimedCard[], done: [] as TimedCard[] };
   for (const c of cards) groups[tabForState(c.state)].push(c);
@@ -139,7 +169,6 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
     .reduce((t, r) => t + (r.net_inr ?? 0), 0);
 
   // Dues: net leaderboard + per-viewer "who owes whom".
-  const nameById = new Map((members ?? []).map((m) => [m.id, m.display_name || m.username]));
   const netByUser = new Map<string, number>(memberIds.map((id) => [id, 0]));
   for (const r of allResults ?? []) netByUser.set(r.user_id, (netByUser.get(r.user_id) ?? 0) + (r.net_inr ?? 0));
   const leaderboard = [...netByUser.entries()]
