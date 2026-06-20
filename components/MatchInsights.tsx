@@ -148,7 +148,7 @@ function H2HCard({ h2h, home, away }: { h2h: H2HData; home: Team; away: Team }) 
       ? `${home.short} lead ${w}–${l} in last ${n}`
       : l > w
         ? `${away.short} lead ${l}–${w} in last ${n}`
-        : `Level ${w}–${l} in last ${n}`;
+        : `Honours even in last ${n}`;
   return (
     <div className={CARD}>
       <div className={LABEL}>Head-to-head</div>
