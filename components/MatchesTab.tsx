@@ -195,6 +195,12 @@ export function MatchesTab({ view }: { view: MatchesView }) {
     ? matchHref(dueSoon[0].leagues.find((l) => l.state === "open_nopick") ?? dueSoon[0].leagues[0])
     : "#";
 
+  // "Next 24h" = matches actually kicking off within the next 24 hours (future kickoff). Excludes
+  // far-future fixtures AND stale "locked" rows whose kickoff already passed.
+  const next24 = timelineUpcoming.filter(
+    (g) => g.fixture.kickoffMs > now && g.fixture.kickoffMs <= now + 24 * 60 * 60 * 1000,
+  );
+
   const tabBtn = (key: "next" | "results", label: string) => (
     <button
       type="button"
@@ -258,10 +264,12 @@ export function MatchesTab({ view }: { view: MatchesView }) {
       <div className="pt-4">
         {tab === "results" ? (
           <Timeline groups={past} zone="results" now={now} />
-        ) : timelineUpcoming.length > 0 || !nextUp ? (
-          <Timeline groups={timelineUpcoming} zone="upcoming" now={now} />
+        ) : next24.length > 0 ? (
+          <Timeline groups={next24} zone="upcoming" now={now} />
         ) : (
-          <p className="py-6 text-center text-[12px] text-muted">Nothing else coming up.</p>
+          <p className="py-6 text-center text-[12px] text-muted">
+            {nextUp ? "Nothing else in the next 24 hours." : "No matches in the next 24 hours."}
+          </p>
         )}
       </div>
     </div>
