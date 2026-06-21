@@ -4,26 +4,40 @@
 // 💰 money (stored net) and 🎯 skill (derived accuracy). A scope control switches between the
 // GLOBAL view (you, across all leagues + tournament-wide match intelligence) and a PER-LEAGUE
 // drill-down (adds rivalry: sharpest board + head-to-head). All data is computed server-side
-// (lib/home-analytics); this component owns only the view state.
+// (lib/home-analytics); this component owns only the view state. Each card carries an ⓘ that opens
+// a "how this is calculated" bubble — one shared, viewport-clamped popover so it never overflows.
 
-import { useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import Link from "next/link";
 import type { AnalyticsView, GlobalAnalytics, LeagueAnalytics } from "@/lib/analytics";
 import { Avatar, inr } from "@/components/ui";
 
 const pct = (p: number | null) => (p == null ? "—" : `${Math.round(p * 100)}%`);
-
-// ── shared bits ──────────────────────────────────────────────────────────────────────────────
 const CARD = "rounded-card border border-border bg-surface p-3.5 shadow-[0_2px_8px_rgba(15,23,42,.04)]";
 const netColor = (n: number) => (n > 0 ? "text-win" : n < 0 ? "text-loss" : "text-muted");
-// Bright variants for the dark hero NET tile (sign-aware: not always green).
 const heroNet = (n: number) => (n > 0 ? "text-[#4ade80]" : n < 0 ? "text-[#f87171]" : "text-[#94a3b8]");
+
+// ── info tooltip: a single shared popover, anchored near the tapped ⓘ and clamped to the viewport ─
+const InfoCtx = createContext<(text: string, rect: DOMRect) => void>(() => {});
+
+function InfoDot({ text }: { text: string }) {
+  const open = useContext(InfoCtx);
+  return (
+    <button
+      type="button"
+      aria-label="How this is calculated"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); open(text, e.currentTarget.getBoundingClientRect()); }}
+      className="ml-1 inline-flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border border-border align-middle text-[9px] font-bold leading-none text-muted active:bg-subtle"
+    >
+      i
+    </button>
+  );
+}
 
 function Cell({ children, tint }: { children: React.ReactNode; tint?: string }) {
   return <div className={`flex-1 rounded-card border border-border p-3 ${tint ?? "bg-surface"} shadow-[0_2px_8px_rgba(15,23,42,.04)]`}>{children}</div>;
 }
 
-// Inline cumulative-net chart (no chart lib — RSC/dark-mode friendly).
 function NetChart({ points }: { points: { x: number; y: number }[] }) {
   if (points.length < 2) {
     return <div className="flex h-16 items-center justify-center text-[11px] text-muted">Your net line appears as matches settle.</div>;
@@ -50,31 +64,31 @@ function NetChart({ points }: { points: { x: number; y: number }[] }) {
   );
 }
 
-function HeadlineNet({ label, net }: { label: string; net: number }) {
+function HeadlineNet({ label, net, info }: { label: string; net: number; info: string }) {
   return (
     <div className="flex-1 rounded-card border border-border bg-[#0F172A] p-3.5 dark:bg-surface">
-      <div className="text-[9px] font-bold tracking-[.05em] text-[#94a3b8]">{label}</div>
+      <div className="flex items-center text-[9px] font-bold tracking-[.05em] text-[#94a3b8]">{label}<InfoDot text={info} /></div>
       <div className={`mt-1 font-mono text-[21px] font-bold tabular ${heroNet(net)}`}>{inr(net)}</div>
     </div>
   );
 }
-function HeadlineStat({ label, value }: { label: string; value: string }) {
+function HeadlineStat({ label, value, info }: { label: string; value: string; info: string }) {
   return (
     <div className={`flex-1 ${CARD}`}>
-      <div className="text-[9px] font-bold tracking-[.05em] text-muted">{label}</div>
+      <div className="flex items-center text-[9px] font-bold tracking-[.05em] text-muted">{label}<InfoDot text={info} /></div>
       <div className="mt-1 font-mono text-[21px] font-bold tabular">{value}</div>
     </div>
   );
 }
 
+function CellLabel({ children, info }: { children: React.ReactNode; info: string }) {
+  return <div className="flex items-center text-[10px] font-bold text-muted">{children}<InfoDot text={info} /></div>;
+}
+
 // ── GLOBAL panel ─────────────────────────────────────────────────────────────────────────────
 function GlobalPanel({ g }: { g: GlobalAnalytics }) {
   if (g.acc.graded === 0 && g.pot.entered === 0) {
-    return (
-      <div className="rounded-card border border-dashed border-border p-8 text-center text-[13px] text-muted">
-        Your analytics appear here as matches settle.
-      </div>
-    );
+    return <div className="rounded-card border border-dashed border-border p-8 text-center text-[13px] text-muted">Your analytics appear here as matches settle.</div>;
   }
   const bias = g.acc.goalBias;
   const biasTxt = bias == null ? "—" : `${bias >= 0 ? "+" : "−"}${Math.abs(bias).toFixed(1)}`;
@@ -82,13 +96,13 @@ function GlobalPanel({ g }: { g: GlobalAnalytics }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2.5">
-        <HeadlineNet label="💰 NET" net={g.net} />
-        <HeadlineStat label="🎯 CORRECT" value={pct(g.acc.correctPct)} />
+        <HeadlineNet label="💰 NET" net={g.net} info="Your total winnings minus losses across every settled match in all your leagues." />
+        <HeadlineStat label="🎯 CORRECT" value={pct(g.acc.correctPct)} info="Share of your settled predictions where you picked the right result — home win, draw, or away. The scoreline doesn't matter here." />
       </div>
 
       <div className={CARD}>
         <div className="mb-2.5 flex items-center justify-between">
-          <span className="text-[12px] font-bold">Net over the tournament</span>
+          <span className="flex items-center text-[12px] font-bold">Net over the tournament<InfoDot text="Your net ₹ adding up over time, in the order matches settled." /></span>
           <span className="rounded-pill bg-mint px-2 py-0.5 text-[9px] font-bold text-primary-press">💰 MONEY</span>
         </div>
         <NetChart points={g.cumulative} />
@@ -97,27 +111,27 @@ function GlobalPanel({ g }: { g: GlobalAnalytics }) {
       <div className="flex gap-2.5">
         <Cell>
           <div className="text-center font-mono text-[18px] font-bold">{pct(g.acc.exactPct)}</div>
-          <div className="mt-0.5 text-center text-[10px] text-muted">Exact score 🎯</div>
+          <div className="mt-0.5 flex items-center justify-center text-[10px] text-muted">Exact score 🎯<InfoDot text="How often your predicted scoreline exactly matched the final 90-minute score." /></div>
         </Cell>
         <Cell>
           <div className="text-center font-mono text-[18px] font-bold">{g.pot.won}/{g.pot.entered}</div>
-          <div className="mt-0.5 text-center text-[10px] text-muted">Pot win 💰</div>
+          <div className="mt-0.5 flex items-center justify-center text-[10px] text-muted">Pot win 💰<InfoDot text="Pots you took money from, out of all the pots you entered." /></div>
         </Cell>
         <Cell>
           <div className="text-center font-mono text-[18px] font-bold text-win">{g.streak}</div>
-          <div className="mt-0.5 text-center text-[10px] text-muted">Streak 🎯</div>
+          <div className="mt-0.5 flex items-center justify-center text-[10px] text-muted">Streak 🎯<InfoDot text="Your current run of correct results in a row, counting back from your latest settled match." /></div>
         </Cell>
       </div>
 
       {(g.lucky || g.biggest) && (
         <div className="flex gap-2.5">
           <Cell>
-            <div className="text-[10px] font-bold text-muted">Lucky team 💰</div>
+            <CellLabel info="The team you've netted the most ₹ on — across every settled match they played that you predicted.">Lucky team 💰</CellLabel>
             <div className="mt-1 text-[14px] font-extrabold">{g.lucky?.team ?? "—"}</div>
             {g.lucky && <div className={`font-mono text-[12px] font-bold ${netColor(g.lucky.net)}`}>{inr(g.lucky.net)}</div>}
           </Cell>
           <Cell>
-            <div className="text-[10px] font-bold text-muted">Biggest night 💰</div>
+            <CellLabel info="Your best single matchday, by total net ₹ won that day.">Biggest night 💰</CellLabel>
             <div className="mt-1 text-[14px] font-extrabold">{g.biggest?.dayKey ?? "—"}</div>
             {g.biggest && <div className={`font-mono text-[12px] font-bold ${netColor(g.biggest.net)}`}>{inr(g.biggest.net)}</div>}
           </Cell>
@@ -125,19 +139,23 @@ function GlobalPanel({ g }: { g: GlobalAnalytics }) {
       )}
 
       <div className="flex gap-2.5">
-        {g.best && g.best.slug ? (
-          <Link href={`/leagues/${g.best.slug}/m/${g.best.contestId}`} className="flex-1">
-            <Cell tint="bg-[#F0FDF4] dark:bg-[#16a34a1a] border-[#bbf7d0] dark:border-[#16a34a55]">
-              <div className="text-[10px] font-bold text-primary-press">Best result 💰</div>
+        <Cell tint={g.best && g.best.slug ? "bg-[#F0FDF4] dark:bg-[#16a34a1a] border-[#bbf7d0] dark:border-[#16a34a55]" : undefined}>
+          <CellLabel info="Your single biggest ₹ win in one match. Tap the match name to open it.">Best result 💰</CellLabel>
+          {g.best ? (
+            <>
               <div className="mt-1 font-mono text-[16px] font-bold text-win">{inr(g.best.net)}</div>
-              <div className="truncate text-[10px] text-muted">{g.best.label} ›</div>
-            </Cell>
-          </Link>
-        ) : (
-          <Cell><div className="text-[10px] font-bold text-muted">Best result 💰</div><div className="mt-1 text-[14px] text-muted">—</div></Cell>
-        )}
+              {g.best.slug ? (
+                <Link href={`/leagues/${g.best.slug}/m/${g.best.contestId}`} className="block truncate text-[10px] text-muted">{g.best.label} ›</Link>
+              ) : (
+                <div className="truncate text-[10px] text-muted">{g.best.label}</div>
+              )}
+            </>
+          ) : (
+            <div className="mt-1 text-[14px] text-muted">—</div>
+          )}
+        </Cell>
         <Cell>
-          <div className="text-[10px] font-bold text-muted">Goals bias 🎯</div>
+          <CellLabel info="Average of your predicted total goals minus the actual total, across settled matches. Positive = you tend to predict more goals than happen.">Goals bias 🎯</CellLabel>
           <div className="mt-1 font-mono text-[16px] font-bold text-away">{biasTxt}</div>
           <div className="text-[10px] text-muted">{biasLabel}</div>
         </Cell>
@@ -145,17 +163,11 @@ function GlobalPanel({ g }: { g: GlobalAnalytics }) {
 
       {(g.favouritesWonPct != null || g.calledUpsets > 0) && (
         <div className={CARD}>
-          <div className="mb-2 text-[12px] font-bold">Match intelligence</div>
+          <div className="mb-2 flex items-center text-[12px] font-bold">Match intelligence<InfoDot text="Favourites won: how often the pre-match odds favourite actually won, across all WC matches we have odds for. Called upsets: your correct picks that went against that favourite." /></div>
           {g.favouritesWonPct != null && (
-            <div className="flex items-center justify-between text-[11px] text-label">
-              <span>Favourites have won</span>
-              <span className="font-mono font-bold text-fg">{pct(g.favouritesWonPct)}</span>
-            </div>
+            <div className="flex items-center justify-between text-[11px] text-label"><span>Favourites have won</span><span className="font-mono font-bold text-fg">{pct(g.favouritesWonPct)}</span></div>
           )}
-          <div className="mt-1.5 flex items-center justify-between text-[11px] text-label">
-            <span>Your called upsets 🎯</span>
-            <span className="font-mono font-bold text-win">{g.calledUpsets}</span>
-          </div>
+          <div className="mt-1.5 flex items-center justify-between text-[11px] text-label"><span>Your called upsets 🎯</span><span className="font-mono font-bold text-win">{g.calledUpsets}</span></div>
         </div>
       )}
     </div>
@@ -185,15 +197,15 @@ function LeaguePanel({ lg, myCorrect }: { lg: LeagueAnalytics; myCorrect: number
     <div className="flex flex-col gap-3">
       <div className="flex gap-2.5">
         <div className="flex-1 rounded-card border border-border bg-[#0F172A] p-3.5 dark:bg-surface">
-          <div className="text-[9px] font-bold tracking-[.05em] text-[#94a3b8]">💰 NET · RANK {lg.rank}/{lg.members}</div>
+          <div className="flex items-center text-[9px] font-bold tracking-[.05em] text-[#94a3b8]">💰 NET · RANK {lg.rank}/{lg.members}<InfoDot text="Your net ₹ in this league, and where that ranks you among its members." /></div>
           <div className={`mt-1 font-mono text-[20px] font-bold tabular ${heroNet(lg.net)}`}>{inr(lg.net)}</div>
         </div>
-        <HeadlineStat label="🎯 CORRECT" value={pct(lg.acc.correctPct)} />
+        <HeadlineStat label="🎯 CORRECT" value={pct(lg.acc.correctPct)} info="Your correct-result rate on settled matches in this league." />
       </div>
 
       <div className={CARD}>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-[12px] font-bold">Sharpest predictor</span>
+          <span className="flex items-center text-[12px] font-bold">Sharpest predictor<InfoDot text="League members ranked by how often they pick the right result (skill) — not by money. Members with no settled picks yet show a dash." /></span>
           <span className="rounded-pill bg-subtle px-2 py-0.5 text-[9px] font-bold text-label">🎯 SKILL · not money</span>
         </div>
         {lg.sharpest.filter((s) => s.graded > 0).length === 0 ? (
@@ -212,18 +224,12 @@ function LeaguePanel({ lg, myCorrect }: { lg: LeagueAnalytics; myCorrect: number
 
       {lg.rivals.length > 0 && (
         <div className={CARD}>
-          <div className="text-[12px] font-bold">Head-to-head</div>
+          <div className="flex items-center text-[12px] font-bold">Head-to-head<InfoDot text="Accuracy compares each person's correct-result rate. Money flow is the net ₹ that's passed directly between you and them across settled matches." /></div>
           <div className="mb-2.5 text-[10px] text-muted">Tap a leaguemate to compare</div>
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
             {lg.rivals.map((r) => (
-              <button
-                key={r.userId}
-                type="button"
-                onClick={() => setRivalId(r.userId)}
-                className={`flex shrink-0 flex-col items-center gap-1.5 rounded-control border px-2.5 py-2 ${
-                  r.userId === rivalId ? "border-fg bg-fg text-bg" : "border-border bg-surface text-label"
-                }`}
-              >
+              <button key={r.userId} type="button" onClick={() => setRivalId(r.userId)}
+                className={`flex shrink-0 flex-col items-center gap-1.5 rounded-control border px-2.5 py-2 ${r.userId === rivalId ? "border-fg bg-fg text-bg" : "border-border bg-surface text-label"}`}>
                 <Avatar label={r.name} size={24} />
                 <span className="text-[11px] font-bold">{r.name}</span>
               </button>
@@ -263,25 +269,41 @@ function LeaguePanel({ lg, myCorrect }: { lg: LeagueAnalytics; myCorrect: number
 
 export function AnalyticsTab({ view }: { view: AnalyticsView }) {
   const [scope, setScope] = useState<string>("global"); // "global" | leagueId
+  const [tip, setTip] = useState<{ text: string; left: number; top: number } | null>(null);
   const league = view.leagues.find((l) => l.leagueId === scope) ?? null;
 
+  // Anchor the shared bubble just below the tapped ⓘ, clamped so it never overflows the viewport.
+  const openTip = useCallback((text: string, rect: DOMRect) => {
+    const W = 230;
+    const left = Math.min(Math.max(8, rect.right - W + 8), window.innerWidth - W - 8);
+    setTip({ text, left, top: rect.bottom + 6 });
+  }, []);
+
   const seg = (active: boolean) =>
-    `shrink-0 whitespace-nowrap rounded-[9px] px-3 py-1.5 text-[12px] ${
-      active ? "bg-surface font-bold text-fg shadow-[0_1px_3px_rgba(15,23,42,.08)]" : "font-semibold text-muted"
-    }`;
+    `shrink-0 whitespace-nowrap rounded-[9px] px-3 py-1.5 text-[12px] ${active ? "bg-surface font-bold text-fg shadow-[0_1px_3px_rgba(15,23,42,.08)]" : "font-semibold text-muted"}`;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-1 overflow-x-auto rounded-control bg-subtle p-1">
-        <button type="button" className={seg(scope === "global")} onClick={() => setScope("global")}>Global</button>
-        {view.leagues.map((l) => (
-          <button key={l.leagueId} type="button" className={seg(scope === l.leagueId)} onClick={() => setScope(l.leagueId)}>
-            {l.leagueName}
-          </button>
-        ))}
+    <InfoCtx.Provider value={openTip}>
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-1 overflow-x-auto rounded-control bg-subtle p-1">
+          <button type="button" className={seg(scope === "global")} onClick={() => setScope("global")}>Global</button>
+          {view.leagues.map((l) => (
+            <button key={l.leagueId} type="button" className={seg(scope === l.leagueId)} onClick={() => setScope(l.leagueId)}>{l.leagueName}</button>
+          ))}
+        </div>
+
+        {league ? <LeaguePanel lg={league} myCorrect={league.acc.correctPct} /> : <GlobalPanel g={view.global} />}
       </div>
 
-      {league ? <LeaguePanel lg={league} myCorrect={league.acc.correctPct} /> : <GlobalPanel g={view.global} />}
-    </div>
+      {tip && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setTip(null)} />
+          <div role="tooltip" onClick={() => setTip(null)} style={{ position: "fixed", left: tip.left, top: tip.top, width: 230 }}
+            className="z-50 rounded-control border border-border bg-surface p-3 text-[11px] font-medium leading-snug text-label shadow-[0_12px_32px_-8px_rgba(15,23,42,.4)]">
+            {tip.text}
+          </div>
+        </>
+      )}
+    </InfoCtx.Provider>
   );
 }
