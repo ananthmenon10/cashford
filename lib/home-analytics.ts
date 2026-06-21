@@ -6,7 +6,7 @@ import "server-only";
 // fixtures (post-lock → picks are visible; no-peek preserved). Pure maths lives in lib/analytics.
 
 import {
-  accuracy, currentStreak, potRecord, cumulativeNet, bestResult, luckyTeam, biggestNight,
+  accuracy, currentStreak, potRecord, dailyNet, bestResult, luckyTeam, biggestNight,
   calledUpsets, favouritesWonPct,
   type Entry, type ModelProbs, type ResultInfo, type AnalyticsView, type LeagueAnalytics, type Outcome,
 } from "./analytics";
@@ -20,7 +20,7 @@ const num = (v: unknown): number | null => (v == null ? null : Number(v));
 export async function loadAnalyticsView(supabase: RlsClient, userId: string): Promise<AnalyticsView> {
   const emptyAcc = accuracy([]);
   const emptyGlobal = {
-    net: 0, acc: emptyAcc, pot: { entered: 0, won: 0 }, streak: 0, cumulative: [],
+    net: 0, acc: emptyAcc, pot: { entered: 0, won: 0 }, streak: 0, daily: [],
     best: null, lucky: null, biggest: null, favouritesWonPct: null, calledUpsets: 0,
   };
 
@@ -127,7 +127,7 @@ export async function loadAnalyticsView(supabase: RlsClient, userId: string): Pr
     acc: accuracy(myEntries),
     pot: potRecord(myEntries),
     streak: currentStreak(myEntries),
-    cumulative: cumulativeNet(myEntries),
+    daily: dailyNet(myEntries),
     best: best ? { net: best.net ?? 0, label: `${best.homeLabel} ${best.ftHome}–${best.ftAway} ${best.awayLabel}`, slug: best.slug ?? "", contestId: best.contestId ?? "" } : null,
     lucky,
     biggest,

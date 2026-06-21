@@ -93,11 +93,23 @@ export function potRecord(entries: Entry[]): { entered: number; won: number } {
 
 export const netTotal = (entries: Entry[]): number => entries.reduce((t, e) => t + (e.net ?? 0), 0);
 
-// Running net over time (settled, kickoff-ascending) → points for the cumulative chart.
+// Running net over time (settled, kickoff-ascending) → points for a cumulative chart.
 export function cumulativeNet(entries: Entry[]): { x: number; y: number }[] {
   const settled = entries.filter((e) => e.net != null).sort((a, b) => a.kickoffMs - b.kickoffMs);
   let cum = 0;
   return settled.map((e, i) => ({ x: i, y: (cum += e.net ?? 0) }));
+}
+
+// Net grouped by matchday (settled), ordered by each day's earliest kickoff — for the per-day bars.
+export function dailyNet(entries: Entry[]): { dayKey: string; net: number }[] {
+  const byDay = new Map<string, { net: number; t: number }>();
+  for (const e of entries) {
+    if (e.net == null) continue;
+    const cur = byDay.get(e.dayKey);
+    if (cur) { cur.net += e.net; cur.t = Math.min(cur.t, e.kickoffMs); }
+    else byDay.set(e.dayKey, { net: e.net, t: e.kickoffMs });
+  }
+  return [...byDay.entries()].sort((a, b) => a[1].t - b[1].t).map(([dayKey, v]) => ({ dayKey, net: v.net }));
 }
 
 export function bestResult(entries: Entry[]): Entry | null {
@@ -157,7 +169,7 @@ export interface GlobalAnalytics {
   acc: Accuracy; // 🎯 correctPct / exactPct / goalBias / graded
   pot: { entered: number; won: number }; // 💰
   streak: number; // 🎯
-  cumulative: { x: number; y: number }[]; // 💰 running net for the chart
+  daily: { dayKey: string; net: number }[]; // 💰 net per matchday for the bar chart
   best: BestResultView | null; // 💰
   lucky: { team: string; net: number } | null; // 💰
   biggest: { dayKey: string; net: number } | null; // 💰

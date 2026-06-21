@@ -38,29 +38,38 @@ function Cell({ children, tint }: { children: React.ReactNode; tint?: string }) 
   return <div className={`flex-1 rounded-card border border-border p-3 ${tint ?? "bg-surface"} shadow-[0_2px_8px_rgba(15,23,42,.04)]`}>{children}</div>;
 }
 
-function NetChart({ points }: { points: { x: number; y: number }[] }) {
-  if (points.length < 2) {
-    return <div className="flex h-16 items-center justify-center text-[11px] text-muted">Your net line appears as matches settle.</div>;
+// Per-matchday net as up/down bars around a ₹0 line: green = a winning day, red = a losing day.
+function DayBars({ days }: { days: { dayKey: string; net: number }[] }) {
+  if (days.length < 1) {
+    return <div className="flex h-[92px] items-center justify-center text-[11px] text-muted">Your daily net appears as matches settle.</div>;
   }
-  const W = 280, H = 64, pad = 5;
-  const ys = points.map((p) => p.y);
-  const minY = Math.min(0, ...ys), maxY = Math.max(0, ...ys);
-  const range = maxY - minY || 1;
-  const n = points.length;
-  const sx = (i: number) => (i / (n - 1)) * W;
-  const sy = (y: number) => H - pad - ((y - minY) / range) * (H - 2 * pad);
-  const line = points.map((p, i) => `${sx(i).toFixed(1)},${sy(p.y).toFixed(1)}`).join(" ");
+  const maxAbs = Math.max(1, ...days.map((d) => Math.abs(d.net)));
+  const barH = (n: number) => Math.max(2, Math.round((Math.abs(n) / maxAbs) * 38));
+  const dayNum = (k: string) => k.split(" ")[1] ?? "";
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block w-full" style={{ height: 64 }}>
-      <defs>
-        <linearGradient id="netfill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="var(--color-primary)" stopOpacity=".18" />
-          <stop offset="1" stopColor="var(--color-primary)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={`0,${H} ${line} ${W},${H}`} fill="url(#netfill)" />
-      <polyline points={line} fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <div>
+      <div className="relative flex items-stretch gap-[3px]" style={{ height: 92 }}>
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-border" />
+        {days.map((d, i) => {
+          const up = d.net >= 0;
+          return (
+            <div key={i} className="flex flex-1 flex-col" title={`${d.dayKey}: ${inr(d.net)}`}>
+              <div className="flex flex-1 items-end justify-center">
+                {up && d.net !== 0 && <div className="w-full max-w-[16px] rounded-t-[3px] bg-win" style={{ height: barH(d.net) }} />}
+              </div>
+              <div className="flex flex-1 items-start justify-center">
+                {!up && <div className="w-full max-w-[16px] rounded-b-[3px] bg-loss" style={{ height: barH(d.net) }} />}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-1.5 flex gap-[3px]">
+        {days.map((d, i) => (
+          <div key={i} className="flex-1 text-center font-mono text-[8px] text-muted">{dayNum(d.dayKey)}</div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -102,10 +111,10 @@ function GlobalPanel({ g }: { g: GlobalAnalytics }) {
 
       <div className={CARD}>
         <div className="mb-2.5 flex items-center justify-between">
-          <span className="flex items-center text-[12px] font-bold">Net over the tournament<InfoDot text="Your net ₹ adding up over time, in the order matches settled." /></span>
+          <span className="flex items-center text-[12px] font-bold">Net by matchday<InfoDot text="Your net ₹ won or lost on each matchday — bars up (green) on winning days, down (red) on losing ones, around the ₹0 line." /></span>
           <span className="rounded-pill bg-mint px-2 py-0.5 text-[9px] font-bold text-primary-press">💰 MONEY</span>
         </div>
-        <NetChart points={g.cumulative} />
+        <DayBars days={g.daily} />
       </div>
 
       <div className="flex gap-2.5">

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   gradeOutcome, isCorrect, isExact, goalError, accuracy, currentStreak, potRecord, netTotal,
-  cumulativeNet, bestResult, luckyTeam, biggestNight, calledUpsets, favouritesWonPct, type Entry,
+  cumulativeNet, dailyNet, bestResult, luckyTeam, biggestNight, calledUpsets, favouritesWonPct, type Entry,
 } from "./analytics";
 
 // Build a graded entry; overrides win.
@@ -107,6 +107,15 @@ describe("luckyTeam & biggestNight", () => {
       e({ dayKey: "Sat 13 Jun", net: 50 }),
     ]);
     expect(r).toEqual({ dayKey: "Sat 13 Jun", net: 350 });
+  });
+  it("dailyNet sums net per day, ordered by earliest kickoff, ignoring unsettled", () => {
+    const r = dailyNet([
+      e({ dayKey: "Sat 13 Jun", kickoffMs: 3000, net: 300 }),
+      e({ dayKey: "Fri 12 Jun", kickoffMs: 1000, net: 100 }),
+      e({ dayKey: "Sat 13 Jun", kickoffMs: 3500, net: -50 }),
+      e({ dayKey: "Sun 14 Jun", kickoffMs: 5000, net: null }), // unsettled → excluded
+    ]);
+    expect(r).toEqual([{ dayKey: "Fri 12 Jun", net: 100 }, { dayKey: "Sat 13 Jun", net: 250 }]);
   });
 });
 
