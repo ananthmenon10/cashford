@@ -3,12 +3,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { loadMatchesView } from "@/lib/home-matches";
+import { loadAnalyticsView } from "@/lib/home-analytics";
 import { logout } from "./actions";
 import { LinkPending } from "@/components/LinkPending";
 import { LocalTime } from "@/components/LocalTime";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { HomeTabs } from "@/components/HomeTabs";
 import { MatchesTab } from "@/components/MatchesTab";
+import { AnalyticsTab } from "@/components/AnalyticsTab";
 import { APP_VERSION } from "@/lib/version";
 
 function initials(name: string) {
@@ -31,7 +33,7 @@ export default async function Home() {
     user?.email?.split("@")[0] ??
     "you";
 
-  const [{ data: leagues }, { data: members }, { data: myResults }, { data: openContests }, matchesView] = await Promise.all([
+  const [{ data: leagues }, { data: members }, { data: myResults }, { data: openContests }, matchesView, analyticsView] = await Promise.all([
     supabase.from("leagues").select("id, name, slug").order("name"),
     supabase.from("league_members").select("league_id"),
     supabase.from("contest_results").select("net_inr, contests!inner(league_id)").eq("user_id", user!.id),
@@ -39,6 +41,7 @@ export default async function Home() {
       .select("id, league_id, lock_at, fixtures(home_label, away_label, kickoff_at)")
       .eq("status", "open").order("lock_at", { ascending: true }),
     loadMatchesView(supabase, admin, user!.id),
+    loadAnalyticsView(supabase, user!.id),
   ]);
 
   // Next fixture still open for prediction in each league (earliest lock that hasn't passed),
@@ -152,13 +155,10 @@ export default async function Home() {
     </div>
   );
 
-  // ── Tab 3: Analytics (placeholder until the Analytics tab ships) ────────────────────
+  // ── Tab 3: Analytics ────────────────────────────────────────────────────────────────
   const analyticsPanel = (
-    <div className="px-5 py-16 text-center">
-      <div className="text-[15px] font-bold">Analytics</div>
-      <div className="mx-auto mt-1.5 max-w-[300px] text-[13px] text-muted">
-        Your performance, league rivalries &amp; match intelligence — coming soon.
-      </div>
+    <div className="px-4 py-4">
+      <AnalyticsTab view={analyticsView} />
     </div>
   );
 
