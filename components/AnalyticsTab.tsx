@@ -16,6 +16,8 @@ const pct = (p: number | null) => (p == null ? "—" : `${Math.round(p * 100)}%`
 // ── shared bits ──────────────────────────────────────────────────────────────────────────────
 const CARD = "rounded-card border border-border bg-surface p-3.5 shadow-[0_2px_8px_rgba(15,23,42,.04)]";
 const netColor = (n: number) => (n > 0 ? "text-win" : n < 0 ? "text-loss" : "text-muted");
+// Bright variants for the dark hero NET tile (sign-aware: not always green).
+const heroNet = (n: number) => (n > 0 ? "text-[#4ade80]" : n < 0 ? "text-[#f87171]" : "text-[#94a3b8]");
 
 function Cell({ children, tint }: { children: React.ReactNode; tint?: string }) {
   return <div className={`flex-1 rounded-card border border-border p-3 ${tint ?? "bg-surface"} shadow-[0_2px_8px_rgba(15,23,42,.04)]`}>{children}</div>;
@@ -52,7 +54,7 @@ function HeadlineNet({ label, net }: { label: string; net: number }) {
   return (
     <div className="flex-1 rounded-card border border-border bg-[#0F172A] p-3.5 dark:bg-surface">
       <div className="text-[9px] font-bold tracking-[.05em] text-[#94a3b8]">{label}</div>
-      <div className="mt-1 font-mono text-[21px] font-bold tabular text-[#4ade80]">{inr(net)}</div>
+      <div className={`mt-1 font-mono text-[21px] font-bold tabular ${heroNet(net)}`}>{inr(net)}</div>
     </div>
   );
 }
@@ -165,24 +167,26 @@ function LeaguePanel({ lg, myCorrect }: { lg: LeagueAnalytics; myCorrect: number
   const [rivalId, setRivalId] = useState<string | null>(lg.rivals[0]?.userId ?? null);
   const rival = lg.rivals.find((r) => r.userId === rivalId) ?? null;
 
-  const youSharper = (myCorrect ?? 0) >= (rival?.accuracyPct ?? 0);
-  const youUp = (rival?.moneyFlow ?? 0) >= 0;
+  const rivAcc = rival?.accuracyPct ?? null;
+  const skill: "you" | "them" | "level" =
+    !rival || myCorrect == null || rivAcc == null ? "level" : myCorrect > rivAcc ? "you" : myCorrect < rivAcc ? "them" : "level";
+  const flow = rival?.moneyFlow ?? 0;
+  const youUp = flow > 0;
+  const moneyLevel = flow === 0;
   const verdict = !rival
     ? ""
-    : youSharper
-      ? youUp
-        ? "You read these games better — and the money agrees."
-        : `Skill ≠ luck: you predict better, but ${rival.name} is up on variance.`
-      : youUp
-        ? `${rival.name} is sharper, yet you're up on the money.`
-        : `${rival.name} has the edge both ways here.`;
+    : skill === "you"
+      ? youUp ? "You read these games better — and the money agrees." : moneyLevel ? "You're the sharper predictor here." : `Skill ≠ luck: you predict better, but ${rival.name} is up on variance.`
+      : skill === "them"
+        ? youUp ? `${rival.name} is sharper, yet you're up on the money.` : `${rival.name} has the edge both ways here.`
+        : youUp ? "Evenly matched on skill — you're ahead on the money." : moneyLevel ? "Neck and neck, both ways." : `Level on skill; ${rival.name} edges the money.`;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2.5">
         <div className="flex-1 rounded-card border border-border bg-[#0F172A] p-3.5 dark:bg-surface">
           <div className="text-[9px] font-bold tracking-[.05em] text-[#94a3b8]">💰 NET · RANK {lg.rank}/{lg.members}</div>
-          <div className="mt-1 font-mono text-[20px] font-bold tabular text-[#4ade80]">{inr(lg.net)}</div>
+          <div className={`mt-1 font-mono text-[20px] font-bold tabular ${heroNet(lg.net)}`}>{inr(lg.net)}</div>
         </div>
         <HeadlineStat label="🎯 CORRECT" value={pct(lg.acc.correctPct)} />
       </div>
@@ -235,13 +239,15 @@ function LeaguePanel({ lg, myCorrect }: { lg: LeagueAnalytics; myCorrect: number
               <div className="flex gap-2.5">
                 <div className="flex-1 rounded-control bg-subtle p-2.5 text-center">
                   <div className="text-[9px] text-muted">🎯 Accuracy</div>
-                  <div className={`mt-1 text-[12px] font-bold ${youSharper ? "text-win" : "text-loss"}`}>{youSharper ? "You sharper" : `${rival.name} sharper`}</div>
+                  <div className={`mt-1 text-[12px] font-bold ${skill === "you" ? "text-win" : skill === "them" ? "text-loss" : "text-muted"}`}>
+                    {skill === "you" ? "You sharper" : skill === "them" ? `${rival.name} sharper` : "Evenly matched"}
+                  </div>
                   <div className="mt-0.5 font-mono text-[10px] text-muted">{pct(myCorrect)} vs {pct(rival.accuracyPct)}</div>
                 </div>
                 <div className="flex-1 rounded-control bg-subtle p-2.5 text-center">
                   <div className="text-[9px] text-muted">💰 Money flow</div>
-                  <div className={`mt-1 font-mono text-[13px] font-bold ${youUp ? "text-win" : "text-loss"}`}>
-                    {youUp ? `You ${inr(rival.moneyFlow)}` : `${rival.name} +₹${Math.abs(rival.moneyFlow).toLocaleString("en-IN")}`}
+                  <div className={`mt-1 font-mono text-[13px] font-bold ${youUp ? "text-win" : moneyLevel ? "text-muted" : "text-loss"}`}>
+                    {moneyLevel ? "Even" : youUp ? `You ${inr(flow)}` : `${rival.name} +₹${Math.abs(flow).toLocaleString("en-IN")}`}
                   </div>
                   <div className="mt-0.5 text-[9px] text-muted">across settled matches</div>
                 </div>
