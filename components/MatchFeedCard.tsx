@@ -225,6 +225,8 @@ function CompactRow({ g, zone, dim }: { g: MatchGroup; zone: "upcoming" | "resul
           </div>
           {zone === "upcoming" && state === "open_nopick" ? (
             <span className="shrink-0 rounded-pill bg-primary px-3 py-1.5 text-[11px] font-bold text-white">Pick</span>
+          ) : zone === "upcoming" && state === "open_picked" ? (
+            <span className="shrink-0 text-[12px] font-bold text-primary-press">Edit</span>
           ) : (
             <span className="shrink-0 font-mono text-[13px] text-muted">—</span>
           )}
