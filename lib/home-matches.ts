@@ -146,9 +146,11 @@ export async function loadMatchesView(supabase: RlsClient, admin: AdminClient, u
     }
   }
 
-  // picksDue nudge: fixtures the viewer can still predict (≥1 league open & unpicked). `upcoming`
-  // is kickoff-ascending, so the first such fixture locks earliest (lock_at == kickoff_at).
-  const due = upcoming.filter((g) => g.needsPick);
+  // picksDue (drives the home tab's red attention dot): unpredicted fixtures locking SOON (≤24h) —
+  // not the whole-tournament backlog, so the dot means "act now", not "you have 32 games left".
+  // lock_at == kickoff_at; `upcoming` is kickoff-ascending so due[0] locks soonest.
+  const soonCutoff = nowMs + 24 * 60 * 60 * 1000;
+  const due = upcoming.filter((g) => g.needsPick && g.fixture.kickoffMs > nowMs && g.fixture.kickoffMs <= soonCutoff);
   const picksDue = due.length ? { count: due.length, earliestLockIso: due[0].fixture.kickoffIso } : null;
 
   return { live, upcoming, past: [...past].reverse(), provisionalByFixture, picksDue };

@@ -129,16 +129,71 @@ function HubLiveCard({ g, provisional }: { g: MatchGroup; provisional: number | 
   );
 }
 
+// Spotlight card shown when nothing is live, so the hub is never just a banner: the next match to
+// come (soonest FUTURE kickoff). If the viewer can still pick it, it doubles as the predict nudge.
+function NextUpCard({ g }: { g: MatchGroup }) {
+  const fx = g.fixture;
+  const roll = pickRollup(g);
+  const target = g.needsPick
+    ? matchHref(g.leagues.find((l) => l.state === "open_nopick") ?? g.leagues[0])
+    : matchHref(g.leagues[0]);
+  return (
+    <Link
+      href={target}
+      className="block rounded-card border border-border border-l-[3px] border-l-primary bg-surface p-3.5 shadow-[0_2px_8px_rgba(15,23,42,.04)] transition-transform active:scale-[.99]"
+    >
+      <div className="mb-2.5 flex items-center justify-between">
+        <span className="text-[11px] text-muted">
+          {roundText(fx.round)} · <LocalTime iso={fx.kickoffIso} />
+        </span>
+        <span className="rounded-pill bg-mint px-2.5 py-1 text-[10px] font-bold tracking-[.06em] text-primary-press">UP NEXT</span>
+      </div>
+      <div className="mb-3 flex items-center gap-2 text-[15px] font-bold">
+        <TeamCrest code={fx.homeShort || fx.homeLabel} size={24} />
+        <span>{fx.homeLabel}</span>
+        <span className="font-medium text-draw">v</span>
+        <TeamCrest code={fx.awayShort || fx.awayLabel} size={24} />
+        <span>{fx.awayLabel}</span>
+      </div>
+      {g.needsPick ? (
+        <div className="flex items-center justify-between">
+          <span className="rounded-pill bg-amber-bg px-2.5 py-1 font-mono text-[12px] font-semibold text-amber-fg">
+            <Countdown iso={fx.kickoffIso} prefix="Locks in" />
+          </span>
+          <span className="rounded-control bg-primary px-4 py-2 text-[13px] font-bold text-white shadow-[0_2px_8px_rgba(21,166,106,.3)]">Make pick</span>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between text-[12px]">
+          <span className="font-mono text-muted"><Countdown iso={fx.kickoffIso} prefix="Kicks off in" /></span>
+          <span className="text-muted">
+            {roll ? <>Your pick <span className="font-bold text-fg">{roll}</span></> : "Predicted"}
+            {g.leagueCount > 1 && <> · in {g.leagueCount} leagues</>}
+          </span>
+        </div>
+      )}
+    </Link>
+  );
+}
+
 export function MatchesTab({ view }: { view: MatchesView }) {
   const [tab, setTab] = useState<"next" | "results">("next");
   const now = Date.now();
-  const { live, upcoming, past, picksDue, provisionalByFixture } = view;
+  const { live, upcoming, past, provisionalByFixture } = view;
 
-  // "Predict →" target: the first upcoming fixture the viewer can still pick, in its first open league.
-  const firstDue = upcoming.find((g) => g.needsPick);
-  const dueTarget = firstDue
-    ? matchHref(firstDue.leagues.find((l) => l.state === "open_nopick") ?? firstDue.leagues[0])
-    : null;
+  // Hub spotlight: a live card if anything's in play, else the next match to come (soonest FUTURE
+  // kickoff — skips stale "locked" rows whose kickoff already passed). Pull it out of the timeline
+  // so it isn't shown twice.
+  const nextUp = live.length === 0 ? upcoming.find((g) => g.fixture.kickoffMs > now) ?? null : null;
+  const timelineUpcoming = nextUp ? upcoming.filter((g) => g.fixtureId !== nextUp.fixtureId) : upcoming;
+
+  // Picks-due nudge: only the still-predictable matches LOCKING SOON (≤24h), excluding the
+  // spotlighted one — a small, urgent set rather than the whole-tournament backlog.
+  const dueSoon = timelineUpcoming.filter(
+    (g) => g.needsPick && g.fixture.kickoffMs > now && g.fixture.kickoffMs <= now + 24 * 60 * 60 * 1000,
+  );
+  const bannerTarget = dueSoon.length
+    ? matchHref(dueSoon[0].leagues.find((l) => l.state === "open_nopick") ?? dueSoon[0].leagues[0])
+    : "#";
 
   const tabBtn = (key: "next" | "results", label: string) => (
     <button
@@ -163,29 +218,31 @@ export function MatchesTab({ view }: { view: MatchesView }) {
     );
   }
 
+  const hubHasContent = live.length > 0 || nextUp || dueSoon.length > 0;
+
   return (
     <div>
       {live.length > 0 && <AutoRefresh seconds={30} />}
 
-      {(live.length > 0 || picksDue) && (
+      {hubHasContent && (
         <div className="mb-2 flex flex-col gap-2.5">
-          {live.map((g) => (
-            <HubLiveCard key={g.fixtureId} g={g} provisional={provisionalByFixture[g.fixtureId] ?? null} />
-          ))}
-          {picksDue && (
+          {live.length > 0
+            ? live.map((g) => (
+                <HubLiveCard key={g.fixtureId} g={g} provisional={provisionalByFixture[g.fixtureId] ?? null} />
+              ))
+            : nextUp && <NextUpCard g={nextUp} />}
+          {dueSoon.length > 0 && (
             <Link
-              href={dueTarget ?? "#"}
+              href={bannerTarget}
               className="flex items-center justify-between gap-3 rounded-card border border-amber-fg/30 bg-amber-bg px-4 py-3 active:scale-[.99]"
             >
               <div className="min-w-0">
                 <div className="text-[14px] font-extrabold text-amber-fg">
-                  {picksDue.count} {picksDue.count === 1 ? "pick" : "picks"} due
+                  <Countdown iso={dueSoon[0].fixture.kickoffIso} prefix="Next pick locks in" />
                 </div>
-                {picksDue.earliestLockIso && (
-                  <div className="text-[11px] font-semibold text-amber-fg opacity-80">
-                    Earliest <Countdown iso={picksDue.earliestLockIso} prefix="locks in" />
-                  </div>
-                )}
+                <div className="text-[11px] font-semibold text-amber-fg opacity-80">
+                  {dueSoon.length} still to predict
+                </div>
               </div>
               <span className="shrink-0 rounded-pill bg-amber-fg px-4 py-2 text-[12px] font-bold text-white">Predict →</span>
             </Link>
@@ -199,10 +256,12 @@ export function MatchesTab({ view }: { view: MatchesView }) {
       </div>
 
       <div className="pt-4">
-        {tab === "next" ? (
-          <Timeline groups={upcoming} zone="upcoming" now={now} />
-        ) : (
+        {tab === "results" ? (
           <Timeline groups={past} zone="results" now={now} />
+        ) : timelineUpcoming.length > 0 || !nextUp ? (
+          <Timeline groups={timelineUpcoming} zone="upcoming" now={now} />
+        ) : (
+          <p className="py-6 text-center text-[12px] text-muted">Nothing else coming up.</p>
         )}
       </div>
     </div>
