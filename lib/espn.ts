@@ -5,7 +5,7 @@
 type Admin = ReturnType<typeof import("./supabase/service").createServiceRoleClient>;
 const BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
 
-function mapStatus(name = "", state = "") {
+export function mapStatus(name = "", state = "") {
   if (name === "STATUS_POSTPONED") return "postponed";
   if (name === "STATUS_CANCELED" || name === "STATUS_CANCELLED") return "cancelled";
   if (name === "STATUS_ABANDONED" || name === "STATUS_FORFEIT") return "abandoned";
@@ -13,7 +13,7 @@ function mapStatus(name = "", state = "") {
   if (state === "in") return "live";
   return "scheduled";
 }
-function isReal(c: any) {
+export function isReal(c: any) {
   const abbr = c?.team?.abbreviation ?? "";
   const name = c?.team?.displayName ?? "";
   if (!c?.team?.id) return false;
@@ -21,8 +21,43 @@ function isReal(c: any) {
   if (/group|place|winner|runner|loser|tbd/i.test(name)) return false;
   return true;
 }
-const ymd = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, "");
-const numScore = (s: any) => (s === undefined || s === null || s === "" ? null : Number.parseInt(s, 10));
+export const ymd = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, "");
+export const numScore = (s: any) => (s === undefined || s === null || s === "" ? null : Number.parseInt(s, 10));
+
+const TERMINAL = ["finished", "postponed", "cancelled", "abandoned"];
+
+// Minimal shape of the fixture row pollScores reads before deciding what to write.
+export interface FixtureRow {
+  status: string;
+  is_knockout: boolean;
+  home_team_id: string | null;
+  away_team_id: string | null;
+}
+
+// Pure classification of one ESPN event against our stored fixture. Decides
+// whether we touch the row at all (`skip`) and surfaces the facts the writer
+// needs. No I/O — the unit-tested core of pollScores's loop.
+export function classifyEvent(e: any, fx: FixtureRow) {
+  const comp = e?.competitions?.[0];
+  const cs = comp?.competitors ?? [];
+  const home = cs.find((c: any) => c?.homeAway === "home") ?? cs[0];
+  const away = cs.find((c: any) => c?.homeAway === "away") ?? cs[1];
+  const state = e?.status?.type?.state;
+  const status = mapStatus(e?.status?.type?.name, state);
+  const statusDetail = e?.status?.type?.name ?? null;
+  const isLive = state === "in";
+  const terminalChange = TERMINAL.includes(status) && fx.status !== status;
+  const needsResolve = isReal(home) && isReal(away) && (!fx.home_team_id || !fx.away_team_id);
+  return { home, away, state, status, statusDetail, isLive, terminalChange, needsResolve, skip: !isLive && !terminalChange && !needsResolve };
+}
+
+// Knockout advancer: the competitor flagged `winner` whose team id we know.
+// Group fixtures must keep advancer null (chk_advancer_ko_only) — caller gates on is_knockout.
+export function advancerTeamId(home: any, away: any, hid: string | null, aid: string | null): string | null {
+  if (home?.winner && hid) return hid;
+  if (away?.winner && aid) return aid;
+  return null;
+}
 
 export async function pollScores(admin: Admin) {
   const now = new Date();
@@ -55,26 +90,15 @@ export async function pollScores(admin: Admin) {
     const fx = byExt.get(Number(e.id));
     if (!fx) continue;
 
-    const comp = e.competitions?.[0];
-    const cs = comp?.competitors ?? [];
-    const home = cs.find((c: any) => c.homeAway === "home") ?? cs[0];
-    const away = cs.find((c: any) => c.homeAway === "away") ?? cs[1];
-    const state = e.status?.type?.state;
-    const status = mapStatus(e.status?.type?.name, state);
-
     // Only touch games *by their start time*: live now, a just-changed terminal
     // state (finished/postponed/cancelled/abandoned), or a knockout whose teams
     // just got decided. Scheduled-future / already-recorded games are skipped.
-    const isLive = state === "in";
-    const terminalChange =
-      (status === "finished" || status === "postponed" || status === "cancelled" || status === "abandoned") &&
-      fx.status !== status;
-    const needsResolve = isReal(home) && isReal(away) && (!fx.home_team_id || !fx.away_team_id);
-    if (!isLive && !terminalChange && !needsResolve) continue;
+    const { home, away, status, statusDetail, isLive, needsResolve, skip } = classifyEvent(e, fx);
+    if (skip) continue;
 
     const patch: Record<string, any> = {
       status,
-      status_detail: e.status?.type?.name ?? null,
+      status_detail: statusDetail,
       updated_at: now.toISOString(),
     };
     if (isLive || status === "finished") {
@@ -106,8 +130,8 @@ export async function pollScores(admin: Admin) {
     const hid = patch.home_team_id ?? fx.home_team_id;
     const aid = patch.away_team_id ?? fx.away_team_id;
     if (status === "finished" && fx.is_knockout) {
-      if (home?.winner && hid) patch.advancer_team_id = hid;
-      else if (away?.winner && aid) patch.advancer_team_id = aid;
+      const adv = advancerTeamId(home, away, hid, aid);
+      if (adv) patch.advancer_team_id = adv;
     }
 
     const { error: upErr } = await admin.from("fixtures").update(patch).eq("id", fx.id);

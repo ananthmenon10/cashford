@@ -3,16 +3,16 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { lockDueContests, settleFinishedContests } from "@/lib/settle-contest";
 import { pollScores } from "@/lib/espn";
 import { pollInsights } from "@/lib/espn-insights";
+import { isAuthorized } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 export const preferredRegion = "bom1"; // co-located with Supabase (ap-south-1)
 
 function authorized(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${secret}`) return true; // Vercel Cron / scheduled callers
-  return req.nextUrl.searchParams.get("secret") === secret; // manual trigger
+  return isAuthorized({
+    header: req.headers.get("authorization"),
+    queryParam: req.nextUrl.searchParams.get("secret"),
+  });
 }
 
 // Lock due contests, then settle finished ones. Idempotent — safe to call often.

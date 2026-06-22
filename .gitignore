@@ -32,6 +32,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
+# test coverage
+/coverage
+
 # ledger backups (contain settlement data)
 /backups/
 
