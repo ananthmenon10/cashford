@@ -418,23 +418,29 @@ rows: `league name · pick · {provisional} net pill · ›`, each a `<Link href
 Reuse the motion conventions already shipped (`cf-press`, chevron rotate via the `chev()` pattern;
 `<CountUp kind="inr">` for the nets).
 
-### Unit 2.3 — gold "picks due" banner (restyle)
-Restyle `MatchesTab.tsx:243-259` into the design's gold card (design `:60`): "**{count} picks due** /
-Earliest locks in {Countdown} / Predict →". Same `picksDue { count, earliestLockIso }` data; link to
-the earliest-due contest (or the Next-24h subtab). Re-tokenize the gold to `var(--color-amber-bg/fg)`.
+### Unit 2.3 — picks-due banner: KEEP AS-IS (descoped 2026-06-23)
+Per the user (mockup review), the gold-banner restyle is **dropped**. Keep the existing picks-due
+nudge (`MatchesTab.tsx:243-259`) exactly as today — no change.
 
-### Unit 2.4 — Next-24h cards (NARROW restyle — most of this already exists)
-**Do NOT rewrite `MatchFeedCard`, `CardShell`, or `PerLeagueRows`.** The review confirmed the
-collapsed "Locks in {Countdown}" + "in N leagues ▾" pills (`UpcomingFull` ~`:177-180`), the per-league
-"Pick →"/"Edit →" expansion (`PerLeagueRows` + `CardShell`, `:58-117`), and single-league whole-card
-links (`:103-107`) **already exist**. Rebuilding them risks regressing the expand/collapse + pick-rollup
-logic. The only genuinely new work:
-- **Timeline dot styling** — gold-with-ring when `needsPick`, grey when picked (`MatchesTab.tsx:47-59`):
-  CSS token tweak to match the design's ring (design `:73,:95`).
-- **Optional** `TODAY` → `TONIGHT` label rename (design) — flag, don't block.
-- Any green "Make pick ▾" CTA alignment is a class change on the existing unpicked-open branch, not new structure.
+### Unit 2.4 — Next-24h cards: ALL upcoming cards full + expandable (+ restyle)
+Decision (2026-06-23, mockup review): in the hub, **every** upcoming match renders the full
+expandable card (`UpcomingFull` + per-league `PerLeagueRows`), regardless of day — **not** the
+current proximity-based compact/full split.
 
-Estimate: ~10 lines changed. If a card affordance looks off, restyle the existing branch — don't add one.
+**The one behavior change:** in `MatchesTab.tsx`'s `Timeline`, pass `compact={false}` for the
+`upcoming` zone (drop the `>0-days-away → compact` rule, `MatchesTab.tsx:~204`). The **Results** zone
+keeps its own compact logic (void/sat-out rows) unchanged. `MatchFeedCard`/`CardShell`/`PerLeagueRows`
+internals are **NOT** rewritten — the full card + multi-league expand already exist (`:58-204`); this
+just routes every upcoming row to `UpcomingFull`.
+
+Restyle (mostly existing branches, CSS-token tweaks):
+- Timeline dot styling: gold-with-ring when `needsPick`, grey when picked (`MatchesTab.tsx:47-59`).
+- Gold "Locks in {Countdown}" pill + "in N leagues ▾" affordance + green "Make pick ▾" CTA — align the
+  existing `UpcomingFull`/`CardShell` branches to the handoff (design `:73,:78,:88,:95,:100`).
+- Optional `TODAY` → `TONIGHT` label.
+
+Trade-off (accepted): full cards for tomorrow+ make a busy-day list longer; the consistency call wins.
+`UpcomingFull` already renders a longer-range countdown ("Locks in 1d 4h"), so no new logic needed.
 
 ### Phase 2 verification
 - typecheck/build/vitest. The provisional math is `settle()` (already tested); `loadMatchesView` is
@@ -487,7 +493,9 @@ Estimate: ~10 lines changed. If a card affordance looks off, restyle the existin
 ### Phase 2
 - [ ] `FeedEntry.provisional` populated per league; per-league nets sum to the hero aggregate.
 - [ ] The live hero expands (when in >1 league) to per-league rows that each open that league's live
-      match; gold picks-due banner and Next-24h Pick/Edit affordances render and navigate.
+      match; the existing picks-due nudge is unchanged (banner restyle descoped).
+- [ ] Every upcoming match in the hub renders the full expandable card (per-league Pick/Edit); no
+      compact one-liners in the upcoming zone.
 - [ ] Light + dark + 360/480px verified; all design hex re-tokenized to semantic vars.
 
 ## Decisions resolved during deepening (build to these)
