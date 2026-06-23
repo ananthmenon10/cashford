@@ -1,14 +1,18 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { deriveCardState, ROUND_LABEL, type ContestStatus, type FixtureStatus, type ResultKind } from "@/lib/contest-state";
+import { deriveCardState, ROUND_LABEL, type CardState, type ContestStatus, type FixtureStatus, type ResultKind } from "@/lib/contest-state";
 import { PredictionForm } from "@/components/PredictionForm";
 import { isEligible, RENDER_MARGIN_MS, type OtherLeague, type PickShape } from "@/lib/cross-league";
 import { RevealGrid, type RevealRow } from "@/components/RevealGrid";
 import { StatusBadge } from "@/components/ui";
+import type { ReactNode } from "react";
 import { FixtureHeader } from "@/components/FixtureHeader";
 import { WinProbBar } from "@/components/WinProbBar";
 import { MatchInsights } from "@/components/MatchInsights";
 import { MatchTabs } from "./MatchTabs";
+import { WhatIf } from "@/components/WhatIf";
+import { buildBoard, type PlayerPick } from "@/lib/match-board";
+import type { Outcome } from "@/lib/settlement";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { BackLink } from "@/components/BackLink";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -22,6 +26,16 @@ const EMPTY_INSIGHTS: InsightsView = {
   h2h: null, standings: null,
 };
 
+// Typed view of the joined fixture row (replaces a loose `as any`). The select string below
+// determines these fields; keep them in sync.
+interface FixtureRow {
+  external_id: number | null; round: string; group_label: string | null;
+  home_label: string; away_label: string; home_team_id: string | null; away_team_id: string | null;
+  kickoff_at: string; status: string; status_detail: string | null;
+  ft_home: number | null; ft_away: number | null; minute: number | null;
+  venue: string | null; advancer_team_id: string | null;
+}
+
 export default async function MatchPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
   // Freshen live scores from ESPN AFTER the response is sent (non-blocking).
@@ -33,16 +47,16 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
     .select("id, league_id, fixture_id, status, lock_at, stake_inr, is_knockout, fixtures(external_id, round, group_label, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, venue, advancer_team_id)")
     .eq("id", id).single();
   if (!c) notFound();
-  const f = (Array.isArray(c.fixtures) ? c.fixtures[0] : c.fixtures) as any;
+  const f = (Array.isArray(c.fixtures) ? c.fixtures[0] : c.fixtures) as FixtureRow;
 
   const { data: teams } = await supabase.from("teams").select("id, short_name, external_id");
   const short = new Map((teams ?? []).map((t) => [t.id, t.short_name as string | null]));
   const extId = new Map((teams ?? []).map((t) => [t.id, t.external_id as number | null]));
-  const homeShort = short.get(f.home_team_id) ?? null;
-  const awayShort = short.get(f.away_team_id) ?? null;
+  const homeShort = short.get(f.home_team_id ?? "") ?? null;
+  const awayShort = short.get(f.away_team_id ?? "") ?? null;
   // ESPN team ids of the two sides — used to bold them in the group standings table.
   const highlightTeamIds = [f.home_team_id, f.away_team_id]
-    .map((tid) => extId.get(tid))
+    .map((tid) => (tid ? extId.get(tid) : null))
     .filter((v): v is number => v != null)
     .map(String);
 
@@ -127,6 +141,7 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
 
   // Build reveal rows (only meaningful once revealed; RLS returns others' picks then)
   let rows: RevealRow[] = [];
+  let players: PlayerPick[] = []; // entrants' picks for the live/what-if board (revealed only)
   if (revealed) {
     const { data: memberRows } = await supabase.from("league_members").select("user_id").eq("league_id", c.league_id);
     const memberIds = (memberRows ?? []).map((m) => m.user_id);
@@ -137,6 +152,17 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
     ]);
     const predBy = new Map((preds ?? []).map((p) => [p.user_id, p]));
     const resBy = new Map((results ?? []).map((r) => [r.user_id, r]));
+    // Entrants' picks for the live/what-if board. Opaque ids only (never ship the auth UUID for
+    // other players); sourced from the RLS-scoped client, so this is non-empty only post-lock.
+    const nameById = new Map((profiles ?? []).map((pr) => [pr.id, pr.display_name || pr.username]));
+    players = (preds ?? []).map((p, i) => ({
+      id: p.user_id === user!.id ? "me" : `p${i}`,
+      name: nameById.get(p.user_id) ?? "Player",
+      isMe: p.user_id === user!.id,
+      outcome: p.outcome as Outcome,
+      predHome: p.pred_home,
+      predAway: p.pred_away,
+    }));
     const pickLabel = (o: string) => (o === "home" ? homeShort || "Home" : o === "away" ? awayShort || "Away" : "Draw");
     rows = (profiles ?? [])
       .map((pr) => {
@@ -166,6 +192,85 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
     />
   );
 
+  // ── Live / locked / settled board + "What if" tabs (plan 2026-06-23-002) ───────────────────────
+  // Only for revealed contests the viewer actually entered (`!!mine`). Non-entrants keep the plain
+  // reveal grid below; open_*/tbd/void/cancelled are handled by their own branches.
+  const entered = !!mine;
+  const LIVE_TAB_STATES = new Set<CardState>(["locked", "live", "settling", "won", "lost", "push"]);
+  const showLiveTabs = revealed && entered && LIVE_TAB_STATES.has(state);
+
+  const hShort = homeShort || f.home_label;
+  const aShort = awayShort || f.away_label;
+  const isLivePhase = state === "live" || state === "settling";
+  const liveScore = f.ft_home != null && f.ft_away != null ? { home: f.ft_home, away: f.ft_away } : null;
+  // Provisional board: only with a usable score AND ≥2 entrants (the 10s RLS skew can briefly hide others).
+  const liveVm =
+    isLivePhase && liveScore && players.length >= 2
+      ? buildBoard(players, liveScore, { isKnockout: c.is_knockout, stake: c.stake_inr, homeShort: hShort, awayShort: aShort })
+      : null;
+
+  const settledHeadline =
+    state === "won" || state === "lost" || state === "push" ? (
+      <div className="mb-3 text-center text-xl font-extrabold"
+           style={{ color: state === "won" ? "var(--color-win)" : state === "lost" ? "var(--color-loss)" : "var(--color-push)" }}>
+        {state === "won" ? <>You win <span className="font-mono">₹{Math.abs(myRes?.net_inr ?? 0).toLocaleString("en-IN")}</span></>
+          : state === "lost" ? <>You lose <span className="font-mono">₹{Math.abs(myRes?.net_inr ?? 0).toLocaleString("en-IN")}</span></>
+          : "No winner · nothing owed"}
+      </div>
+    ) : null;
+
+  const boardRowsFromVm = (vm: NonNullable<typeof liveVm>): RevealRow[] =>
+    vm.rows.map((p) => ({
+      userId: p.id, name: p.name, isMe: p.isMe, pickLabel: p.pickLabel,
+      predHome: p.predHome, predAway: p.predAway, result: p.result, net: p.net, winner: p.net > 0,
+    }));
+
+  let boardPanel: ReactNode = null;
+  if (state === "won" || state === "lost" || state === "push") {
+    boardPanel = (<>{settledHeadline}<RevealGrid rows={rows} settled /></>);
+  } else if (isLivePhase && liveVm) {
+    boardPanel = (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start gap-2.5 rounded-control border border-[#f1dd9e] bg-amber-bg p-3 dark:border-[#5b4d1f]">
+          <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-amber-fg animate-live-pulse" />
+          <div className="text-[12px] leading-snug text-amber-fg">
+            {state === "settling"
+              ? <><strong>Full time — settling now.</strong> Final standings appear in a moment.</>
+              : <><strong>Provisional — based on the live {liveScore!.home}–{liveScore!.away} (regulation).</strong> Winnings settle at full time and move with every goal.</>}
+          </div>
+        </div>
+        <RevealGrid rows={boardRowsFromVm(liveVm)} settled />
+        <div className="text-center text-[11.5px] text-muted">
+          <span className="font-mono font-bold text-fg">₹{liveVm.pot.toLocaleString("en-IN")}</span> in the pot · <span className="font-bold text-win">{liveVm.ahead} ahead</span> · <span className="font-bold text-loss">{liveVm.behind} behind</span>
+        </div>
+      </div>
+    );
+  } else {
+    // locked, or live/settling without a usable score yet → picks only, no nets
+    boardPanel = (
+      <div className="flex flex-col gap-3">
+        <div className="text-[12px] text-muted">
+          {state === "locked" ? "Picks are locked — standings appear once the match kicks off." : "Standings appear shortly."}
+        </div>
+        <RevealGrid rows={rows} settled={false} />
+      </div>
+    );
+  }
+
+  const baseline =
+    isLivePhase && liveVm?.you
+      ? { score: liveScore!, youNet: liveVm.you.net, label: "live" as const }
+      : state === "won" || state === "lost" || state === "push"
+        ? {
+            score: { home: f.ft_home ?? 0, away: f.ft_away ?? 0 },
+            youNet: myRes?.net_inr ?? 0,
+            label: "final" as const,
+            advancerOverride: c.is_knockout ? (f.advancer_team_id === f.home_team_id ? ("home" as const) : ("away" as const)) : undefined,
+          }
+        : null;
+
+  const liveTabLabel = isLivePhase ? (state === "settling" ? "Result" : "Live winnings") : state === "locked" ? "Standings" : "Results";
+
   return (
     <main className="min-h-screen bg-bg">
       {(state === "live" || state === "settling") && <AutoRefresh seconds={20} />}
@@ -187,7 +292,9 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
 
         {isOpen ? (
           <MatchTabs
-            predict={
+            labels={["Predict", "Full insight"]}
+            firstTabCta={<>Form · H2H · group table <span className="text-primary">→</span></>}
+            panels={[
               <div className="flex flex-col gap-3">
                 {insightsView?.oddsAvailable && insightsView.probs && (
                   <WinProbBar
@@ -197,17 +304,15 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
                   />
                 )}
                 {predictForm}
-              </div>
-            }
-            insight={
+              </div>,
               <MatchInsights
                 d={insightsView ?? EMPTY_INSIGHTS}
                 home={{ label: f.home_label, short: homeShort || f.home_label }}
                 away={{ label: f.away_label, short: awayShort || f.away_label }}
                 groupLabel={f.round === "group" ? f.group_label : null}
                 highlightTeamIds={highlightTeamIds}
-              />
-            }
+              />,
+            ]}
           />
         ) : state === "tbd" ? (
           <div className="rounded-card border border-dashed border-[#CBD5E1] p-8 text-center text-[13px] text-muted dark:border-[#2f3a48]">
@@ -217,18 +322,28 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
           <div className="rounded-card border border-border bg-surface p-6 text-center text-[13px] text-push">Contest void — not enough players entered.</div>
         ) : state === "cancelled" ? (
           <div className="rounded-card border border-border bg-surface p-6 text-center text-[13px] text-[#B91C1C] dark:text-[#fca5a5]">Match cancelled — no contest.</div>
-        ) : (
+        ) : showLiveTabs ? (
           <>
-            {(state === "won" || state === "lost" || state === "push") && (
-              <div className="mb-3 text-center text-xl font-extrabold"
-                   style={{ color: state === "won" ? "var(--color-win)" : state === "lost" ? "var(--color-loss)" : "var(--color-push)" }}>
-                {state === "won" ? <>You win <span className="font-mono">₹{Math.abs(myRes?.net_inr ?? 0).toLocaleString("en-IN")}</span></>
-                  : state === "lost" ? <>You lose <span className="font-mono">₹{Math.abs(myRes?.net_inr ?? 0).toLocaleString("en-IN")}</span></>
-                  : "No winner · nothing owed"}
-              </div>
-            )}
-            <RevealGrid rows={rows} settled={["won", "lost", "push", "notentered"].includes(state)} />
+            <div className="mb-3 text-center text-[11px] text-muted">
+              {roundLabel} · <span className="font-mono">₹{c.stake_inr}</span> stake · {players.length} player{players.length === 1 ? "" : "s"}
+            </div>
+            <MatchTabs
+              labels={[liveTabLabel, "What if"]}
+              panels={[
+                boardPanel,
+                <WhatIf
+                  players={players}
+                  stake={c.stake_inr}
+                  isKnockout={c.is_knockout}
+                  homeShort={hShort}
+                  awayShort={aShort}
+                  baseline={baseline}
+                />,
+              ]}
+            />
           </>
+        ) : (
+          <RevealGrid rows={rows} settled={["won", "lost", "push", "notentered"].includes(state)} />
         )}
       </div>
     </main>

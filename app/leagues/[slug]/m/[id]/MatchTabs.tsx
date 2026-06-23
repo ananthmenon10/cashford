@@ -2,34 +2,35 @@
 
 import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
 
-// Route-local 2-tab switcher for the open-contest predict screen (plan 2026-06-20-003).
-// Server renders both panels as ReactNode; this client shell just shows/hides them (state stays
-// here, never lifted to the page). Full ARIA tabs pattern; default tab is the literal "Predict"
-// (no localStorage/window read in the initialiser → hydration-safe).
-const TABS = ["Predict", "Full insight"] as const;
-
-export function MatchTabs({ predict, insight }: { predict: ReactNode; insight: ReactNode }) {
+// Route-local tab switcher for the match screen. Server renders each panel as a ReactNode; this
+// client shell just shows/hides them (state stays here, never lifted to the page). Full ARIA tabs
+// pattern; default tab is 0 (no localStorage/window read in the initialiser → hydration-safe).
+// Generalised (plan 2026-06-23-002) from a hardcoded 2-tab Predict/Insight switcher to arbitrary
+// labels/panels, so the open-contest screen and the live/settled screen share one accessible shell.
+// `firstTabCta` is an optional shortcut shown only on tab 0 that jumps to tab 1 (the Predict screen's
+// "Form · H2H →" button) — concrete and used, not a speculative footer slot.
+export function MatchTabs({
+  labels, panels, firstTabCta,
+}: {
+  labels: string[];
+  panels: ReactNode[];
+  firstTabCta?: ReactNode;
+}) {
   const id = useId();
-  const [active, setActive] = useState<0 | 1>(0);
-  const panels = [predict, insight];
+  const [active, setActive] = useState(0);
+  const n = labels.length;
 
   const onKey = (e: KeyboardEvent, i: number) => {
-    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-      e.preventDefault();
-      setActive(((i + 1) % 2) as 0 | 1);
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      setActive(0);
-    } else if (e.key === "End") {
-      e.preventDefault();
-      setActive(1);
-    }
+    if (e.key === "ArrowRight") { e.preventDefault(); setActive((i + 1) % n); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); setActive((i - 1 + n) % n); }
+    else if (e.key === "Home") { e.preventDefault(); setActive(0); }
+    else if (e.key === "End") { e.preventDefault(); setActive(n - 1); }
   };
 
   return (
     <div>
       <div role="tablist" aria-label="Match view" className="mb-3 flex gap-1 rounded-control bg-subtle p-1">
-        {TABS.map((t, i) => (
+        {labels.map((t, i) => (
           <button
             key={t}
             role="tab"
@@ -37,7 +38,7 @@ export function MatchTabs({ predict, insight }: { predict: ReactNode; insight: R
             aria-selected={active === i}
             aria-controls={`${id}-p-${i}`}
             tabIndex={active === i ? 0 : -1}
-            onClick={() => setActive(i as 0 | 1)}
+            onClick={() => setActive(i)}
             onKeyDown={(e) => onKey(e, i)}
             className={`flex-1 rounded-[9px] py-2 text-[13px] ${
               active === i
@@ -50,19 +51,19 @@ export function MatchTabs({ predict, insight }: { predict: ReactNode; insight: R
         ))}
       </div>
 
-      {TABS.map((t, i) => (
+      {labels.map((t, i) => (
         <div key={t} role="tabpanel" id={`${id}-p-${i}`} aria-labelledby={`${id}-t-${i}`} hidden={active !== i}>
           {panels[i]}
         </div>
       ))}
 
-      {active === 0 && (
+      {firstTabCta && active === 0 && n > 1 && (
         <button
           type="button"
           onClick={() => setActive(1)}
           className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-control border border-border bg-surface py-3 text-[13px] font-bold text-label cf-press"
         >
-          Form · H2H · group table <span className="text-primary">→</span>
+          {firstTabCta}
         </button>
       )}
     </div>
