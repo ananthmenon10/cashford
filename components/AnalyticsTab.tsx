@@ -80,9 +80,9 @@ function DayBars({ days }: { days: { dayKey: string; net: number }[] }) {
 
 function HeadlineNet({ label, net, info }: { label: string; net: number; info: string }) {
   return (
-    <div className="flex-1 rounded-card border border-border bg-[#0F172A] p-3.5 dark:bg-surface">
+    <div className="flex flex-1 flex-col rounded-card border border-border bg-[#0F172A] p-3.5 dark:bg-surface">
       <div className="flex items-center text-[9px] font-bold tracking-[.05em] text-[#94a3b8]">{label}<InfoDot text={info} /></div>
-      <div className={`mt-1 font-mono text-[21px] font-bold tabular ${heroNet(net)}`}><CountUp value={net} kind="inr" /></div>
+      <div className={`mt-1 flex flex-1 items-center justify-center font-mono text-[26px] font-bold tabular ${heroNet(net)}`}><CountUp value={net} kind="inr" /></div>
     </div>
   );
 }
@@ -211,9 +211,9 @@ function LeaguePanel({ lg, myCorrect }: { lg: LeagueAnalytics; myCorrect: number
   return (
     <Reveal stagger className="flex flex-col gap-3">
       <div className="flex gap-2.5">
-        <div className="flex-1 rounded-card border border-border bg-[#0F172A] p-3.5 dark:bg-surface">
+        <div className="flex flex-1 flex-col rounded-card border border-border bg-[#0F172A] p-3.5 dark:bg-surface">
           <div className="flex items-center text-[9px] font-bold tracking-[.05em] text-[#94a3b8]">💰 NET · RANK {lg.rank}/{lg.members}<InfoDot text="Your net ₹ in this league, and where that ranks you among its members." /></div>
-          <div className={`mt-1 font-mono text-[20px] font-bold tabular ${heroNet(lg.net)}`}><CountUp value={lg.net} kind="inr" /></div>
+          <div className={`mt-1 flex flex-1 items-center justify-center font-mono text-[24px] font-bold tabular ${heroNet(lg.net)}`}><CountUp value={lg.net} kind="inr" /></div>
         </div>
         <AccuracyRingCard correctPct={lg.acc.correctPct} info="Your correct-result rate on settled matches in this league." />
       </div>
@@ -320,7 +320,7 @@ export function AnalyticsTab({ view }: { view: AnalyticsView }) {
   return (
     <InfoCtx.Provider value={openTip}>
       <div className="flex flex-col gap-3">
-        <div ref={scopeRef} className="relative flex gap-1 overflow-x-auto rounded-control bg-subtle p-1">
+        <div ref={scopeRef} className="relative flex w-fit max-w-full gap-1 self-center overflow-x-auto rounded-control bg-subtle p-1">
           {thumb && thumb.width > 0 && <span aria-hidden className="cf-seg-thumb" style={{ width: thumb.width, transform: `translateX(${thumb.left}px)` }} />}
           <button type="button" data-seg className={seg(scope === "global")} onClick={() => setScope("global")}>Global</button>
           {view.leagues.map((l) => (
