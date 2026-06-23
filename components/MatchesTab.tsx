@@ -13,7 +13,7 @@ import { inr } from "@/components/ui";
 import { LocalTime, Countdown } from "@/components/LocalTime";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { MatchFeedCard, TeamCrest, matchHref, pickRollup } from "@/components/MatchFeedCard";
-import { Reveal, SlideTrack } from "@/components/motion";
+import { Reveal, ScoreFlash, SlideTrack } from "@/components/motion";
 
 const roundText = (round: string) => ROUND_LABEL[round] ?? round;
 
@@ -114,12 +114,12 @@ function HubLiveCard({ g, provisional }: { g: MatchGroup; provisional: number | 
         <div className="flex items-center gap-2.5">
           <TeamCrest code={fx.homeShort || fx.homeLabel} size={24} />
           <span className="text-[14px] font-bold">{fx.homeLabel}</span>
-          <span className="ml-auto font-mono text-[18px] font-bold">{fx.ftHome ?? 0}</span>
+          <ScoreFlash value={fx.ftHome ?? 0} className="ml-auto font-mono text-[18px] font-bold" />
         </div>
         <div className="flex items-center gap-2.5">
           <TeamCrest code={fx.awayShort || fx.awayLabel} size={24} />
           <span className="text-[14px] font-semibold text-muted">{fx.awayLabel}</span>
-          <span className="ml-auto font-mono text-[18px] font-bold text-muted">{fx.ftAway ?? 0}</span>
+          <ScoreFlash value={fx.ftAway ?? 0} className="ml-auto font-mono text-[18px] font-bold text-muted" />
         </div>
       </div>
       {roll && (

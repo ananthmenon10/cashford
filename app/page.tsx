@@ -11,15 +11,13 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { HomeTabs } from "@/components/HomeTabs";
 import { MatchesTab } from "@/components/MatchesTab";
 import { AnalyticsTab } from "@/components/AnalyticsTab";
+import { CountUp } from "@/components/motion";
 import { APP_VERSION } from "@/lib/version";
 
 function initials(name: string) {
   const clean = name.replace(/[^A-Za-z]/g, "");
   return (clean.slice(0, 2) || "??").toUpperCase();
 }
-
-const inr = (n: number) =>
-  `${n < 0 ? "−" : "+"}₹${Math.abs(n).toLocaleString("en-IN")}`;
 
 export default async function Home() {
   const supabase = await createClient();
@@ -115,7 +113,7 @@ export default async function Home() {
                     <div className="text-right">
                       <div className="text-[11px] text-muted">Your net</div>
                       <div className={`font-mono text-xl font-bold tabular ${(netByLeague.get(lg.id) ?? 0) > 0 ? "text-win" : (netByLeague.get(lg.id) ?? 0) < 0 ? "text-loss" : "text-muted"}`}>
-                        {(netByLeague.get(lg.id) ?? 0) === 0 ? "₹0" : inr(netByLeague.get(lg.id) ?? 0)}
+                        <CountUp value={netByLeague.get(lg.id) ?? 0} kind="inr" />
                       </div>
                     </div>
                   </div>

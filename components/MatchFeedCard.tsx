@@ -11,6 +11,7 @@ import { ROUND_LABEL, type CardState } from "@/lib/contest-state";
 import type { FeedEntry, MatchGroup, PickShape } from "@/lib/match-feed";
 import { chipColor, inr, StatusBadge } from "@/components/ui";
 import { LocalTime, Countdown } from "@/components/LocalTime";
+import { CountUp } from "@/components/motion";
 
 export const matchHref = (e: FeedEntry) => `/leagues/${e.leagueSlug}/m/${e.contestId}`;
 
@@ -260,16 +261,16 @@ function ResultFull({ g }: { g: MatchGroup }) {
   const m = resultMeta(g);
   const roll = pickRollup(g);
   const leaguesSuffix = g.leagueCount > 1 ? ` · ${g.leagueCount} leagues` : "";
-  const container =
-    m.kind === "won"
-      ? "rounded-card border-[1.5px] border-[#16A34A] bg-[#F0FDF4] p-3.5 dark:bg-[#16a34a1a] shadow-[0_4px_16px_-4px_rgba(22,163,74,.25)]"
-      : CARD;
+  const won = m.kind === "won";
+  const container = won
+    ? "relative overflow-hidden cf-win rounded-card border-[1.5px] border-[#16A34A] bg-[#F0FDF4] p-3.5 dark:bg-[#16a34a1a] shadow-[0_4px_16px_-4px_rgba(22,163,74,.25)]"
+    : CARD;
 
   const banner =
-    m.kind === "won" ? (
+    won ? (
       <div className="flex items-center justify-between rounded-control bg-[#16A34A] px-3.5 py-2.5 text-white">
         <span className="text-[12px] font-bold">{wonVerb(g.fixtureId)}{roll ? ` · ${roll}` : ""}{leaguesSuffix}</span>
-        <span className="font-mono text-[16px] font-bold">{inr(m.net)}</span>
+        <span className="font-mono text-[16px] font-bold"><CountUp value={m.net} kind="inr" /></span>
       </div>
     ) : m.kind === "push" ? (
       <div className="flex items-center justify-between rounded-control bg-subtle px-3.5 py-2.5">
@@ -292,6 +293,7 @@ function ResultFull({ g }: { g: MatchGroup }) {
       className={container}
       head={() => (
         <>
+          {won && <span aria-hidden className="cf-sheen" />}
           <div className="mb-2.5"><Teams g={g} score /></div>
           {banner}
         </>

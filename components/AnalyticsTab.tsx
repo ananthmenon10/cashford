@@ -11,7 +11,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import Link from "next/link";
 import type { AnalyticsView, GlobalAnalytics, LeagueAnalytics } from "@/lib/analytics";
 import { Avatar, inr } from "@/components/ui";
-import { Reveal } from "@/components/motion";
+import { AccuracyRing, CountUp, Reveal } from "@/components/motion";
 
 // Measure-before-paint on the client (so the scope thumb lands in place, no blink); a no-op on the
 // server render, which sidesteps React's useLayoutEffect-during-SSR warning.
@@ -60,10 +60,10 @@ function DayBars({ days }: { days: { dayKey: string; net: number }[] }) {
           return (
             <div key={i} className="flex flex-1 flex-col" title={`${d.dayKey}: ${inr(d.net)}`}>
               <div className="flex flex-1 items-end justify-center">
-                {up && d.net !== 0 && <div className="w-full max-w-[16px] rounded-t-[3px] bg-win" style={{ height: barH(d.net) }} />}
+                {up && d.net !== 0 && <div className="cf-bar-up w-full max-w-[16px] rounded-t-[3px] bg-win" style={{ height: barH(d.net), "--bar-i": i } as React.CSSProperties} />}
               </div>
               <div className="flex flex-1 items-start justify-center">
-                {!up && <div className="w-full max-w-[16px] rounded-b-[3px] bg-loss" style={{ height: barH(d.net) }} />}
+                {!up && <div className="cf-bar-down w-full max-w-[16px] rounded-b-[3px] bg-loss" style={{ height: barH(d.net), "--bar-i": i } as React.CSSProperties} />}
               </div>
             </div>
           );
@@ -82,15 +82,16 @@ function HeadlineNet({ label, net, info }: { label: string; net: number; info: s
   return (
     <div className="flex-1 rounded-card border border-border bg-[#0F172A] p-3.5 dark:bg-surface">
       <div className="flex items-center text-[9px] font-bold tracking-[.05em] text-[#94a3b8]">{label}<InfoDot text={info} /></div>
-      <div className={`mt-1 font-mono text-[21px] font-bold tabular ${heroNet(net)}`}>{inr(net)}</div>
+      <div className={`mt-1 font-mono text-[21px] font-bold tabular ${heroNet(net)}`}><CountUp value={net} kind="inr" /></div>
     </div>
   );
 }
-function HeadlineStat({ label, value, info }: { label: string; value: string; info: string }) {
+// 🎯 CORRECT headline as an accuracy ring (the % counts up in the centre as the arc sweeps).
+function AccuracyRingCard({ correctPct, info }: { correctPct: number | null; info: string }) {
   return (
-    <div className={`flex-1 ${CARD}`}>
-      <div className="flex items-center text-[9px] font-bold tracking-[.05em] text-muted">{label}<InfoDot text={info} /></div>
-      <div className="mt-1 font-mono text-[21px] font-bold tabular">{value}</div>
+    <div className={`flex flex-1 flex-col ${CARD}`}>
+      <div className="flex items-center text-[9px] font-bold tracking-[.05em] text-muted">🎯 CORRECT<InfoDot text={info} /></div>
+      <div className="mt-1 flex flex-1 items-center justify-center"><AccuracyRing pct={correctPct} size={72} /></div>
     </div>
   );
 }
@@ -111,7 +112,7 @@ function GlobalPanel({ g }: { g: GlobalAnalytics }) {
     <Reveal stagger className="flex flex-col gap-3">
       <div className="flex gap-2.5">
         <HeadlineNet label="💰 NET" net={g.net} info="Your total winnings minus losses across every settled match in all your leagues." />
-        <HeadlineStat label="🎯 CORRECT" value={pct(g.acc.correctPct)} info="Share of your settled predictions where you picked the right result — home win, draw, or away. The scoreline doesn't matter here." />
+        <AccuracyRingCard correctPct={g.acc.correctPct} info="Share of your settled predictions where you picked the right result — home win, draw, or away. The scoreline doesn't matter here." />
       </div>
 
       <div className={CARD}>
@@ -212,9 +213,9 @@ function LeaguePanel({ lg, myCorrect }: { lg: LeagueAnalytics; myCorrect: number
       <div className="flex gap-2.5">
         <div className="flex-1 rounded-card border border-border bg-[#0F172A] p-3.5 dark:bg-surface">
           <div className="flex items-center text-[9px] font-bold tracking-[.05em] text-[#94a3b8]">💰 NET · RANK {lg.rank}/{lg.members}<InfoDot text="Your net ₹ in this league, and where that ranks you among its members." /></div>
-          <div className={`mt-1 font-mono text-[20px] font-bold tabular ${heroNet(lg.net)}`}>{inr(lg.net)}</div>
+          <div className={`mt-1 font-mono text-[20px] font-bold tabular ${heroNet(lg.net)}`}><CountUp value={lg.net} kind="inr" /></div>
         </div>
-        <HeadlineStat label="🎯 CORRECT" value={pct(lg.acc.correctPct)} info="Your correct-result rate on settled matches in this league." />
+        <AccuracyRingCard correctPct={lg.acc.correctPct} info="Your correct-result rate on settled matches in this league." />
       </div>
 
       <div className={CARD}>
