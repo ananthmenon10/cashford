@@ -96,21 +96,21 @@ function CardShell({
   g: MatchGroup;
   zone: "upcoming" | "results";
   className: string;
-  head: (multi: boolean) => ReactNode;
+  head: (multi: boolean, open: boolean) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const multi = g.leagueCount > 1;
   if (!multi) {
     return (
       <Link href={matchHref(g.leagues[0])} className={`block ${className} cf-press`}>
-        {head(false)}
+        {head(false, false)}
       </Link>
     );
   }
   return (
     <div className={className}>
-      <button type="button" onClick={() => setOpen((o) => !o)} className="block w-full text-left cf-press">
-        {head(true)}
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="block w-full text-left cf-press">
+        {head(true, open)}
       </button>
       {open && <PerLeagueRows g={g} zone={zone} />}
     </div>
@@ -153,8 +153,19 @@ function Teams({ g, score }: { g: MatchGroup; score?: boolean }) {
   );
 }
 
-const leaguesChip = (n: number) =>
-  n > 1 ? <span className="rounded-pill bg-subtle px-2.5 py-1 text-[11px] text-label">in {n} leagues</span> : null;
+// Expand affordance for a multi-league card: "in N leagues ▾" (grey) or "N leagues ▾" (green, when
+// already picked). The chevron rotates when the card is open. Null for single-league cards.
+const expandChip = (n: number, open: boolean, tone: "grey" | "green") =>
+  n > 1 ? (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-[11px] ${
+        tone === "green" ? "font-bold text-primary-press" : "bg-subtle text-label"
+      }`}
+    >
+      {tone === "green" ? `${n} leagues` : `in ${n} leagues`}
+      <span className={`font-mono text-[10px] transition-transform duration-200 ${open ? "rotate-180" : ""}`}>▾</span>
+    </span>
+  ) : null;
 
 // ---- UPCOMING (full) ----
 function UpcomingFull({ g }: { g: MatchGroup }) {
@@ -165,7 +176,7 @@ function UpcomingFull({ g }: { g: MatchGroup }) {
       g={g}
       zone="upcoming"
       className={CARD}
-      head={(multi) => (
+      head={(multi, open) => (
         <>
           <Header g={g} state={state} />
           <div className="mb-3"><Teams g={g} /></div>
@@ -177,19 +188,22 @@ function UpcomingFull({ g }: { g: MatchGroup }) {
                 <span className="rounded-pill bg-amber-bg px-2.5 py-1 font-mono text-[12px] font-semibold text-amber-fg">
                   <Countdown iso={g.fixture.kickoffIso} prefix="Locks in" />
                 </span>
-                {leaguesChip(g.leagueCount)}
+                {expandChip(g.leagueCount, open, "grey")}
               </div>
-              <div className="rounded-control bg-primary py-2.5 text-center text-[14px] font-bold text-white shadow-[0_2px_8px_rgba(21,166,106,.3)]">
-                {multi ? "Make pick ▾" : "Make pick"}
-              </div>
+              {/* Collapsed: the CTA expands the card. Expanded (multi): the per-league "Pick →" rows
+                  below replace it, so we hide the button to match the handoff. */}
+              {!(multi && open) && (
+                <div className="rounded-control bg-primary py-2.5 text-center text-[14px] font-bold text-white shadow-[0_2px_8px_rgba(21,166,106,.3)]">
+                  {multi ? "Make pick ▾" : "Make pick"}
+                </div>
+              )}
             </div>
           ) : state === "open_picked" ? (
             <div className="flex items-center justify-between text-[12px]">
               <span className="text-muted">
                 {roll ? <>Your pick <span className="font-mono font-bold text-fg">{roll}</span></> : "Predicted"}
-                {g.leagueCount > 1 && <> · in {g.leagueCount} leagues</>}
               </span>
-              <span className="font-bold text-primary-press">{multi ? "Edit ▾" : "Edit →"}</span>
+              {multi ? expandChip(g.leagueCount, open, "green") : <span className="font-bold text-primary-press">Edit →</span>}
             </div>
           ) : (
             <div className="flex items-center justify-between text-[12px] text-muted">

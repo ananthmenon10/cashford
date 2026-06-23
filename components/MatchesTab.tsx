@@ -77,7 +77,9 @@ function Timeline({ groups, zone, now }: { groups: MatchGroup[]; zone: "upcoming
             {b.groups.map((g) => (
               <div key={g.fixtureId} className="relative mb-3.5">
                 <span className={`absolute -left-[20px] top-1.5 h-2.5 w-2.5 rounded-full ${dotClass(g, zone)}`} />
-                <MatchFeedCard g={g} zone={zone} compact={zone === "upcoming" && dayDiff(g.fixture.kickoffMs, now) > 0} />
+                {/* Every upcoming match renders the full expandable card (decision 2026-06-23) — no
+                    proximity-based compact rows. Results compactness stays internal to MatchFeedCard. */}
+                <MatchFeedCard g={g} zone={zone} compact={false} />
               </div>
             ))}
           </Reveal>
@@ -87,21 +89,30 @@ function Timeline({ groups, zone, now }: { groups: MatchGroup[]; zone: "upcoming
   );
 }
 
-function HubLiveCard({ g, provisional }: { g: MatchGroup; provisional: number | null }) {
+const LIVE_CARD =
+  "rounded-card border border-border border-l-[3px] border-l-live bg-surface p-3.5 shadow-[0_2px_8px_rgba(15,23,42,.04)]";
+
+// The pinned live hero. Single league → links straight into that match. Multi-league → an accordion:
+// the collapsed face shows the cross-league provisional roll-up; expanding lists each league's pick +
+// live P&L, each row opening that league's live match.
+function HubLiveHero({ g, provisional }: { g: MatchGroup; provisional: number | null }) {
   const fx = g.fixture;
+  const [open, setOpen] = useState(false);
+  const multi = g.leagueCount > 1;
   const roll = pickRollup(g);
-  const suffix = g.leagueCount > 1 ? ` · ${g.leagueCount} leagues` : "";
-  const track =
-    provisional == null ? null : (
-      <span className={`font-bold ${provisional > 0 ? "text-win" : provisional < 0 ? "text-loss" : "text-push"}`}>
-        {provisional === 0 ? `level${suffix}` : `on track ${inr(provisional)}${suffix}`}
-      </span>
-    );
-  return (
-    <Link
-      href={matchHref(g.leagues[0])}
-      className="block rounded-card border border-border border-l-[3px] border-l-live bg-surface p-3.5 shadow-[0_2px_8px_rgba(15,23,42,.04)] cf-press"
-    >
+
+  const signCls = (n: number) => (n > 0 ? "text-win" : n < 0 ? "text-loss" : "text-push");
+  const netPill = (n: number) =>
+    `rounded-pill px-2 py-0.5 font-mono text-[12px] font-bold tabular ${
+      n > 0 ? "bg-mint text-primary-press" : n < 0 ? "bg-[#FEF2F2] text-loss dark:bg-[#ef44441f]" : "bg-subtle text-push"
+    }`;
+  const pickLabel = (lg: (typeof g.leagues)[number]) =>
+    lg.pick
+      ? `${lg.pick.outcome === "home" ? fx.homeShort || "Home" : lg.pick.outcome === "away" ? fx.awayShort || "Away" : "Draw"} ${lg.pick.predHome}–${lg.pick.predAway}`
+      : "—";
+
+  const head = (
+    <>
       <div className="mb-2.5 flex items-center justify-between">
         <span className="text-[11px] text-muted">
           {roundText(fx.round)} · <span className="font-bold text-live">● {liveLabel(fx.statusDetail, fx.minute)}</span>
@@ -122,13 +133,58 @@ function HubLiveCard({ g, provisional }: { g: MatchGroup; provisional: number | 
           <ScoreFlash value={fx.ftAway ?? 0} className="ml-auto font-mono text-[18px] font-bold text-muted" />
         </div>
       </div>
-      {roll && (
-        <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5 text-[12px]">
-          <span className="text-muted">Your pick <span className="font-bold text-fg">{roll}</span></span>
-          {track}
+      <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5 text-[12px]">
+        {multi ? (
+          <>
+            <span className="text-muted">
+              Your picks
+              {provisional != null && (
+                <> · <span className={`font-bold ${signCls(provisional)}`}>{provisional === 0 ? "level" : `${inr(provisional)} on track`}</span></>
+              )}
+            </span>
+            <span className="flex items-center gap-1.5 text-muted">
+              {g.leagueCount} leagues
+              <span className={`font-mono text-[10px] transition-transform duration-200 ${open ? "rotate-180" : ""}`}>▾</span>
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="text-muted">{roll ? <>Your pick <span className="font-bold text-fg">{roll}</span></> : "Live"}</span>
+            {provisional != null && (
+              <span className={`font-bold ${signCls(provisional)}`}>{provisional === 0 ? "level" : `on track ${inr(provisional)}`}</span>
+            )}
+          </>
+        )}
+      </div>
+    </>
+  );
+
+  if (!multi) {
+    return <Link href={matchHref(g.leagues[0])} className={`block ${LIVE_CARD} cf-press`}>{head}</Link>;
+  }
+  return (
+    <div className={LIVE_CARD}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="block w-full text-left cf-press">
+        {head}
+      </button>
+      {open && (
+        <div className="mt-1.5">
+          {g.leagues.map((lg, i) => (
+            <Link
+              key={lg.contestId}
+              href={matchHref(lg)}
+              className={`flex items-center gap-2.5 py-2.5 active:bg-subtle ${i === 0 ? "border-t border-border" : "border-t border-subtle"}`}
+            >
+              <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{lg.leagueName}</span>
+              <span className="font-mono text-[11px] font-semibold text-label">{pickLabel(lg)}</span>
+              {lg.provisional != null && <span className={netPill(lg.provisional)}>{inr(lg.provisional)}</span>}
+              <span className="text-[15px] text-draw">›</span>
+            </Link>
+          ))}
+          <div className="mt-0.5 border-t border-subtle pt-2 text-center text-[11px] text-muted">Tap a league to open the live match</div>
         </div>
       )}
-    </Link>
+    </div>
   );
 }
 
@@ -237,7 +293,7 @@ export function MatchesTab({ view }: { view: MatchesView }) {
         <div className="mb-2 flex flex-col gap-2.5">
           {live.length > 0
             ? live.map((g) => (
-                <HubLiveCard key={g.fixtureId} g={g} provisional={provisionalByFixture[g.fixtureId] ?? null} />
+                <HubLiveHero key={g.fixtureId} g={g} provisional={provisionalByFixture[g.fixtureId] ?? null} />
               ))
             : nextUp && <NextUpCard g={nextUp} />}
           {dueSoon.length > 0 && (

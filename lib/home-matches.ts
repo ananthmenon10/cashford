@@ -87,6 +87,7 @@ export async function loadMatchesView(supabase: RlsClient, admin: AdminClient, u
       stake: c.stake_inr,
       pick: mine ? { outcome: mine.outcome, predHome: mine.pred_home, predAway: mine.pred_away } : null,
       net: res?.net_inr ?? null,
+      provisional: null, // filled in the live loop below (live, ≥2 entrants)
       joined: joined.get(c.id) ?? 0,
       members: memberCount.get(c.league_id) ?? 0,
     });
@@ -140,7 +141,10 @@ export async function loadMatchesView(supabase: RlsClient, admin: AdminClient, u
         if (g.fixture.isKnockout && !adv) continue; // level knockout — too close to call
         const s = settle(preds, { isKnockout: g.fixture.isKnockout, ftHome: hh, ftAway: aa, advancer: adv }, lg.stake);
         const mineNet = s.results.find((r) => r.userId === userId)?.net ?? null;
-        if (mineNet != null) net = (net ?? 0) + mineNet;
+        if (mineNet != null) {
+          lg.provisional = mineNet; // per-league (drives the accordion hero rows); same object ref as in `live`
+          net = (net ?? 0) + mineNet; // aggregate (drives the collapsed hero + the home-tab dot)
+        }
       }
       provisionalByFixture[g.fixtureId] = net;
     }

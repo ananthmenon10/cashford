@@ -25,6 +25,8 @@ export interface FeedEntry {
   stake: number;           // this league's stake for the fixture
   pick: PickShape | null;  // the viewer's pick in THIS league (null = not predicted here)
   net: number | null;      // the viewer's settled net here (null until settled)
+  provisional: number | null; // viewer's live provisional net here (non-null only when state==="live"
+                           // & ≥2 entrants); set by home-matches.ts, not match-feed.ts's pure core.
   joined: number;          // entrants in this league's contest (count only — never the picks)
   members: number;         // league size
 }

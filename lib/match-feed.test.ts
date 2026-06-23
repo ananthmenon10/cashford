@@ -49,6 +49,7 @@ function entry(
     stake: 100,
     pick: null,
     net: null,
+    provisional: null,
     joined: 1,
     members: 4,
     ...over,
