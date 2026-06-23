@@ -101,7 +101,7 @@ export default async function Home() {
             return (
               <div
                 key={lg.id}
-                className="relative overflow-hidden rounded-card border border-border bg-surface shadow-[0_2px_8px_rgba(15,23,42,.04)] transition-transform active:scale-[.99]"
+                className="relative overflow-hidden rounded-card border border-border bg-surface shadow-[0_2px_8px_rgba(15,23,42,.04)] cf-press"
               >
                 <Link href={`/leagues/${lg.slug}`} className="relative block p-4">
                   <LinkPending />
@@ -147,7 +147,7 @@ export default async function Home() {
 
       <Link
         href="/rules"
-        className="mt-5 flex items-center justify-between rounded-card border border-border bg-surface px-4 py-3.5 text-[14px] font-semibold shadow-[0_2px_8px_rgba(15,23,42,.04)] transition-transform active:scale-[.99]"
+        className="mt-5 flex items-center justify-between rounded-card border border-border bg-surface px-4 py-3.5 text-[14px] font-semibold shadow-[0_2px_8px_rgba(15,23,42,.04)] cf-press"
       >
         <span>📖 How scoring &amp; tiebreakers work</span>
         <span className="text-muted">›</span>

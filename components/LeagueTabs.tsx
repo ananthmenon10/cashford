@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { SlideTrack } from "./motion";
 
 const TABS = ["Next 24h", "Later", "Live", "Done", "Dues"] as const;
 type TabName = (typeof TABS)[number];
@@ -17,6 +18,7 @@ export function LeagueTabs({
   // between rounds) doesn't open empty while "Later" has matches.
   const initial: TabName = counts["Next 24h"] > 0 ? "Next 24h" : counts.Later > 0 ? "Later" : "Next 24h";
   const [active, setActive] = useState<TabName>(initial);
+  const activeIndex = TABS.indexOf(active);
   const panels: Record<TabName, ReactNode> = { "Next 24h": next24, Later: later, Live: live, Done: done, Dues: dues };
 
   return (
@@ -37,8 +39,8 @@ export function LeagueTabs({
             <button
               key={t}
               onClick={() => setActive(t)}
-              className={`flex flex-1 flex-col items-center justify-center gap-0.5 -mb-px border-b-[2.5px] py-2 text-[13px] ${
-                on ? "border-primary font-bold text-fg" : "border-transparent font-medium text-muted"
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[13px] transition-colors ${
+                on ? "font-bold text-fg" : "font-medium text-muted"
               }`}
             >
               <span>{t}</span>
@@ -46,6 +48,7 @@ export function LeagueTabs({
             </button>
           );
         })}
+        <SlideTrack count={TABS.length} active={activeIndex} />
       </div>
       <div className="pt-4">{panels[active]}</div>
     </>

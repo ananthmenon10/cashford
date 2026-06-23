@@ -87,7 +87,7 @@ export function MatchCard({ d }: { d: CardData }) {
   return (
     <Link
       href={`/leagues/${d.slug}/m/${d.contestId}`}
-      className={`relative block rounded-card p-4 transition-transform active:scale-[.99] ${CONTAINER[d.state] ?? DEFAULT_BOX}`}
+      className={`relative block rounded-card p-4 cf-press ${CONTAINER[d.state] ?? DEFAULT_BOX}`}
     >
       <LinkPending />
       <div className="mb-2.5 flex items-center justify-between">

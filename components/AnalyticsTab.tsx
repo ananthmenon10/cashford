@@ -7,10 +7,15 @@
 // (lib/home-analytics); this component owns only the view state. Each card carries an ⓘ that opens
 // a "how this is calculated" bubble — one shared, viewport-clamped popover so it never overflows.
 
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { AnalyticsView, GlobalAnalytics, LeagueAnalytics } from "@/lib/analytics";
 import { Avatar, inr } from "@/components/ui";
+import { Reveal } from "@/components/motion";
+
+// Measure-before-paint on the client (so the scope thumb lands in place, no blink); a no-op on the
+// server render, which sidesteps React's useLayoutEffect-during-SSR warning.
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 const pct = (p: number | null) => (p == null ? "—" : `${Math.round(p * 100)}%`);
 const CARD = "rounded-card border border-border bg-surface p-3.5 shadow-[0_2px_8px_rgba(15,23,42,.04)]";
@@ -103,7 +108,7 @@ function GlobalPanel({ g }: { g: GlobalAnalytics }) {
   const biasTxt = bias == null ? "—" : `${bias >= 0 ? "+" : "−"}${Math.abs(bias).toFixed(1)}`;
   const biasLabel = bias == null ? "" : bias > 0.15 ? "you predict high" : bias < -0.15 ? "you predict low" : "on the money";
   return (
-    <div className="flex flex-col gap-3">
+    <Reveal stagger className="flex flex-col gap-3">
       <div className="flex gap-2.5">
         <HeadlineNet label="💰 NET" net={g.net} info="Your total winnings minus losses across every settled match in all your leagues." />
         <HeadlineStat label="🎯 CORRECT" value={pct(g.acc.correctPct)} info="Share of your settled predictions where you picked the right result — home win, draw, or away. The scoreline doesn't matter here." />
@@ -179,7 +184,7 @@ function GlobalPanel({ g }: { g: GlobalAnalytics }) {
           <div className="mt-1.5 flex items-center justify-between text-[11px] text-label"><span>Your called upsets 🎯</span><span className="font-mono font-bold text-win">{g.calledUpsets}</span></div>
         </div>
       )}
-    </div>
+    </Reveal>
   );
 }
 
@@ -203,7 +208,7 @@ function LeaguePanel({ lg, myCorrect }: { lg: LeagueAnalytics; myCorrect: number
         : youUp ? "Evenly matched on skill — you're ahead on the money." : moneyLevel ? "Neck and neck, both ways." : `Level on skill; ${rival.name} edges the money.`;
 
   return (
-    <div className="flex flex-col gap-3">
+    <Reveal stagger className="flex flex-col gap-3">
       <div className="flex gap-2.5">
         <div className="flex-1 rounded-card border border-border bg-[#0F172A] p-3.5 dark:bg-surface">
           <div className="flex items-center text-[9px] font-bold tracking-[.05em] text-[#94a3b8]">💰 NET · RANK {lg.rank}/{lg.members}<InfoDot text="Your net ₹ in this league, and where that ranks you among its members." /></div>
@@ -272,7 +277,7 @@ function LeaguePanel({ lg, myCorrect }: { lg: LeagueAnalytics; myCorrect: number
           )}
         </div>
       )}
-    </div>
+    </Reveal>
   );
 }
 
@@ -288,16 +293,37 @@ export function AnalyticsTab({ view }: { view: AnalyticsView }) {
     setTip({ text, left, top: rect.bottom + 6 });
   }, []);
 
+  // Sliding scope thumb. The pills are variable-width and horizontally scrollable, so the
+  // equal-width <SlideTrack> doesn't fit — measure the active pill and glide the thumb to it.
+  const scopeRef = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null);
+  const activeIndex = scope === "global" ? 0 : view.leagues.findIndex((l) => l.leagueId === scope) + 1;
+  const measure = useCallback(() => {
+    const el = scopeRef.current?.querySelectorAll<HTMLElement>("[data-seg]")[activeIndex];
+    if (el) setThumb({ left: el.offsetLeft, width: el.offsetWidth });
+  }, [activeIndex]);
+  useIsoLayoutEffect(measure, [measure, view.leagues.length]);
+  // Re-measure when the bar resizes — covers viewport changes AND the panel becoming visible (the
+  // home Analytics tab mounts display:none, so the initial measure reads 0 until it's shown).
+  useEffect(() => {
+    const c = scopeRef.current;
+    if (!c || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(c);
+    return () => ro.disconnect();
+  }, [measure]);
+
   const seg = (active: boolean) =>
-    `shrink-0 whitespace-nowrap rounded-[9px] px-3 py-1.5 text-[12px] ${active ? "bg-surface font-bold text-fg shadow-[0_1px_3px_rgba(15,23,42,.08)]" : "font-semibold text-muted"}`;
+    `relative z-[1] shrink-0 whitespace-nowrap rounded-[9px] px-3 py-1.5 text-[12px] transition-colors ${active ? "font-bold text-fg" : "font-semibold text-muted"}`;
 
   return (
     <InfoCtx.Provider value={openTip}>
       <div className="flex flex-col gap-3">
-        <div className="flex gap-1 overflow-x-auto rounded-control bg-subtle p-1">
-          <button type="button" className={seg(scope === "global")} onClick={() => setScope("global")}>Global</button>
+        <div ref={scopeRef} className="relative flex gap-1 overflow-x-auto rounded-control bg-subtle p-1">
+          {thumb && thumb.width > 0 && <span aria-hidden className="cf-seg-thumb" style={{ width: thumb.width, transform: `translateX(${thumb.left}px)` }} />}
+          <button type="button" data-seg className={seg(scope === "global")} onClick={() => setScope("global")}>Global</button>
           {view.leagues.map((l) => (
-            <button key={l.leagueId} type="button" className={seg(scope === l.leagueId)} onClick={() => setScope(l.leagueId)}>{l.leagueName}</button>
+            <button key={l.leagueId} type="button" data-seg className={seg(scope === l.leagueId)} onClick={() => setScope(l.leagueId)}>{l.leagueName}</button>
           ))}
         </div>
 

@@ -60,7 +60,7 @@ export function MatchTabs({ predict, insight }: { predict: ReactNode; insight: R
         <button
           type="button"
           onClick={() => setActive(1)}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-control border border-border bg-surface py-3 text-[13px] font-bold text-label transition-transform active:scale-[.99]"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-control border border-border bg-surface py-3 text-[13px] font-bold text-label cf-press"
         >
           Form · H2H · group table <span className="text-primary">→</span>
         </button>

@@ -101,14 +101,14 @@ function CardShell({
   const multi = g.leagueCount > 1;
   if (!multi) {
     return (
-      <Link href={matchHref(g.leagues[0])} className={`block ${className} transition-transform active:scale-[.99]`}>
+      <Link href={matchHref(g.leagues[0])} className={`block ${className} cf-press`}>
         {head(false)}
       </Link>
     );
   }
   return (
     <div className={className}>
-      <button type="button" onClick={() => setOpen((o) => !o)} className="block w-full text-left">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="block w-full text-left cf-press">
         {head(true)}
       </button>
       {open && <PerLeagueRows g={g} zone={zone} />}

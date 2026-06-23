@@ -79,3 +79,75 @@ body {
   50% { opacity: 0.5; transform: scale(0.85); }
 }
 .animate-live-pulse { animation: live-pulse 1.4s ease-in-out infinite; }
+
+/* ============================================================================
+   Cashford motion system — Phase 1 (foundation + structural polish).
+   React port of the design handoff (cashford-motion.css). Hardcoded hex from the
+   handoff is re-tokenized to semantic vars so dark mode never flashes white.
+   Phase 2 (count-up, win glow, goal flash) and Phase 3 (accuracy ring) add their
+   own keyframes when built. Principles: reveals fire once; only the live dot loops.
+   ============================================================================ */
+:root { --cf-ease: cubic-bezier(.2, .8, .2, 1); }
+
+@keyframes cf-riseIn {
+  from { opacity: 0; transform: translateY(14px); filter: blur(8px); }
+  to   { opacity: 1; transform: none;            filter: none; }
+}
+
+/* Reveal-on-scroll. `.in-view` is added by components/motion.tsx once the element enters
+   view. Single element rises in; a stagger container cascades its direct children. */
+.cf-rv { opacity: 0; }
+.cf-rv.in-view { animation: cf-riseIn .5s var(--cf-ease) both; }
+.cf-rv-stagger > * { opacity: 0; }
+.cf-rv-stagger.in-view > * { animation: cf-riseIn .5s var(--cf-ease) both; }
+.cf-rv-stagger.in-view > *:nth-child(1) { animation-delay: 0s; }
+.cf-rv-stagger.in-view > *:nth-child(2) { animation-delay: .06s; }
+.cf-rv-stagger.in-view > *:nth-child(3) { animation-delay: .12s; }
+.cf-rv-stagger.in-view > *:nth-child(4) { animation-delay: .18s; }
+.cf-rv-stagger.in-view > *:nth-child(5) { animation-delay: .24s; }
+.cf-rv-stagger.in-view > *:nth-child(6) { animation-delay: .30s; }
+.cf-rv-stagger.in-view > *:nth-child(7) { animation-delay: .36s; }
+.cf-rv-stagger.in-view > *:nth-child(n+8) { animation-delay: .42s; } /* plateau for long lists */
+
+/* Tactile press — replaces `transition-transform active:scale-[.99]`. Springs back if the
+   finger slides off; shadow eases with it. */
+.cf-press {
+  transition: transform .13s var(--cf-ease), box-shadow .13s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.cf-press:active { transform: scale(.96); }
+
+/* Live heartbeat — box-shadow ripple (the only looping animation). rgba == --color-live
+   (#ff3b30), which stays constant across themes, so it's correct in light and dark. */
+@keyframes cf-livePulse {
+  0%   { box-shadow: 0 0 0 0   rgba(255, 59, 48, .55); }
+  70%  { box-shadow: 0 0 0 7px rgba(255, 59, 48, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(255, 59, 48, 0); }
+}
+.cf-live-dot { animation: cf-livePulse 1.6s ease-out infinite; }
+
+/* Sliding tab underline + segmented thumb — width/translateX set inline from the active
+   index (components/motion.tsx <SlideTrack/>); the glide is this transition. Parent must
+   be position:relative. Decorative (aria-hidden). */
+.cf-tab-ind {
+  position: absolute; bottom: -1px; left: 0; height: 2.5px;
+  background: var(--color-primary); border-radius: 2px;
+  transition: transform .3s var(--cf-ease), width .3s var(--cf-ease);
+}
+.cf-seg-thumb {
+  position: absolute; top: 4px; bottom: 4px; left: 0;
+  background: var(--color-surface); border-radius: 9px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .12);
+  transition: transform .28s var(--cf-ease), width .28s var(--cf-ease);
+}
+
+/* Accessibility — collapse all motion to the final resting state. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+  .cf-rv, .cf-rv-stagger > * { opacity: 1 !important; }
+}

@@ -50,7 +50,7 @@ export function FixtureHeader({ d }: { d: FixtureHeaderData }) {
       <div className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[12px] text-muted">
         {live && (
           <span className="inline-flex items-center gap-1.5 rounded-pill bg-[#FFECEC] px-2 py-0.5 font-semibold text-live dark:bg-[#ff3b301f]">
-            <span className="h-1.5 w-1.5 rounded-full bg-live animate-live-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-live cf-live-dot" />
             {liveLabel(d.statusDetail ?? null, d.minute ?? null)}
           </span>
         )}

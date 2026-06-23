@@ -13,6 +13,7 @@ import { inr } from "@/components/ui";
 import { LocalTime, Countdown } from "@/components/LocalTime";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { MatchFeedCard, TeamCrest, matchHref, pickRollup } from "@/components/MatchFeedCard";
+import { Reveal, SlideTrack } from "@/components/motion";
 
 const roundText = (round: string) => ROUND_LABEL[round] ?? round;
 
@@ -72,12 +73,14 @@ function Timeline({ groups, zone, now }: { groups: MatchGroup[]; zone: "upcoming
       {buckets.map((b) => (
         <div key={b.label}>
           <div className="mb-3 text-[11px] font-extrabold tracking-[.06em] text-muted">{b.label}</div>
-          {b.groups.map((g) => (
-            <div key={g.fixtureId} className="relative mb-3.5">
-              <span className={`absolute -left-[20px] top-1.5 h-2.5 w-2.5 rounded-full ${dotClass(g, zone)}`} />
-              <MatchFeedCard g={g} zone={zone} compact={zone === "upcoming" && dayDiff(g.fixture.kickoffMs, now) > 0} />
-            </div>
-          ))}
+          <Reveal stagger>
+            {b.groups.map((g) => (
+              <div key={g.fixtureId} className="relative mb-3.5">
+                <span className={`absolute -left-[20px] top-1.5 h-2.5 w-2.5 rounded-full ${dotClass(g, zone)}`} />
+                <MatchFeedCard g={g} zone={zone} compact={zone === "upcoming" && dayDiff(g.fixture.kickoffMs, now) > 0} />
+              </div>
+            ))}
+          </Reveal>
         </div>
       ))}
     </div>
@@ -97,7 +100,7 @@ function HubLiveCard({ g, provisional }: { g: MatchGroup; provisional: number | 
   return (
     <Link
       href={matchHref(g.leagues[0])}
-      className="block rounded-card border border-border border-l-[3px] border-l-live bg-surface p-3.5 shadow-[0_2px_8px_rgba(15,23,42,.04)] transition-transform active:scale-[.99]"
+      className="block rounded-card border border-border border-l-[3px] border-l-live bg-surface p-3.5 shadow-[0_2px_8px_rgba(15,23,42,.04)] cf-press"
     >
       <div className="mb-2.5 flex items-center justify-between">
         <span className="text-[11px] text-muted">
@@ -140,7 +143,7 @@ function NextUpCard({ g }: { g: MatchGroup }) {
   return (
     <Link
       href={target}
-      className="block rounded-card border border-border border-l-[3px] border-l-primary bg-surface p-3.5 shadow-[0_2px_8px_rgba(15,23,42,.04)] transition-transform active:scale-[.99]"
+      className="block rounded-card border border-border border-l-[3px] border-l-primary bg-surface p-3.5 shadow-[0_2px_8px_rgba(15,23,42,.04)] cf-press"
     >
       <div className="mb-2.5 flex items-center justify-between">
         <span className="text-[11px] text-muted">
@@ -207,8 +210,8 @@ export function MatchesTab({ view }: { view: MatchesView }) {
       role="tab"
       aria-selected={tab === key}
       onClick={() => setTab(key)}
-      className={`-mb-px border-b-[2.5px] pb-2.5 pt-1 text-[13px] ${
-        tab === key ? "border-primary font-extrabold text-fg" : "border-transparent font-semibold text-muted"
+      className={`flex-1 pb-2.5 pt-1 text-center text-[13px] transition-colors ${
+        tab === key ? "font-extrabold text-fg" : "font-semibold text-muted"
       }`}
     >
       {label}
@@ -240,7 +243,7 @@ export function MatchesTab({ view }: { view: MatchesView }) {
           {dueSoon.length > 0 && (
             <Link
               href={bannerTarget}
-              className="flex items-center justify-between gap-3 rounded-card border border-amber-fg/30 bg-amber-bg px-4 py-3 active:scale-[.99]"
+              className="flex items-center justify-between gap-3 rounded-card border border-amber-fg/30 bg-amber-bg px-4 py-3 cf-press"
             >
               <div className="min-w-0">
                 <div className="text-[14px] font-extrabold text-amber-fg">
@@ -256,9 +259,10 @@ export function MatchesTab({ view }: { view: MatchesView }) {
         </div>
       )}
 
-      <div role="tablist" aria-label="Matches view" className="mb-1 flex gap-6 border-b border-border px-1">
+      <div role="tablist" aria-label="Matches view" className="relative mb-1 flex border-b border-border">
         {tabBtn("next", "Next 24h")}
         {tabBtn("results", "Results")}
+        <SlideTrack count={2} active={tab === "next" ? 0 : 1} />
       </div>
 
       <div className="pt-4">

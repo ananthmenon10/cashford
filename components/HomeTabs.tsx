@@ -6,6 +6,7 @@
 // attention dot when something is live or a pick is due.
 
 import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
+import { SlideTrack } from "./motion";
 
 const TABS = ["Leagues", "Matches", "Analytics"] as const;
 
@@ -43,7 +44,7 @@ export function HomeTabs({
 
   return (
     <div>
-      <div role="tablist" aria-label="Home" className="flex border-b border-border bg-surface">
+      <div role="tablist" aria-label="Home" className="relative flex border-b border-border bg-surface">
         {TABS.map((t, i) => (
           <button
             key={t}
@@ -54,8 +55,8 @@ export function HomeTabs({
             tabIndex={active === i ? 0 : -1}
             onClick={() => setActive(i as 0 | 1 | 2)}
             onKeyDown={(e) => onKey(e, i)}
-            className={`relative -mb-px flex-1 border-b-[2.5px] py-3 text-center text-[13px] ${
-              active === i ? "border-primary font-extrabold text-fg" : "border-transparent font-semibold text-muted"
+            className={`relative flex-1 py-3 text-center text-[13px] transition-colors ${
+              active === i ? "font-extrabold text-fg" : "font-semibold text-muted"
             }`}
           >
             {t}
@@ -64,6 +65,7 @@ export function HomeTabs({
             )}
           </button>
         ))}
+        <SlideTrack count={TABS.length} active={active} />
       </div>
 
       <div className="mx-auto max-w-[480px]">
