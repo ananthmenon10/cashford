@@ -155,14 +155,20 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
     // Entrants' picks for the live/what-if board. Opaque ids only (never ship the auth UUID for
     // other players); sourced from the RLS-scoped client, so this is non-empty only post-lock.
     const nameById = new Map((profiles ?? []).map((pr) => [pr.id, pr.display_name || pr.username]));
-    players = (preds ?? []).map((p, i) => ({
-      id: p.user_id === user!.id ? "me" : `p${i}`,
-      name: nameById.get(p.user_id) ?? "Player",
-      isMe: p.user_id === user!.id,
-      outcome: p.outcome as Outcome,
-      predHome: p.pred_home,
-      predAway: p.pred_away,
-    }));
+    // Opaque ids (never ship auth UUIDs) — but assigned in REAL user_id sort order so settle()'s
+    // ₹1-remainder distribution (keyed on the id string sort) reproduces the stored settlement
+    // exactly. The viewer is flagged via isMe, not the id. (Padded so "p10" sorts after "p02".)
+    players = (preds ?? [])
+      .slice()
+      .sort((x, y) => (x.user_id < y.user_id ? -1 : 1))
+      .map((p, i) => ({
+        id: `p${String(i).padStart(2, "0")}`,
+        name: nameById.get(p.user_id) ?? "Player",
+        isMe: p.user_id === user!.id,
+        outcome: p.outcome as Outcome,
+        predHome: p.pred_home,
+        predAway: p.pred_away,
+      }));
     const pickLabel = (o: string) => (o === "home" ? homeShort || "Home" : o === "away" ? awayShort || "Away" : "Draw");
     rows = (profiles ?? [])
       .map((pr) => {

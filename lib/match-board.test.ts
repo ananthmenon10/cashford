@@ -140,6 +140,18 @@ describe("branch classification + void + counts", () => {
     expect(vm.reason).toMatch(/too level/i);
   });
 
+  it("₹1 remainder follows the id sort order (page must supply settlement-ordered ids)", () => {
+    // 3 winners split ₹500 → 167/167/166; the leftover ₹1s go to the id-sorted-first winners.
+    // This is why page.tsx assigns opaque ids in real user_id order — so the live/what-if board
+    // reproduces the stored settlement's remainder distribution exactly (delta 0 at the final score).
+    const players = [pp("p00", "home", 1, 0), pp("p01", "home", 2, 0), pp("p02", "home", 3, 0), pp("p03", "away", 0, 1)];
+    const vm = buildBoard(players, { home: 2, away: 0 }, OPTS);
+    expect(netOf(vm, "p00")).toBe(167);
+    expect(netOf(vm, "p01")).toBe(167);
+    expect(netOf(vm, "p02")).toBe(166); // last-sorted winner gets the smaller share
+    expect(netOf(vm, "p03")).toBe(-500);
+  });
+
   it("N=2 minimum non-void: ahead 1, behind 1, pot = stake", () => {
     const vm = buildBoard([pp("a", "home", 2, 0), pp("b", "away", 0, 1)], { home: 2, away: 0 }, OPTS);
     expect(vm.ahead).toBe(1);
