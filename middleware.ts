@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 // Public routes that never require a session.
-const PUBLIC_PATHS = ["/login", "/signup"];
+const PUBLIC_PATHS = ["/login", "/signup", "/j", "/leagues/join"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });

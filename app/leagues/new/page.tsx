@@ -177,9 +177,6 @@ export default function NewLeaguePage() {
             Open league →
           </Link>
 
-          <p className="mt-3 text-center text-[11px] text-muted">
-            The invite link will be active once Phase 3 is deployed.
-          </p>
         </div>
       </main>
     );

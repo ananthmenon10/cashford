@@ -12,6 +12,7 @@ export const RESERVED_SLUGS = [
   "rules",
   "api",
   "j",
+  "join",
   "change-password",
   "leagues",
   "signup",
