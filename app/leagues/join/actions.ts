@@ -23,11 +23,22 @@ export async function resolveInvite(raw: string): Promise<InviteDTO> {
   const admin = createServiceRoleClient();
   const normalized = raw.trim().toUpperCase();
 
-  const { data: invite } = await admin
+  // Look up by opaque token, then by short code — two precise eq lookups rather
+  // than an .or() built from the raw URL value (interpolating it into the filter
+  // string is a PostgREST injection vector: a crafted token like
+  // "x,revoked_at.is.null" could match an arbitrary active invite).
+  let { data: invite } = await admin
     .from("league_invites")
-    .select("id, token, revoked_at, league_id")
-    .or(`token.eq.${raw},short_code.eq.${normalized}`)
+    .select("token, revoked_at, league_id")
+    .eq("token", raw)
     .maybeSingle();
+  if (!invite) {
+    ({ data: invite } = await admin
+      .from("league_invites")
+      .select("token, revoked_at, league_id")
+      .eq("short_code", normalized)
+      .maybeSingle());
+  }
 
   if (!invite) return { status: "notfound" };
   if (invite.revoked_at) return { status: "revoked" };
@@ -46,9 +57,11 @@ export async function resolveInvite(raw: string): Promise<InviteDTO> {
     .eq("id", league.created_by)
     .maybeSingle();
 
+  // league_members has a composite PK (league_id, user_id) and NO "id" column —
+  // count over a real column.
   const { count } = await admin
     .from("league_members")
-    .select("id", { count: "exact", head: true })
+    .select("user_id", { count: "exact", head: true })
     .eq("league_id", league.id);
 
   return {
@@ -72,10 +85,10 @@ export async function joinLeagueForUser(
 
   const admin = createServiceRoleClient();
 
-  // Idempotency: already a member?
+  // Idempotency: already a member? (league_members has no "id" column.)
   const { data: existing } = await admin
     .from("league_members")
-    .select("id")
+    .select("user_id")
     .eq("league_id", dto.leagueId)
     .eq("user_id", userId)
     .maybeSingle();

@@ -85,10 +85,11 @@ export default async function InvitePage({ params }: Props) {
       );
     }
 
-    // Already a member?
+    // Already a member? (league_members has no "id" column — its PK is the
+    // composite (league_id, user_id); select a real column.)
     const { data: existing } = await admin
       .from("league_members")
-      .select("id")
+      .select("user_id")
       .eq("league_id", leagueId)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -112,10 +113,7 @@ export default async function InvitePage({ params }: Props) {
       );
     }
 
-    // Not a member — show join button
-    const joinAction = joinLeague.bind(null, token);
-
-    // Wrap joinLeague so it conforms to useActionState signature
+    // Not a member — show join button. Wrap joinLeague to the useActionState shape.
     async function joinAction_(_prev: { error: string | null }, _fd: FormData) {
       "use server";
       const result = await joinLeague(token);
