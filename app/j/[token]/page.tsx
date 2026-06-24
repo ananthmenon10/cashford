@@ -50,7 +50,18 @@ export default async function InvitePage({ params }: Props) {
   }
 
   // ── active invite ─────────────────────────────────────────────────────────
-  const { leagueId, slug, leagueName, captainName, memberCount, stakeInr } = dto;
+  const { leagueId, slug, leagueName, captainName, memberCount, stakeInr, leagueStatus } = dto;
+
+  // Archived leagues are closed to NEW members (existing members/captain still get
+  // their open-league views below).
+  const archivedCard = (
+    <main className="flex min-h-screen flex-col items-center justify-center bg-bg px-7">
+      <div className="w-full max-w-[360px] rounded-card border border-border bg-surface p-6 text-center">
+        <div className="mb-2 text-2xl font-extrabold tracking-tight">{leagueName} is archived</div>
+        <div className="text-sm text-muted">This league is no longer accepting new members.</div>
+      </div>
+    </main>
+  );
 
   const supabase = await createClient();
   const {
@@ -113,6 +124,9 @@ export default async function InvitePage({ params }: Props) {
       );
     }
 
+    // Archived → closed to new members (captain & current members handled above).
+    if (leagueStatus === "archived") return archivedCard;
+
     // Not a member — show join button. Wrap joinLeague to the useActionState shape.
     async function joinAction_(_prev: { error: string | null }, _fd: FormData) {
       "use server";
@@ -137,6 +151,7 @@ export default async function InvitePage({ params }: Props) {
   }
 
   // ── logged out ────────────────────────────────────────────────────────────
+  if (leagueStatus === "archived") return archivedCard;
   const stashAndSignup = stashInviteAndGo.bind(null, token, "/signup");
   const stashAndLogin = stashInviteAndGo.bind(null, token, "/login");
 

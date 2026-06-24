@@ -20,11 +20,11 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: league } = await supabase.from("leagues").select("id, name, slug").eq("slug", slug).single();
+  const { data: league } = await supabase.from("leagues").select("id, name, slug, created_by, status").eq("slug", slug).single();
   if (!league) notFound(); // not a member (RLS) or bad slug
 
   const memberIds = (await supabase.from("league_members").select("user_id").eq("league_id", league.id)).data?.map((m) => m.user_id) ?? [];
-  const [{ data: contests }, { data: teams }, { data: myPreds }, { data: myResults }, { data: members }, { data: allResults }] =
+  const [{ data: contests }, { data: teams }, { data: myPreds }, { data: myResults }, { data: allResults }] =
     await Promise.all([
       supabase.from("contests")
         .select("id, status, lock_at, stake_inr, is_knockout, fixtures(round, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, advancer_team_id)")
@@ -32,9 +32,18 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
       supabase.from("teams").select("id, short_name"),
       supabase.from("predictions").select("contest_id, outcome, pred_home, pred_away").eq("user_id", user!.id),
       supabase.from("contest_results").select("contest_id, result, net_inr").eq("user_id", user!.id),
-      supabase.from("profiles").select("id, display_name, username").in("id", memberIds),
       supabase.from("contest_results").select("user_id, net_inr, contests!inner(league_id)").eq("contests.league_id", league.id),
     ]);
+
+  // Pot-integrity: fetch profiles for the UNION of current members and every user_id
+  // in allResults — removed players still show their name in the dues leaderboard.
+  // Use the service-role client: profiles_select RLS only exposes CURRENT co-league
+  // members, so a removed player (still owed money in the dues) would resolve to "?".
+  const resultUserIds = [...new Set((allResults ?? []).map((r) => r.user_id))];
+  const profileIds = [...new Set([...memberIds, ...resultUserIds])];
+  const { data: members } = profileIds.length
+    ? await createServiceRoleClient().from("profiles").select("id, display_name, username").in("id", profileIds)
+    : { data: [] as { id: string; display_name: string | null; username: string }[] };
 
   const short = new Map((teams ?? []).map((t) => [t.id, t.short_name as string | null]));
   const predByContest = new Map((myPreds ?? []).map((p) => [p.contest_id, p]));
@@ -201,6 +210,14 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
       <header className="flex items-center gap-2.5 border-b border-border bg-surface px-4 py-3">
         <BackLink href="/" />
         <span className="text-[17px] font-extrabold">{league.name}</span>
+        {league.created_by === user!.id && (
+          <Link
+            href={`/leagues/${league.slug}/manage`}
+            className="ml-1 rounded-pill border border-border bg-subtle px-2.5 py-0.5 text-[11px] font-semibold text-muted"
+          >
+            Manage
+          </Link>
+        )}
         <span className="ml-auto"><Avatar label={(user?.user_metadata?.username as string) ?? "you"} size={28} /></span>
       </header>
 

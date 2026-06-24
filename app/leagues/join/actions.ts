@@ -17,6 +17,7 @@ export type InviteDTO =
       memberCount: number;
       stakeInr: number;
       token: string;
+      leagueStatus: string;
     };
 
 export async function resolveInvite(raw: string): Promise<InviteDTO> {
@@ -45,7 +46,7 @@ export async function resolveInvite(raw: string): Promise<InviteDTO> {
 
   const { data: league } = await admin
     .from("leagues")
-    .select("id, name, slug, default_stake_inr, created_by")
+    .select("id, name, slug, default_stake_inr, created_by, status")
     .eq("id", invite.league_id)
     .single();
 
@@ -73,6 +74,7 @@ export async function resolveInvite(raw: string): Promise<InviteDTO> {
     memberCount: count ?? 0,
     stakeInr: league.default_stake_inr,
     token: invite.token,
+    leagueStatus: league.status,
   };
 }
 
@@ -82,6 +84,7 @@ export async function joinLeagueForUser(
 ): Promise<{ ok: boolean; slug?: string; error?: string; already?: boolean }> {
   const dto = await resolveInvite(raw);
   if (dto.status !== "active") return { ok: false, error: "inactive" };
+  if (dto.leagueStatus === "archived") return { ok: false, error: "inactive" };
 
   const admin = createServiceRoleClient();
 

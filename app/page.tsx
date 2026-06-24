@@ -32,7 +32,7 @@ export default async function Home() {
     "you";
 
   const [{ data: leagues }, { data: members }, { data: myResults }, { data: openContests }, matchesView, analyticsView] = await Promise.all([
-    supabase.from("leagues").select("id, name, slug").order("name"),
+    supabase.from("leagues").select("id, name, slug, status").order("name"),
     supabase.from("league_members").select("league_id"),
     supabase.from("contest_results").select("net_inr, contests!inner(league_id)").eq("user_id", user!.id),
     supabase.from("contests")
@@ -119,7 +119,14 @@ export default async function Home() {
                   <LinkPending />
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="text-base font-bold">{lg.name}</div>
+                      <div className="flex items-center gap-1.5 text-base font-bold">
+                        {lg.name}
+                        {lg.status === "archived" && (
+                          <span className="rounded-pill bg-subtle px-2 py-0.5 text-[10px] font-semibold text-muted">
+                            Archived
+                          </span>
+                        )}
+                      </div>
                       <div className="mt-0.5 text-xs text-muted">
                         {counts.get(lg.id) ?? 0} members
                       </div>
