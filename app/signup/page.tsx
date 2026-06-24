@@ -3,13 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { login, type AuthState } from "./actions";
+import { signUp, type AuthState } from "./actions";
 
 const initial: AuthState = { error: null };
 
-export default function LoginPage() {
-  const [state, formAction, pending] = useActionState(login, initial);
-  const [show, setShow] = useState(false);
+export default function SignUpPage() {
+  const [state, formAction, pending] = useActionState(signUp, initial);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-bg px-7">
@@ -29,6 +30,7 @@ export default function LoginPage() {
         </div>
 
         <form action={formAction} className="flex flex-col">
+          {/* Username */}
           <label className="mb-1.5 text-xs font-semibold text-label" htmlFor="username">
             Username
           </label>
@@ -38,11 +40,48 @@ export default function LoginPage() {
             autoCapitalize="none"
             autoCorrect="off"
             autoComplete="username"
-            className="mb-3.5 w-full rounded-control border border-border bg-surface px-3.5 py-3 text-[15px] outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(21,166,106,.12)]"
+            className="mb-1 w-full rounded-control border border-border bg-surface px-3.5 py-3 text-[15px] outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(21,166,106,.12)]"
+          />
+          <p className="mb-3.5 text-[11px] text-muted">
+            Letters, numbers, _ or - · 3–20 chars
+          </p>
+
+          {/* Display name */}
+          <label className="mb-1.5 text-xs font-semibold text-label" htmlFor="displayName">
+            Display name
+          </label>
+          <input
+            id="displayName"
+            name="displayName"
+            autoComplete="name"
+            placeholder="Leave blank to use your username"
+            className="mb-3.5 w-full rounded-control border border-border bg-surface px-3.5 py-3 text-[15px] outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(21,166,106,.12)] placeholder:text-muted"
           />
 
+          {/* Password */}
           <label className="mb-1.5 text-xs font-semibold text-label" htmlFor="password">
             Password
+          </label>
+          <div className="mb-3.5 flex items-center rounded-control border border-border bg-surface px-3.5 focus-within:border-primary">
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              className="flex-1 border-none bg-transparent py-3 text-[15px] outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="text-xs font-bold text-primary-press"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+
+          {/* Confirm password */}
+          <label className="mb-1.5 text-xs font-semibold text-label" htmlFor="confirm">
+            Confirm password
           </label>
           <div
             className={`flex items-center rounded-control border bg-surface px-3.5 ${
@@ -50,18 +89,18 @@ export default function LoginPage() {
             }`}
           >
             <input
-              id="password"
-              name="password"
-              type={show ? "text" : "password"}
-              autoComplete="current-password"
+              id="confirm"
+              name="confirm"
+              type={showConfirm ? "text" : "password"}
+              autoComplete="new-password"
               className="flex-1 border-none bg-transparent py-3 text-[15px] outline-none"
             />
             <button
               type="button"
-              onClick={() => setShow((s) => !s)}
+              onClick={() => setShowConfirm((s) => !s)}
               className="text-xs font-bold text-primary-press"
             >
-              {show ? "Hide" : "Show"}
+              {showConfirm ? "Hide" : "Show"}
             </button>
           </div>
 
@@ -79,19 +118,14 @@ export default function LoginPage() {
             disabled={pending}
             className="mt-[18px] w-full rounded-control bg-primary py-3.5 text-[15px] font-bold text-white shadow-[0_4px_12px_rgba(21,166,106,.3)] disabled:opacity-50"
           >
-            {pending ? "Logging in…" : "Log in"}
+            {pending ? "Creating…" : "Create account"}
           </button>
         </form>
 
         <p className="mt-4 text-center text-xs leading-relaxed text-muted">
-          First time? Your captain set a temp password —<br />
-          you&apos;ll choose your own next.
-        </p>
-
-        <p className="mt-2 text-center text-xs leading-relaxed text-muted">
-          New here?{" "}
-          <Link href="/signup" className="font-semibold text-primary-press">
-            Create an account
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-primary-press">
+            Log in
           </Link>
         </p>
       </div>
