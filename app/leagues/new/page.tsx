@@ -102,8 +102,10 @@ export default function NewLeaguePage() {
   // ── Share panel (post-success) ──────────────────────────────────────────
   if (state.created) {
     const { name: lgName, token, shortCode, slug: lgSlug } = state.created;
+    // This panel only renders client-side (after submit), so window is defined;
+    // the fallback is just a safe prod default.
     const origin =
-      typeof window !== "undefined" ? window.location.origin : "https://cashford.app";
+      typeof window !== "undefined" ? window.location.origin : "https://cashford.vercel.app";
     const inviteLink = `${origin}/j/${token}`;
     const waText = encodeURIComponent(
       `Join my World Cup 2026 league "${lgName}" on Cashford!\n${inviteLink}\n\nOr enter code: ${shortCode}`,
@@ -308,7 +310,7 @@ export default function NewLeaguePage() {
             {/* Preview + availability */}
             <div className="mt-1.5 flex items-center justify-between">
               <span className="font-mono text-[11px] text-muted">
-                cashford.app/l/
+                cashford.vercel.app/leagues/
                 <span className={slug ? "text-fg" : "text-muted"}>{slug || "…"}</span>
               </span>
               <span className="text-[11px]">{slugIndicator}</span>

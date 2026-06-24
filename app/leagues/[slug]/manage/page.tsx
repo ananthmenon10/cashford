@@ -5,6 +5,7 @@ import { Avatar } from "@/components/ui";
 import { RemoveMemberButton } from "./RemoveMemberButton";
 import { CopyButton } from "./CopyButton";
 import { BackLink } from "@/components/BackLink";
+import { originFromHeaders } from "@/lib/site-url";
 
 export default async function ManagePage({
   params,
@@ -46,7 +47,8 @@ export default async function ManagePage({
     ]),
   );
 
-  const inviteLink = invite ? `https://cashford.vercel.app/j/${invite.token}` : null;
+  const origin = await originFromHeaders();
+  const inviteLink = invite ? `${origin}/j/${invite.token}` : null;
 
   // Bound server actions (closures over slug)
   async function doRevokeInvite() {
