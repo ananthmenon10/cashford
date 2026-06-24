@@ -154,6 +154,12 @@ describe("validateSlug", () => {
     const result = validateSlug("---");
     expect(result.ok).toBe(false);
   });
+
+  it('rejects "join" as a reserved slug', () => {
+    const result = validateSlug("join");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/reserved/i);
+  });
 });
 
 describe("validateStake", () => {

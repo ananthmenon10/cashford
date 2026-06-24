@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { validateUsername, validatePassword } from "@/lib/validation";
+import { consumePendingInvite } from "@/app/leagues/join/actions";
 import { redirect } from "next/navigation";
 
 export type AuthState = { error: string | null };
@@ -84,5 +85,9 @@ export async function signUp(
     return { error: "Couldn't create your account. Try again." };
   }
 
+  const slug = await consumePendingInvite(newUserId);
+  if (slug) {
+    redirect("/leagues/" + slug);
+  }
   redirect("/");
 }
