@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { createLeague, checkSlug, type CreateState } from "./actions";
-import { slugify } from "@/lib/validation";
+import { slugify, validateSlug, validateStake } from "@/lib/validation";
 
 const STAKE_CHIPS = [50, 100, 500, 1000];
 const INITIAL: CreateState = { error: null };
@@ -32,6 +32,9 @@ export default function NewLeaguePage() {
   >("idle");
   const [slugError, setSlugError] = useState<string | null>(null);
 
+  // Client-side stake validity (instant, styled — no native browser popup)
+  const [stakeError, setStakeError] = useState<string | null>(null);
+
   // Copy feedback
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -45,15 +48,29 @@ export default function NewLeaguePage() {
     }
   }, [name, slugEdited]);
 
-  // Check slug availability on debounced change
+  // Instant client-side validity on every keystroke — kills the stale-"Available"
+  // flash while the debounced server check is pending, and surfaces reserved/format
+  // errors immediately without a round-trip.
   useEffect(() => {
-    if (!debouncedSlug) {
+    if (!slug) {
       setSlugStatus("idle");
       setSlugError(null);
       return;
     }
+    const v = validateSlug(slug);
+    if (!v.ok) {
+      setSlugStatus("invalid");
+      setSlugError(v.error);
+    } else {
+      setSlugStatus("checking");
+      setSlugError(null);
+    }
+  }, [slug]);
+
+  // Debounced server availability check — only for client-valid slugs.
+  useEffect(() => {
+    if (!debouncedSlug || !validateSlug(debouncedSlug).ok) return;
     let cancelled = false;
-    setSlugStatus("checking");
     checkSlug(debouncedSlug).then((res) => {
       if (cancelled) return;
       if (res.error) {
@@ -71,6 +88,16 @@ export default function NewLeaguePage() {
       cancelled = true;
     };
   }, [debouncedSlug]);
+
+  // Instant stake validity — styled inline error instead of the native browser popup.
+  useEffect(() => {
+    if (stake === "") {
+      setStakeError(null);
+      return;
+    }
+    const v = validateStake(stake);
+    setStakeError(v.ok ? null : v.error);
+  }, [stake]);
 
   // ── Share panel (post-success) ──────────────────────────────────────────
   if (state.created) {
@@ -236,17 +263,28 @@ export default function NewLeaguePage() {
               id="stake"
               name="stake"
               type="number"
-              min={50}
-              max={1000000}
               step={1}
+              inputMode="numeric"
               value={stake}
               onChange={(e) => setStake(e.target.value)}
-              className="w-full rounded-control border border-border bg-surface px-3.5 py-3 text-[15px] outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(21,166,106,.12)]"
+              aria-invalid={stakeError ? true : undefined}
+              className={`w-full rounded-control border bg-surface px-3.5 py-3 text-[15px] outline-none focus:shadow-[0_0_0_3px_rgba(21,166,106,.12)] ${
+                stakeError ? "border-loss" : "border-border focus:border-primary"
+              }`}
             />
-            <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
-              Min ₹50. Stakes are an honour-system tally settled outside the app — treat it as
-              points if you don&apos;t play for money; it&apos;s just so the leaderboard works.
-            </p>
+            {stakeError ? (
+              <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-loss">
+                <span className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full bg-loss text-[8px] font-extrabold text-white">
+                  !
+                </span>
+                {stakeError}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
+                Min ₹50. Stakes are an honour-system tally settled outside the app — treat it as
+                points if you don&apos;t play for money; it&apos;s just so the leaderboard works.
+              </p>
+            )}
           </div>
 
           {/* Slug / invite URL */}
@@ -292,7 +330,7 @@ export default function NewLeaguePage() {
 
           <button
             type="submit"
-            disabled={pending}
+            disabled={pending || !!stakeError || slugStatus === "invalid" || slugStatus === "taken"}
             className="mt-1 w-full rounded-control bg-primary py-3.5 text-[15px] font-bold text-white shadow-[0_4px_12px_rgba(21,166,106,.3)] disabled:opacity-50"
           >
             {pending ? "Creating…" : "Create league"}

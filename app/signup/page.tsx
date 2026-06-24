@@ -11,6 +11,9 @@ export default function SignUpPage() {
   const [state, formAction, pending] = useActionState(signUp, initial);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  // Retain identity fields across a server-side error (passwords intentionally clear).
+  const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-bg px-7">
@@ -40,6 +43,8 @@ export default function SignUpPage() {
             autoCapitalize="none"
             autoCorrect="off"
             autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             className="mb-1 w-full rounded-control border border-border bg-surface px-3.5 py-3 text-[15px] outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(21,166,106,.12)]"
           />
           <p className="mb-3.5 text-[11px] text-muted">
@@ -54,6 +59,8 @@ export default function SignUpPage() {
             id="displayName"
             name="displayName"
             autoComplete="name"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Leave blank to use your username"
             className="mb-3.5 w-full rounded-control border border-border bg-surface px-3.5 py-3 text-[15px] outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(21,166,106,.12)] placeholder:text-muted"
           />
