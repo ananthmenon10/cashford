@@ -4,6 +4,10 @@ import {
   normalizeUsername,
   validateUsername,
   validatePassword,
+  slugify,
+  validateSlug,
+  validateStake,
+  RESERVED_SLUGS,
 } from "./validation";
 
 describe("USERNAME_RE", () => {
@@ -96,5 +100,97 @@ describe("validatePassword", () => {
   it("accepts password longer than 8 chars", () => {
     const result = validatePassword("averylongpassword");
     expect(result).toEqual({ ok: true });
+  });
+});
+
+describe("slugify", () => {
+  it("lowercases and replaces spaces with hyphens", () => {
+    expect(slugify("Hello World")).toBe("hello-world");
+  });
+
+  it("collapses multiple non-alphanumerics into one hyphen", () => {
+    expect(slugify("foo  --  bar")).toBe("foo-bar");
+  });
+
+  it("trims leading and trailing hyphens", () => {
+    expect(slugify("--hello--")).toBe("hello");
+  });
+
+  it("caps at 40 characters", () => {
+    const long = "a".repeat(50);
+    expect(slugify(long).length).toBe(40);
+  });
+
+  it("handles special chars", () => {
+    expect(slugify("KK Bois #1!")).toBe("kk-bois-1");
+  });
+});
+
+describe("validateSlug", () => {
+  it("accepts a valid slug unchanged", () => {
+    const result = validateSlug("my-league");
+    expect(result).toEqual({ ok: true, value: "my-league" });
+  });
+
+  it("normalizes via slugify before checking", () => {
+    const result = validateSlug("My League");
+    expect(result).toEqual({ ok: true, value: "my-league" });
+  });
+
+  it("rejects reserved slugs", () => {
+    for (const s of RESERVED_SLUGS) {
+      const result = validateSlug(s);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toMatch(/reserved/i);
+    }
+  });
+
+  it("rejects slug shorter than 3 chars after slugify", () => {
+    const result = validateSlug("ab");
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects slug that becomes empty after slugify", () => {
+    const result = validateSlug("---");
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe("validateStake", () => {
+  it("accepts a valid stake", () => {
+    const result = validateStake(500);
+    expect(result).toEqual({ ok: true, value: 500 });
+  });
+
+  it("accepts minimum stake of 50", () => {
+    const result = validateStake(50);
+    expect(result).toEqual({ ok: true, value: 50 });
+  });
+
+  it("rejects stake below 50", () => {
+    const result = validateStake(49);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/50/);
+  });
+
+  it("rejects stake of 0", () => {
+    const result = validateStake(0);
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects non-integer stake", () => {
+    const result = validateStake(99.5);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/whole/i);
+  });
+
+  it("rejects stake above 1,000,000", () => {
+    const result = validateStake(1_000_001);
+    expect(result.ok).toBe(false);
+  });
+
+  it("accepts string input that parses to a valid integer", () => {
+    const result = validateStake("100");
+    expect(result).toEqual({ ok: true, value: 100 });
   });
 });

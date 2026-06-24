@@ -85,8 +85,14 @@ export default async function Home() {
         <div className="rounded-card border border-dashed border-[#CBD5E1] dark:border-[#2f3a48] p-6 text-center">
           <div className="text-[15px] font-bold">No leagues yet</div>
           <div className="mt-1 text-[13px] text-muted">
-            Your captain will add you to a league. Check back soon.
+            Start your own or wait for an invite from your captain.
           </div>
+          <Link
+            href="/leagues/new"
+            className="mt-4 inline-flex items-center gap-1 rounded-control bg-primary px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_4px_12px_rgba(21,166,106,.3)]"
+          >
+            + Create a league
+          </Link>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -141,6 +147,15 @@ export default async function Home() {
             );
           })}
         </div>
+      )}
+
+      {(leagues ?? []).length > 0 && (
+        <Link
+          href="/leagues/new"
+          className="mt-3 flex items-center justify-center gap-1 rounded-control border border-border bg-surface py-2.5 text-[13px] font-semibold text-primary-press"
+        >
+          + New league
+        </Link>
       )}
 
       <Link
