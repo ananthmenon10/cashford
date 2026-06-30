@@ -22,6 +22,7 @@ export interface FeedEntry {
   leagueName: string;
   leagueSlug: string;
   state: CardState;        // the viewer's per-contest card state (deriveCardState)
+  voidReason: "insufficient_entries" | "no_separation" | null; // why this contest voided (null unless state==="void")
   stake: number;           // this league's stake for the fixture
   pick: PickShape | null;  // the viewer's pick in THIS league (null = not predicted here)
   net: number | null;      // the viewer's settled net here (null until settled)

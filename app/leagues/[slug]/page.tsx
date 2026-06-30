@@ -27,7 +27,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
   const [{ data: contests }, { data: teams }, { data: myPreds }, { data: myResults }, { data: allResults }] =
     await Promise.all([
       supabase.from("contests")
-        .select("id, status, lock_at, stake_inr, is_knockout, fixtures(round, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, advancer_team_id)")
+        .select("id, status, void_reason, lock_at, stake_inr, is_knockout, fixtures(round, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, advancer_team_id)")
         .eq("league_id", league.id),
       supabase.from("teams").select("id, short_name"),
       supabase.from("predictions").select("contest_id, outcome, pred_home, pred_away").eq("user_id", user!.id),
@@ -85,6 +85,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
       });
       return {
         contestId: c.id, slug: league.slug, state,
+        voidReason: c.void_reason as CardData["voidReason"],
         round: f.round, isKnockout: c.is_knockout,
         homeLabel: f.home_label, awayLabel: f.away_label,
         homeShort: short.get(f.home_team_id), awayShort: short.get(f.away_team_id),

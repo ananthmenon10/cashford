@@ -5,6 +5,7 @@ import { PredictionForm } from "@/components/PredictionForm";
 import { isEligible, RENDER_MARGIN_MS, type OtherLeague, type PickShape } from "@/lib/cross-league";
 import { RevealGrid, type RevealRow } from "@/components/RevealGrid";
 import { StatusBadge } from "@/components/ui";
+import { voidPresentation, type VoidReason } from "@/lib/contest-copy";
 import type { ReactNode } from "react";
 import { FixtureHeader } from "@/components/FixtureHeader";
 import { WinProbBar } from "@/components/WinProbBar";
@@ -44,7 +45,7 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
   const { data: { user } } = await supabase.auth.getUser();
 
   const { data: c } = await supabase.from("contests")
-    .select("id, league_id, fixture_id, status, lock_at, stake_inr, is_knockout, fixtures(external_id, round, group_label, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, venue, advancer_team_id)")
+    .select("id, league_id, fixture_id, status, void_reason, lock_at, stake_inr, is_knockout, fixtures(external_id, round, group_label, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, venue, advancer_team_id)")
     .eq("id", id).single();
   if (!c) notFound();
   const f = (Array.isArray(c.fixtures) ? c.fixtures[0] : c.fixtures) as FixtureRow;
@@ -283,7 +284,7 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
       <header className="flex items-center gap-2.5 border-b border-border bg-surface px-4 py-3">
         <BackLink href={`/leagues/${slug}`} />
         <span className="text-[15px] font-bold">{roundTxt}</span>
-        <span className="ml-auto"><StatusBadge state={state} /></span>
+        <span className="ml-auto"><StatusBadge state={state} voidReason={c.void_reason as VoidReason} /></span>
       </header>
 
       <div className="mx-auto max-w-[480px] px-4 py-4">
@@ -324,9 +325,27 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
           <div className="rounded-card border border-dashed border-[#CBD5E1] p-8 text-center text-[13px] text-muted dark:border-[#2f3a48]">
             Teams to be decided — this contest opens once the bracket is set.
           </div>
-        ) : state === "void" ? (
-          <div className="rounded-card border border-border bg-surface p-6 text-center text-[13px] text-push">Contest void — not enough players entered.</div>
-        ) : state === "cancelled" ? (
+        ) : state === "void" ? (() => {
+          const vp = voidPresentation(c.void_reason as VoidReason);
+          // Enrich only when every revealed pick is byte-identical (we already have all picks in `rows`);
+          // a no_separation void can also be a mirror-tie (e.g. 2–0 vs 0–2 at 1–1), so don't over-claim.
+          const picked = rows.filter((r) => r.pickLabel !== "—");
+          const identical =
+            vp.showReveal && picked.length > 1 &&
+            new Set(picked.map((r) => `${r.pickLabel}-${r.predHome}-${r.predAway}`)).size === 1;
+          const title = identical
+            ? `All square — everyone called it ${picked[0].predHome}–${picked[0].predAway}`
+            : vp.title;
+          return (
+            <div className="flex flex-col gap-3">
+              <div className="rounded-card border border-border bg-surface p-5 text-center">
+                <div className="text-base font-extrabold text-push">{title}</div>
+                <div className="mt-1 text-[13px] text-muted">{vp.blurb}</div>
+              </div>
+              {vp.showReveal && <RevealGrid rows={rows} settled />}
+            </div>
+          );
+        })() : state === "cancelled" ? (
           <div className="rounded-card border border-border bg-surface p-6 text-center text-[13px] text-[#B91C1C] dark:text-[#fca5a5]">Match cancelled — no contest.</div>
         ) : showLiveTabs ? (
           <>

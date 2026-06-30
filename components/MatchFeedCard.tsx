@@ -221,6 +221,10 @@ function UpcomingFull({ g }: { g: MatchGroup }) {
 function CompactRow({ g, zone, dim }: { g: MatchGroup; zone: "upcoming" | "results"; dim?: boolean }) {
   const fx = g.fixture;
   const state = zone === "upcoming" ? upcomingState(g) : undefined;
+  // All-square = every one of the viewer's leagues for this fixture voided with no_separation.
+  // Shown as a positive pill so the feed reads like the league card (not a bare "—").
+  const allSquare =
+    zone === "results" && g.leagues.length > 0 && g.leagues.every((l) => l.state === "void" && l.voidReason === "no_separation");
   return (
     <CardShell
       g={g}
@@ -236,12 +240,15 @@ function CompactRow({ g, zone, dim }: { g: MatchGroup; zone: "upcoming" | "resul
               <LocalTime iso={fx.kickoffIso} />
               {g.leagueCount > 1 && <> · in {g.leagueCount} leagues</>}
               {zone === "results" && g.predictedLeagues === 0 && <> · You sat this out</>}
+              {allSquare && <> · stakes returned</>}
             </div>
           </div>
           {zone === "upcoming" && state === "open_nopick" ? (
             <span className="shrink-0 rounded-pill bg-primary px-3 py-1.5 text-[11px] font-bold text-white">Pick</span>
           ) : zone === "upcoming" && state === "open_picked" ? (
             <span className="shrink-0 text-[12px] font-bold text-primary-press">Edit</span>
+          ) : allSquare ? (
+            <span className="shrink-0 rounded-pill bg-mint px-2.5 py-1 text-[11px] font-bold text-primary-press">All square</span>
           ) : (
             <span className="shrink-0 font-mono text-[13px] text-muted">—</span>
           )}

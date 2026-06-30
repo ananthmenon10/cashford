@@ -46,6 +46,7 @@ function entry(
     leagueName,
     leagueSlug: leagueName.toLowerCase(),
     state,
+    voidReason: null,
     stake: 100,
     pick: null,
     net: null,

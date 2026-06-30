@@ -1,4 +1,5 @@
 import type { CardState } from "@/lib/contest-state";
+import { voidPresentation, type VoidReason } from "@/lib/contest-copy";
 
 const BADGE: Record<string, { label: string; cls: string; pulse?: boolean }> = {
   open_nopick: { label: "OPEN", cls: "text-primary-press bg-mint" },
@@ -15,12 +16,16 @@ const BADGE: Record<string, { label: string; cls: string; pulse?: boolean }> = {
   cancelled: { label: "CANCELLED", cls: "text-[#B91C1C] bg-[#FEE2E2] dark:text-[#fca5a5] dark:bg-[#ef44441f]" },
 };
 
-export function StatusBadge({ state }: { state: CardState }) {
+export function StatusBadge({ state, voidReason }: { state: CardState; voidReason?: VoidReason }) {
   const b = BADGE[state] ?? BADGE.locked;
+  // A "no_separation" void is a real result (all square), not a failure — distinct label + a
+  // mint pill (like SETTLED) instead of the grey void pill.
+  const label = state === "void" ? voidPresentation(voidReason).badge : b.label;
+  const cls = state === "void" && voidReason === "no_separation" ? "text-primary-press bg-mint" : b.cls;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-[10px] font-bold tracking-[.06em] ${b.cls}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-[10px] font-bold tracking-[.06em] ${cls}`}>
       {b.pulse && <span className="h-1.5 w-1.5 rounded-full bg-white animate-live-pulse" />}
-      {b.label}
+      {label}
     </span>
   );
 }

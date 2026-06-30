@@ -3,6 +3,7 @@ import { type CardState, ROUND_LABEL, liveLabel } from "@/lib/contest-state";
 import { LocalTime, Countdown } from "./LocalTime";
 import { StatusBadge, Avatar } from "./ui";
 import { LinkPending } from "./LinkPending";
+import { voidPresentation, type VoidReason } from "@/lib/contest-copy";
 
 export interface RevealMini {
   userId: string;
@@ -17,6 +18,7 @@ export interface CardData {
   contestId: string;
   slug: string;
   state: CardState;
+  voidReason?: VoidReason; // distinguishes "All square" (no_separation) from a true void
   round: string;
   isKnockout: boolean;
   homeLabel: string;
@@ -95,7 +97,7 @@ export function MatchCard({ d }: { d: CardData }) {
           {roundTxt} · <LocalTime iso={d.kickoffIso} />
           {showJoined && <> · <span className="font-semibold text-label">{d.joined}/{d.members} joined</span></>}
         </span>
-        <StatusBadge state={d.state} />
+        <StatusBadge state={d.state} voidReason={d.voidReason} />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -228,7 +230,7 @@ function footer(d: CardData) {
     case "void":
       return (
         <div className="rounded-control bg-subtle px-3.5 py-3 text-center text-[13px] font-semibold text-muted">
-          Voided — not enough players entered · stakes returned
+          {voidPresentation(d.voidReason).cardLine}
         </div>
       );
     case "cancelled":

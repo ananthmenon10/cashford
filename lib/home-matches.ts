@@ -31,7 +31,7 @@ export async function loadMatchesView(supabase: RlsClient, admin: AdminClient, u
       supabase
         .from("contests")
         .select(
-          "id, league_id, status, lock_at, stake_inr, is_knockout, fixture_id, fixtures(round, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, advancer_team_id)",
+          "id, league_id, status, void_reason, lock_at, stake_inr, is_knockout, fixture_id, fixtures(round, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, advancer_team_id)",
         )
         .in("league_id", leagueIds),
       supabase.from("teams").select("id, short_name"),
@@ -84,6 +84,7 @@ export async function loadMatchesView(supabase: RlsClient, admin: AdminClient, u
       leagueName: league.name,
       leagueSlug: league.slug,
       state,
+      voidReason: (c.void_reason ?? null) as FeedEntry["voidReason"],
       stake: c.stake_inr,
       pick: mine ? { outcome: mine.outcome, predHome: mine.pred_home, predAway: mine.pred_away } : null,
       net: res?.net_inr ?? null,
