@@ -116,3 +116,60 @@ export async function pollScores(admin: Admin) {
   }
   return { fetched: events.length, updated, resolved };
 }
+
+// Fill in upcoming knockout fixtures' teams as the bracket resolves — independent of
+// pollScores's live ±12h window, so the next round populates during the multi-day gap
+// *before* its matches (not only ~12h prior). Cheap by design: one tiny DB read each
+// call, and the ESPN fetch is skipped entirely once no upcoming KO fixture is a
+// placeholder. Throttle the cadence at the caller (the cron fires every minute).
+export async function resolveKnockoutBracket(admin: Admin) {
+  const now = new Date();
+  // Upcoming knockout fixtures still missing a team (the bracket hasn't filled them yet).
+  const { data: pending } = await admin.from("fixtures")
+    .select("id, external_id, kickoff_at, home_team_id, away_team_id")
+    .eq("is_knockout", true)
+    .gt("kickoff_at", now.toISOString())
+    .or("home_team_id.is.null,away_team_id.is.null");
+  if (!pending?.length) return { pending: 0, resolved: 0, skipped: true };
+
+  // One ESPN fetch spanning just the pending fixtures (≤32 KO events, under the 100 cap).
+  const times = pending.map((p) => new Date(p.kickoff_at).getTime());
+  const from = ymd(new Date(Math.min(...times) - 24 * 3600e3));
+  const to = ymd(new Date(Math.max(...times) + 24 * 3600e3));
+  let events: any[] = [];
+  try {
+    const res = await fetch(`${BASE}?dates=${from}-${to}`);
+    events = (await res.json()).events ?? [];
+  } catch {
+    return { pending: pending.length, resolved: 0, error: "espn fetch failed" };
+  }
+  const byExt = new Map(events.map((e) => [Number(e.id), e]));
+
+  let resolved = 0;
+  for (const fx of pending) {
+    const cs = byExt.get(fx.external_id)?.competitions?.[0]?.competitors ?? [];
+    const home = cs.find((c: any) => c.homeAway === "home") ?? cs[0];
+    const away = cs.find((c: any) => c.homeAway === "away") ?? cs[1];
+    if (!isReal(home) || !isReal(away)) continue; // ESPN bracket still TBD — leave the placeholder
+
+    const { data: t } = await admin.from("teams").upsert(
+      [
+        { external_id: Number(home.team.id), name: home.team.displayName, short_name: home.team.abbreviation, flag_url: home.team.logo },
+        { external_id: Number(away.team.id), name: away.team.displayName, short_name: away.team.abbreviation, flag_url: away.team.logo },
+      ],
+      { onConflict: "external_id" },
+    ).select("id, external_id");
+    const id = (ext: number) => t?.find((x) => x.external_id === ext)?.id ?? null;
+
+    const { error: upErr } = await admin.from("fixtures").update({
+      home_team_id: id(Number(home.team.id)),
+      away_team_id: id(Number(away.team.id)),
+      home_label: home.team.displayName,
+      away_label: away.team.displayName,
+      updated_at: now.toISOString(),
+    }).eq("id", fx.id);
+    if (upErr) { console.error(`resolveKO: fixture ${fx.external_id} update failed: ${upErr.message}`); continue; }
+    resolved++;
+  }
+  return { pending: pending.length, resolved };
+}
