@@ -225,6 +225,8 @@ export default async function Home() {
         matches={<div className="px-4 py-4"><MatchesTab view={matchesView} /></div>}
         analytics={analyticsPanel}
         matchesAlert={matchesAlert}
+        bracketHref="/bracket"
+        bracketNew
       />
     </main>
   );

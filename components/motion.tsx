@@ -69,7 +69,7 @@ function unregister(el: Element) {
 // does NOT reliably fire when an element flips from display:none to visible — content would stay
 // stuck. A ResizeObserver DOES fire when the box first appears, so we only register with the IO
 // once the element is actually displayed (has layout boxes). Shared by useReveal and <CountUp/>.
-function observeVisible(el: HTMLElement, once: boolean, onVisible: () => void): () => void {
+function observeVisible(el: Element, once: boolean, onVisible: () => void): () => void {
   if (prefersReduced() || typeof IntersectionObserver === "undefined") {
     onVisible();
     return () => {};
@@ -105,7 +105,7 @@ function observeVisible(el: HTMLElement, once: boolean, onVisible: () => void): 
 }
 
 // Attach to an element to add `.in-view` the first time it scrolls into view (once per mount).
-export function useReveal<T extends HTMLElement = HTMLDivElement>(opts?: { once?: boolean }) {
+export function useReveal<T extends Element = HTMLDivElement>(opts?: { once?: boolean }) {
   const once = opts?.once ?? true;
   const ref = useRef<T>(null);
   useEffect(() => {

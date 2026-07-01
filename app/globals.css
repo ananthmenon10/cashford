@@ -185,6 +185,28 @@ body {
   animation-delay: calc(var(--bar-i, 0) * .04s);
 }
 
+/* ============================================================================
+   Knockout Circle — radial bracket draw-on + selection dim (Phase 2/6).
+   Lines draw via stroke-dashoffset (pathLength=1 normalizes circumference), staggered
+   outer→inner by --kc-ring-i; the whole ring rises once (transform/opacity only — no
+   blur on SVG children). Selection dim is pure CSS on the <svg> root — zero re-render.
+   ============================================================================ */
+.kc-bracket { opacity: 0; transform-origin: center; }
+.kc-bracket.in-view { animation: kc-ringIn .6s var(--cf-ease) both; }
+@keyframes kc-ringIn { from { opacity: 0; transform: scale(.965); } to { opacity: 1; transform: scale(1); } }
+
+.kc-line { stroke-dashoffset: 1; }
+.kc-bracket.in-view .kc-line {
+  animation: kc-drawLine .55s var(--cf-ease) both;
+  animation-delay: calc(var(--kc-ring-i, 0) * .09s + .12s);
+}
+@keyframes kc-drawLine { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+/* Tap-to-trace: dim everything not on the selected node's road to the final. */
+.kc-bracket [data-node] { transition: opacity .25s ease; }
+.kc-bracket[data-selected] [data-node]:not([data-node-path]) { opacity: .22; }
+.kc-nodefill { transition: fill .3s var(--cf-ease), stroke .3s var(--cf-ease); }
+
 /* Accessibility — collapse all motion to the final resting state. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -193,4 +215,6 @@ body {
     transition-duration: .001ms !important;
   }
   .cf-rv, .cf-rv-stagger > * { opacity: 1 !important; }
+  .kc-bracket { opacity: 1 !important; }
+  .kc-bracket.in-view .kc-line { stroke-dashoffset: 0 !important; }
 }

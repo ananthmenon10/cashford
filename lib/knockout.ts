@@ -106,13 +106,18 @@ export function angleOf(ring: number, idx: number): number {
   return (angleOf(ring - 1, 2 * idx) + angleOf(ring - 1, 2 * idx + 1)) / 2;
 }
 
+// Round to 3 decimals so coordinates are byte-identical strings across runtimes.
+// (Math.cos/sin can differ by a sub-ULP between the Node server and the browser,
+// which otherwise causes an SSR hydration mismatch on the many x/y attributes.)
+const r3 = (v: number) => Math.round(v * 1000) / 1000;
+
 /** Position of one node. Ring 5 (champion) is the centre. */
 export function nodePosition(ring: number, idx: number): { x: number; y: number } {
   if (ring === 5) return { x: GEO.cx, y: GEO.cy };
   const rad = (angleOf(ring, idx) * Math.PI) / 180;
   return {
-    x: GEO.cx + GEO.radii[ring] * Math.cos(rad),
-    y: GEO.cy + GEO.radii[ring] * Math.sin(rad),
+    x: r3(GEO.cx + GEO.radii[ring] * Math.cos(rad)),
+    y: r3(GEO.cy + GEO.radii[ring] * Math.sin(rad)),
   };
 }
 
@@ -421,25 +426,104 @@ export function bracketSvg(view: BracketSvgView, opts: BracketSvgOpts = {}): str
   return parts.join("");
 }
 
-// ---- Fixture → slot binding (DEFERRED to the data layer — Phase 1/2) ----------
+// ---- Fixture → slot binding (pure) --------------------------------------------
 //
-// Intentionally NOT implemented here. The pure engine above operates on slot keys +
-// a supplied per-slot `field`/`picks`/`results` view, so it is fully correct and
-// testable without any external_id↔slot map. Binding fixtures to slots is a
-// data-layer concern (lib/knockout-data.ts) with two unresolved dependencies that
-// must be settled first (see plan Deepening §A + the Phase-0 FIFA cross-check gate):
+// Walk the tree top-down from the Final using ESPN's feeder labels
+// ("Semifinal 1 Winner", "Quarterfinal 2 Winner", "Round of 16 5 Winner"), which
+// encode the REAL (non-sequential) bracket. For a round that has resolved we prefer
+// advancer-matching (the fixture's actual team → the child whose advancer is that
+// team) over the label. R32→R16 edges are resolved ONLY by advancer-match (ESPN's
+// "Round of 32 N" numbering ≠ external_id order, so pending R16 feeders stay TBD until
+// their R32 finishes). Slots we can't place yet are returned in `pending` (render TBD).
 //
-//   1. The circle's TOPOLOGY above ring 1 must be read from ESPN's feeder labels
-//      (e.g. "Quarterfinal 2 Winner" ← "Round of 16 5/6 Winner"), which are NOT
-//      sequential (QF2 ← R16 {5,6}, not {3,4}). A naive external_id-order slot
-//      assignment is WRONG — the labels must be parsed top-down.
-//   2. The R32→R16 edges are NOT decodable from current data: ESPN's "Round of 32 N"
-//      numbering ≠ external_id order (verified — RO32 1..6 = the six ids consumed by
-//      already-resolved R16s, skipping 760491). Which R32 winner feeds each pending
-//      R16 is only known once that R32 finishes (its advancer appears in the R16
-//      fixture) or the official FIFA draw is cross-checked.
-//
-// The robust design: derive edges from resolved fixture data at load time (label
-// parse for the fixed upper tree + advancer-match for R32→R16), leaving unresolved
-// ring-1 slots as TBD until their feeding match concludes. Building + verifying that
-// binder against the official FIFA WC-2026 draw is the first task of the next phase.
+// ASSUMPTION (flagged for the FIFA-draw cross-check): a "Round of 16/Quarterfinal/
+// Semifinal N Winner" ordinal N maps to the N-th fixture of that round by external_id.
+// Internally consistent with the live labels; yields a valid binary tree.
+
+export interface KnockoutFixture {
+  externalId: number;
+  round: "r32" | "r16" | "qf" | "sf" | "final" | "third" | "group";
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  homeLabel: string | null;
+  awayLabel: string | null;
+  advancerTeamId: string | null;
+}
+
+const FEEDER_RE: Array<[RegExp, KnockoutFixture["round"]]> = [
+  [/^Round of 32 (\d+) Winner$/i, "r32"],
+  [/^Round of 16 (\d+) Winner$/i, "r16"],
+  [/^Quarterfinal (\d+) Winner$/i, "qf"],
+  [/^Semifinal (\d+) Winner$/i, "sf"],
+];
+
+function parseFeeder(label: string | null): { round: KnockoutFixture["round"]; ord: number } | null {
+  if (!label) return null;
+  for (const [re, round] of FEEDER_RE) {
+    const m = re.exec(label.trim());
+    if (m) return { round, ord: Number(m[1]) };
+  }
+  return null;
+}
+
+export interface BracketBinding {
+  slotFixtureExternalId: Record<SlotKey, number>; // rings 1..5 → fixture external_id
+  ring0TeamId: Record<number, string>; // ring-0 index (0..31) → entrant team id
+  pending: SlotKey[]; // slots not yet placeable (feeding match undetermined)
+}
+
+/** Bind KO fixtures to radial slots by parsing feeder labels + advancer-matching. Pure. */
+export function bindBracket(fixtures: KnockoutFixture[]): BracketBinding {
+  const byRound = (r: KnockoutFixture["round"]) =>
+    fixtures.filter((f) => f.round === r).sort((a, b) => a.externalId - b.externalId);
+  const rounds: Record<string, KnockoutFixture[]> = {
+    r32: byRound("r32"), r16: byRound("r16"), qf: byRound("qf"), sf: byRound("sf"), final: byRound("final"),
+  };
+  const advTo: Record<string, Map<string, KnockoutFixture>> = {};
+  for (const r of ["r32", "r16", "qf", "sf"]) {
+    advTo[r] = new Map();
+    for (const f of rounds[r]) if (f.advancerTeamId) advTo[r].set(f.advancerTeamId, f);
+  }
+  const CHILD_ROUND: Record<number, string> = { 3: "r16", 4: "qf", 5: "sf" };
+
+  const slotFixtureExternalId: Record<SlotKey, number> = {};
+  const ring0TeamId: Record<number, string> = {};
+  const pending: SlotKey[] = [];
+
+  function place(fx: KnockoutFixture, ring: number, idx: number): void {
+    slotFixtureExternalId[key(ring, idx)] = fx.externalId;
+    if (ring === 1) return; // R32 fixture; ring-0 teams set by the ring-2 caller
+
+    if (ring === 2) {
+      // r16 → r32 children: advancer-match on resolved teams only (RO32 ordinal undecodable)
+      [fx.homeTeamId, fx.awayTeamId].forEach((teamId, side) => {
+        const j = 2 * idx + side; // ring-1 slot
+        const child = teamId ? advTo.r32.get(teamId) : undefined;
+        if (child) {
+          slotFixtureExternalId[key(1, j)] = child.externalId;
+          if (child.homeTeamId) ring0TeamId[2 * j] = child.homeTeamId;
+          if (child.awayTeamId) ring0TeamId[2 * j + 1] = child.awayTeamId;
+        } else {
+          pending.push(key(1, j));
+        }
+      });
+      return;
+    }
+
+    // rings 3..5 → child fixtures: prefer advancer-match (resolved), else the label ordinal
+    const cr = CHILD_ROUND[ring];
+    ([[fx.homeTeamId, fx.homeLabel], [fx.awayTeamId, fx.awayLabel]] as const).forEach(([teamId, label], side) => {
+      let child: KnockoutFixture | undefined;
+      if (teamId && advTo[cr].has(teamId)) child = advTo[cr].get(teamId);
+      else {
+        const fdr = parseFeeder(label);
+        if (fdr && fdr.round === cr) child = rounds[cr][fdr.ord - 1];
+      }
+      if (child) place(child, ring - 1, 2 * idx + side);
+      else pending.push(key(ring - 1, 2 * idx + side));
+    });
+  }
+
+  if (rounds.final[0]) place(rounds.final[0], 5, 0);
+  return { slotFixtureExternalId, ring0TeamId, pending };
+}
