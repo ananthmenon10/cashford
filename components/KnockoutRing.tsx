@@ -26,6 +26,7 @@ export type BracketMode = "live" | "picks";
 
 const NODES = geometry();
 const LINES = links();
+const FLAG_INSET = 1.5; // keep the flag fully inside its border ring (no bleed)
 
 export interface PickState {
   effective: Picks; // auto-locked results ∪ user picks (working display map)
@@ -140,7 +141,7 @@ export function KnockoutRing({
       <defs>
         {NODES.map((n) => (
           <clipPath key={`clip-${n.slot}`} id={`kc-clip-${n.ring}-${n.idx}`}>
-            <circle cx={n.x} cy={n.y} r={n.r} />
+            <circle cx={n.x} cy={n.y} r={n.r - FLAG_INSET} />
           </clipPath>
         ))}
       </defs>
@@ -205,19 +206,29 @@ export function KnockoutRing({
             {v.gold && (
               <circle className="kc-halo" cx={n.x} cy={n.y} r={n.r + 2.6} fill="none" stroke="#F2C94C" strokeWidth={1.3} strokeDasharray="2 3" />
             )}
+            {/* fill/backdrop (flag nodes get a dark disc behind the inset flag) */}
+            <circle className="kc-nodefill" cx={n.x} cy={n.y} r={n.r} fill={v.flagUrl ? "#0b0f14" : v.fill} />
+            {v.flagUrl && (
+              <image
+                href={v.flagUrl}
+                x={n.x - (n.r - FLAG_INSET)}
+                y={n.y - (n.r - FLAG_INSET)}
+                width={(n.r - FLAG_INSET) * 2}
+                height={(n.r - FLAG_INSET) * 2}
+                clipPath={`url(#kc-clip-${n.ring}-${n.idx})`}
+                preserveAspectRatio="xMidYMid slice"
+              />
+            )}
+            {/* border ring drawn ON TOP so it fully contains the flag */}
             <circle
-              className="kc-nodefill"
               cx={n.x}
               cy={n.y}
               r={n.r}
-              fill={v.flagUrl ? "#0b0f14" : v.fill}
+              fill="none"
               stroke={v.stroke}
               strokeWidth={v.strokeW}
               strokeDasharray={v.dashed ? "3 3" : undefined}
             />
-            {v.flagUrl && (
-              <image href={v.flagUrl} x={n.x - n.r} y={n.y - n.r} width={n.r * 2} height={n.r * 2} clipPath={`url(#kc-clip-${n.ring}-${n.idx})`} preserveAspectRatio="xMidYMid slice" />
-            )}
             {v.label && !v.flagUrl && (
               <text
                 x={n.x}

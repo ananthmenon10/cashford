@@ -6,7 +6,7 @@
 // downstream, complete the bracket to Lock. Picks persist via server actions; the ring
 // reads the "effective" map = auto-locked results ∪ the viewer's picks.
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { KnockoutRing, type BracketMode, type PickState } from "./KnockoutRing";
 import {
@@ -39,6 +39,17 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
   const [hint, setHint] = useState<SlotKey | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const modeIdx = mode === "live" ? 0 : 1;
+
+  // Re-sync client picks with the server whenever it changes (after router.refresh from
+  // reset/edit/lock or a failed write). Without this, useState keeps the mount value, so
+  // Reset appeared to do nothing and a stale-full client could show "31/31" while the
+  // server bracket was actually incomplete. Keyed on content so optimistic taps aren't
+  // clobbered mid-flight (view.myPicks only changes on an actual refresh).
+  const serverPicksKey = JSON.stringify(view.myPicks);
+  useEffect(() => {
+    setUserPicks(view.myPicks);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverPicksKey]);
 
   const auto = useMemo(() => autoPicks(view.results), [view.results]);
   const effective: Picks = useMemo(() => ({ ...auto, ...userPicks }), [auto, userPicks]);
@@ -77,6 +88,13 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
   };
 
   const onSelectNode = (slot: SlotKey | null) => setSelected(slot);
+
+  const onReset = () => {
+    setUserPicks({}); // clear immediately (server delete + refresh re-syncs the baseline)
+    setSelected(null);
+    setHint(null);
+    doAction(resetKnockoutBracket);
+  };
 
   const doAction = (fn: () => Promise<{ ok: boolean; error?: string }>) =>
     startTransition(async () => {
@@ -126,7 +144,7 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
         ) : view.locked ? (
           <LockedPanel view={view} score={sc} effective={effective} pending={pending} onEdit={() => doAction(unlockKnockoutBracket)} />
         ) : (
-          <BuildPanel made={made} total={view.total} hint={hint} complete={complete} pending={pending} err={err} onReset={() => doAction(resetKnockoutBracket)} onLock={() => doAction(lockKnockoutBracket)} />
+          <BuildPanel made={made} total={view.total} hint={hint} complete={complete} pending={pending} err={err} onReset={onReset} onLock={() => doAction(lockKnockoutBracket)} />
         )}
       </div>
     </div>
