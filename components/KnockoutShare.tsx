@@ -4,12 +4,19 @@
 // the OG image everywhere); Save downloads that same server-rendered PNG; Copy + a
 // WhatsApp deep-link cover desktop. Instagram has no web pre-attach — say so honestly.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function KnockoutShare({ shareToken, championName, accuracy }: { shareToken: string; championName: string; accuracy: string }) {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
-  const url = typeof window !== "undefined" ? `${window.location.origin}/b/${shareToken}` : `/b/${shareToken}`;
+  // Start relative so SSR and the first client render agree (no hydration mismatch),
+  // then upgrade to the absolute URL after mount.
+  const [url, setUrl] = useState(`/b/${shareToken}`);
+  const [canShare, setCanShare] = useState(false); // client-only; false on SSR/first render (no mismatch)
+  useEffect(() => {
+    setUrl(`${window.location.origin}/b/${shareToken}`);
+    setCanShare(!!navigator.share);
+  }, [shareToken]);
   const text = `My World Cup 2026 bracket: ${championName} to win.${accuracy ? ` ${accuracy}.` : ""} Think you can beat me?`;
 
   const webShare = async () => {
@@ -40,7 +47,6 @@ export function KnockoutShare({ shareToken, championName, accuracy }: { shareTok
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-  const canShare = typeof navigator !== "undefined" && !!navigator.share;
 
   return (
     <div className="mt-3 flex flex-col gap-2">
