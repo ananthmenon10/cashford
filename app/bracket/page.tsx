@@ -4,10 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { loadKnockoutView, loadKnockoutLeaderboards } from "@/lib/knockout-data";
 import { KnockoutCircle } from "@/components/KnockoutCircle";
 import { KnockoutLeaderboard } from "@/components/KnockoutLeaderboard";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
-// The Knockout Circle is an always-dark, immersive "arena" screen (its own route, not
-// an in-home tab panel). Explicit dark palette (matches the prototype + html.dark
-// tokens) so it reads the same regardless of the app's light/dark setting.
+// The Knockout Circle is an immersive "arena" screen (its own route, not an in-home tab
+// panel). It follows the app's light/dark theme — colours come from the shared tokens and
+// the --kc-* SVG palette, so both modes read correctly.
 export const dynamic = "force-dynamic"; // live results + the viewer's own picks
 
 export default async function BracketPage() {
@@ -21,22 +22,21 @@ export default async function BracketPage() {
   const leaderboards = await loadKnockoutLeaderboards(supabase, user.id, view.results);
 
   return (
-    <div style={{ background: "#0B0F14", minHeight: "100vh", color: "#E7ECEF" }}>
+    <div className="min-h-screen bg-bg text-fg">
       <div className="mx-auto max-w-[480px] px-0 pb-16 pt-2">
         {/* header */}
         <div className="flex items-center gap-2.5 px-3.5 pb-1.5 pt-2">
-          <Link href="/" aria-label="Back" className="w-6 text-[20px] leading-none" style={{ color: "#7a8794" }}>
+          <Link href="/" aria-label="Back" className="w-6 text-[20px] leading-none text-muted">
             ‹
           </Link>
           <div className="flex-1">
             <div className="text-[15.5px] font-extrabold tracking-[-.01em]">Knockout Circle</div>
-            <div className="mt-px font-mono text-[10.5px]" style={{ color: "#7a8794" }}>
-              World Cup 2026
-            </div>
+            <div className="mt-px font-mono text-[10.5px] text-muted">World Cup 2026</div>
           </div>
-          <span className="font-mono text-[10px] font-bold tracking-[.08em]" style={{ color: "#7a8794" }}>
+          <span className="font-mono text-[10px] font-bold tracking-[.08em] text-muted">
             {view.locked ? "LOCKED" : "OFFICIAL"}
           </span>
+          <ThemeToggle />
         </div>
 
         <KnockoutCircle view={view} />

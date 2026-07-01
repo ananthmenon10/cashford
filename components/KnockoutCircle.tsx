@@ -5,6 +5,10 @@
 // team to advance it one round (pure promote()), gate on the sibling, re-pick clears
 // downstream, complete the bracket to Lock. Picks persist via server actions; the ring
 // reads the "effective" map = auto-locked results ∪ the viewer's picks.
+//
+// Layout: the ring gets the room (full width, bigger flags); the info/action panel is a
+// single collapsible drawer under it, minimised by default and auto-opened when a node
+// is selected. Colours use the app theme tokens so light + dark both read correctly.
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -19,16 +23,12 @@ import {
   completeBracket,
   score,
   pathToFinal,
-  GEO,
   type SlotKey,
   type Picks,
 } from "@/lib/knockout";
 import type { KnockoutView } from "@/lib/knockout-data";
 import { applyKnockoutPromote, resetKnockoutBracket, lockKnockoutBracket, unlockKnockoutBracket } from "@/app/bracket/actions";
 import { KnockoutShare } from "./KnockoutShare";
-
-const MUT = "#7a8794";
-const TXT = "#E7ECEF";
 
 export function KnockoutCircle({ view }: { view: KnockoutView }) {
   const router = useRouter();
@@ -38,6 +38,7 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
   const [userPicks, setUserPicks] = useState<Picks>(view.myPicks);
   const [hint, setHint] = useState<SlotKey | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [open, setOpen] = useState(false); // info/action drawer starts minimised
   const modeIdx = mode === "live" ? 0 : 1;
 
   // Re-sync client picks with the server whenever it changes (after router.refresh from
@@ -51,11 +52,17 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverPicksKey]);
 
+  // Selecting a node is a request to read its detail — open the drawer to show it.
+  useEffect(() => {
+    if (selected) setOpen(true);
+  }, [selected]);
+
   const auto = useMemo(() => autoPicks(view.results), [view.results]);
   const effective: Picks = useMemo(() => ({ ...auto, ...userPicks }), [auto, userPicks]);
   const made = useMemo(() => Object.keys(effective).filter((k) => /^[1-5]:/.test(k)).length, [effective]);
   const complete = completeBracket(effective);
   const sc = score(userPicks, view.results);
+  const champ = effective["5:0"] ? view.teams[effective["5:0"]] : null;
 
   const onPromote = (ring: number, idx: number) => {
     if (view.locked) return;
@@ -114,16 +121,25 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
         setSelected(null);
       }}
       className="relative z-10 flex-1 rounded-[9px] py-2 text-[12.5px] font-extrabold transition-colors"
-      style={{ color: modeIdx === i ? "#fff" : MUT }}
+      style={{ color: modeIdx === i ? "#fff" : "var(--color-muted)" }}
       aria-pressed={modeIdx === i}
     >
       {label}
     </button>
   );
 
+  // The minimised bar summarises the panel it hides, so the ring can own the screen.
+  const summary = selected
+    ? { label: RING_LABEL[parseKey(selected)[0]], value: selectedName(view, mode, effective, selected), ready: false }
+    : mode === "live"
+      ? { label: "Official results", value: `${view.decided}/${view.total} decided`, ready: false }
+      : view.locked
+        ? { label: "Bracket locked", value: champ?.name ?? "—", ready: false }
+        : { label: "Your bracket", value: `${made}/${view.total} built`, ready: complete };
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative mx-3.5 flex gap-1 rounded-[11px] p-1" style={{ background: "rgba(255,255,255,.05)" }}>
+      <div className="relative mx-3 flex gap-1 rounded-[11px] p-1" style={{ background: "var(--kc-track)" }}>
         <div
           className="pointer-events-none absolute bottom-1 top-1 rounded-[9px]"
           style={{ left: 4, width: "calc(50% - 6px)", background: "#15A66A", transform: `translateX(${modeIdx * 100}%)`, transition: "transform .2s var(--cf-ease)" }}
@@ -132,34 +148,69 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
         {seg("picks", "My Picks", 1)}
       </div>
 
-      <div className="mx-auto" style={{ width: 298, maxWidth: "100%" }}>
+      {/* The visualization gets maximum room — full width up to a comfortable cap. */}
+      <div className="mx-auto w-full px-3" style={{ maxWidth: 460 }}>
         <KnockoutRing view={view} mode={mode} selected={selected} onSelect={onSelectNode} pick={mode === "picks" ? pickState : undefined} onPromote={onPromote} />
       </div>
 
-      <div className="mx-3.5 rounded-[14px] border p-4" style={{ background: "#11161D", borderColor: "rgba(255,255,255,.08)", minHeight: 96 }}>
-        {selected ? (
-          <SelectedDetail view={view} mode={mode} slot={selected} effective={effective} userPicks={userPicks} />
-        ) : mode === "live" ? (
-          <LivePanel view={view} />
-        ) : view.locked ? (
-          <LockedPanel view={view} score={sc} effective={effective} pending={pending} onEdit={() => doAction(unlockKnockoutBracket)} />
-        ) : (
-          <BuildPanel made={made} total={view.total} hint={hint} complete={complete} pending={pending} err={err} onReset={onReset} onLock={() => doAction(lockKnockoutBracket)} />
+      {/* Collapsible info / action drawer. */}
+      <div className="mx-3 overflow-hidden rounded-[14px] border bg-surface" style={{ borderColor: "var(--color-border)" }}>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex w-full items-center gap-2 px-4 py-2.5 text-left"
+          aria-expanded={open}
+        >
+          <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-[.08em] text-muted">{summary.label}</span>
+          <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold text-fg">{summary.value}</span>
+          {summary.ready && !open && (
+            <span className="shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-extrabold" style={{ background: "rgba(21,166,106,.18)", color: "#22C55E" }}>
+              READY
+            </span>
+          )}
+          <Chevron open={open} />
+        </button>
+
+        {open && (
+          <div className="border-t px-4 pb-4 pt-3.5" style={{ borderColor: "var(--color-border)" }}>
+            {selected ? (
+              <SelectedDetail view={view} mode={mode} slot={selected} effective={effective} userPicks={userPicks} />
+            ) : mode === "live" ? (
+              <LivePanel view={view} />
+            ) : view.locked ? (
+              <LockedPanel view={view} score={sc} effective={effective} pending={pending} onEdit={() => doAction(unlockKnockoutBracket)} />
+            ) : (
+              <BuildPanel made={made} total={view.total} hint={hint} complete={complete} pending={pending} err={err} onReset={onReset} onLock={() => doAction(lockKnockoutBracket)} />
+            )}
+          </div>
         )}
       </div>
     </div>
   );
 }
 
+// Team name for a given slot (mirrors SelectedDetail's resolution) — used on the minimised bar.
+function selectedName(view: KnockoutView, mode: BracketMode, effective: Picks, slot: SlotKey): string {
+  const sv = view.slots.find((s) => s.slot === slot);
+  const teamId = mode === "picks" ? effective[slot] : sv?.team?.id ?? null;
+  return teamId ? view.teams[teamId]?.name ?? "To be decided" : "To be decided";
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s var(--cf-ease)" }} aria-hidden="true">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 function LivePanel({ view }: { view: KnockoutView }) {
   return (
     <div>
-      <div className="font-mono text-[11px] font-bold tracking-[.08em]" style={{ color: MUT }}>OFFICIAL RESULTS</div>
-      <div className="mt-1.5 flex items-baseline gap-2">
-        <span className="font-mono text-[26px] font-extrabold" style={{ color: TXT }}>{view.decided} / {view.total}</span>
-        <span className="text-[12px] font-bold" style={{ color: MUT }}>matches decided</span>
+      <div className="flex items-baseline gap-2">
+        <span className="font-mono text-[26px] font-extrabold text-fg">{view.decided} / {view.total}</span>
+        <span className="text-[12px] font-bold text-muted">matches decided</span>
       </div>
-      <div className="mt-2 text-[11px] leading-[1.45]" style={{ color: MUT }}>
+      <div className="mt-2 text-[11px] leading-[1.45] text-muted">
         The board fills in only when a match is final — no live scores, no clutter. Tap any team to trace its road to the final.
       </div>
     </div>
@@ -171,28 +222,28 @@ function BuildPanel({ made, total, hint, complete, pending, err, onReset, onLock
   return (
     <div>
       <div className="flex items-baseline justify-between">
-        <div className="font-mono text-[11px] font-bold tracking-[.08em]" style={{ color: MUT }}>BUILD YOUR BRACKET</div>
-        <span className="font-mono text-[12px] font-extrabold" style={{ color: TXT }}>{made}/{total}</span>
+        <div className="font-mono text-[11px] font-bold tracking-[.08em] text-muted">BUILD YOUR BRACKET</div>
+        <span className="font-mono text-[12px] font-extrabold text-fg">{made}/{total}</span>
       </div>
-      <div className="my-2 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}>
+      <div className="my-2 h-1.5 overflow-hidden rounded-full" style={{ background: "var(--kc-track)" }}>
         <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#15A66A,#22C55E)", transition: "width .3s" }} />
       </div>
-      <div className="mb-2 text-[11px] leading-[1.4]" style={{ color: hint ? "#F2C94C" : MUT, minHeight: 30 }}>
+      <div className="mb-2 text-[11px] leading-[1.4]" style={{ color: hint ? "#F2C94C" : "var(--color-muted)", minHeight: 30 }}>
         {hint ? "Decide the other match first — that empty slot needs a winner before this round opens." : "Tap a team to send it through. Each tap promotes it one round. Finished games are locked in for you."}
       </div>
-      <div className="mb-2.5 flex flex-wrap gap-3 text-[10px]" style={{ color: MUT }}>
+      <div className="mb-2.5 flex flex-wrap gap-3 text-[10px] text-muted">
         <Legend color="#F2C94C" label="Your pick" />
-        <Legend color="rgba(255,255,255,.55)" label="Result locked in" />
+        <Legend color="var(--kc-result-stroke)" label="Result locked in" />
         <Legend color="#F2C94C" dashed label="Pick next" />
       </div>
       {err && <div className="mb-2 text-[11px] font-semibold" style={{ color: "#EF4444" }}>{err}</div>}
       <div className="flex gap-2">
-        <button onClick={onReset} disabled={pending} className="rounded-[9px] border px-3.5 py-2.5 text-[12px] font-bold" style={{ borderColor: "rgba(255,255,255,.08)", color: MUT }}>Reset</button>
+        <button onClick={onReset} disabled={pending} className="rounded-[9px] border px-3.5 py-2.5 text-[12px] font-bold text-muted" style={{ borderColor: "var(--color-border)" }}>Reset</button>
         <button
           onClick={onLock}
           disabled={pending || !complete}
           className="flex-1 rounded-[9px] py-2.5 text-[13px] font-extrabold"
-          style={{ background: complete ? "#15A66A" : "rgba(255,255,255,.08)", color: complete ? "#fff" : MUT, boxShadow: complete ? "0 4px 14px rgba(21,166,106,.4)" : "none" }}
+          style={{ background: complete ? "#15A66A" : "var(--kc-track)", color: complete ? "#fff" : "var(--color-muted)", boxShadow: complete ? "0 4px 14px rgba(21,166,106,.4)" : "none" }}
         >
           {complete ? "Lock in bracket →" : "Complete the bracket to lock"}
         </button>
@@ -206,19 +257,19 @@ function LockedPanel({ view, score, effective, pending, onEdit }: { view: Knocko
   const champ = champId ? view.teams[champId] : null;
   return (
     <div>
-      <div className="font-mono text-[11px] font-bold tracking-[.08em]" style={{ color: MUT }}>BRACKET LOCKED</div>
+      <div className="font-mono text-[11px] font-bold tracking-[.08em] text-muted">BRACKET LOCKED</div>
       <div className="my-2.5 flex items-center gap-2.5">
-        <span className="grid h-9 w-9 place-items-center rounded-full font-mono text-[12px] font-extrabold text-white" style={{ background: champ ? undefined : "rgba(255,255,255,.08)", boxShadow: "0 0 0 2px rgba(242,201,76,.5)" }}>{champ?.code ?? "?"}</span>
+        <span className="grid h-9 w-9 place-items-center rounded-full font-mono text-[12px] font-extrabold text-white" style={{ background: champ ? "#15A66A" : "var(--kc-track)", boxShadow: "0 0 0 2px rgba(242,201,76,.5)" }}>{champ?.code ?? "?"}</span>
         <div>
           <div className="font-mono text-[9px] font-bold tracking-[.14em]" style={{ color: "#F2C94C" }}>YOUR CHAMPION</div>
-          <div className="text-[16px] font-extrabold" style={{ color: TXT }}>{champ?.name ?? "—"}</div>
+          <div className="text-[16px] font-extrabold text-fg">{champ?.name ?? "—"}</div>
         </div>
         <span className="ml-auto text-[20px]">🏆</span>
       </div>
-      <div className="mb-3 text-[10.5px] leading-[1.4]" style={{ color: MUT }}>
+      <div className="mb-3 text-[10.5px] leading-[1.4] text-muted">
         {score.decided > 0 ? `${score.correct}/${score.decided} correct so far` : "No predicted matches decided yet"} · we'll score them live as each match finishes.
       </div>
-      <button onClick={onEdit} disabled={pending} className="rounded-[9px] border px-3.5 py-2.5 text-[12px] font-bold" style={{ borderColor: "rgba(255,255,255,.08)", color: MUT }}>Edit</button>
+      <button onClick={onEdit} disabled={pending} className="rounded-[9px] border px-3.5 py-2.5 text-[12px] font-bold text-muted" style={{ borderColor: "var(--color-border)" }}>Edit</button>
       {view.shareToken && <KnockoutShare shareToken={view.shareToken} championName={champ?.name ?? ""} accuracy={score.decided > 0 ? `${score.correct}/${score.decided} correct` : ""} />}
     </div>
   );
@@ -241,28 +292,28 @@ function SelectedDetail({ view, mode, slot, effective, userPicks }: { view: Knoc
   const team = teamId ? view.teams[teamId] : null;
 
   let status = "Awaiting result";
-  let scol = MUT;
+  let scol = "var(--color-muted)";
   if (ring === 0) status = "In the draw";
   else if (mode === "picks") {
     if (resultId) {
       const ok = userPicks[slot] ? userPicks[slot] === resultId : null;
       status = ok == null ? "Result in" : ok ? "Your pick advanced ✓" : "Knocked out ✗";
-      scol = ok == null ? MUT : ok ? "#16A34A" : "#EF4444";
+      scol = ok == null ? "var(--color-muted)" : ok ? "#16A34A" : "#EF4444";
     } else if (userPicks[slot]) status = "Pick still alive";
     else status = "Pick this next";
   } else status = sv?.finished ? "Advanced" : "Awaiting result";
 
   return (
     <div>
-      <div className="font-mono text-[10px] font-bold uppercase tracking-[.1em]" style={{ color: MUT }}>{RING_LABEL[ring]}</div>
+      <div className="font-mono text-[10px] font-bold uppercase tracking-[.1em] text-muted">{RING_LABEL[ring]}</div>
       <div className="mt-2 flex items-center gap-2.5">
-        <span className="grid h-8 w-8 place-items-center rounded-full font-mono text-[11px] font-extrabold text-white" style={{ background: team ? undefined : "rgba(255,255,255,.08)" }}>{team?.code ?? "?"}</span>
+        <span className="grid h-8 w-8 place-items-center rounded-full font-mono text-[11px] font-extrabold text-white" style={{ background: team ? "#15A66A" : "var(--kc-track)" }}>{team?.code ?? "?"}</span>
         <div>
-          <div className="text-[15px] font-extrabold" style={{ color: TXT }}>{team?.name ?? "To be decided"}</div>
+          <div className="text-[15px] font-extrabold text-fg">{team?.name ?? "To be decided"}</div>
           <div className="mt-0.5 text-[11.5px] font-bold" style={{ color: scol }}>{status}</div>
         </div>
       </div>
-      <div className="mt-2.5 text-[10.5px]" style={{ color: MUT }}>{ring < 5 ? "Highlighted: this team's road to the final." : "The champion lifts the cup here."}</div>
+      <div className="mt-2.5 text-[10.5px] text-muted">{ring < 5 ? "Highlighted: this team's road to the final." : "The champion lifts the cup here."}</div>
     </div>
   );
 }

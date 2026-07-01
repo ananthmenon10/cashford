@@ -56,17 +56,17 @@ export function KnockoutShare({ shareToken, championName, accuracy }: { shareTok
         </button>
       )}
       <div className="flex gap-2">
-        <button onClick={save} disabled={saving} className="flex-1 rounded-[9px] border py-2.5 text-[12px] font-bold" style={{ borderColor: "rgba(255,255,255,.1)", color: "#E7ECEF" }}>
+        <button onClick={save} disabled={saving} className="flex-1 rounded-[9px] border py-2.5 text-[12px] font-bold text-fg" style={{ borderColor: "var(--color-border)" }}>
           {saving ? "Saving…" : "Save image"}
         </button>
-        <button onClick={copy} className="flex-1 rounded-[9px] border py-2.5 text-[12px] font-bold" style={{ borderColor: "rgba(255,255,255,.1)", color: "#E7ECEF" }}>
+        <button onClick={copy} className="flex-1 rounded-[9px] border py-2.5 text-[12px] font-bold text-fg" style={{ borderColor: "var(--color-border)" }}>
           {copied ? "Copied ✓" : "Copy link"}
         </button>
-        <a href={`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`} target="_blank" rel="noopener noreferrer" className="flex-1 rounded-[9px] border py-2.5 text-center text-[12px] font-bold" style={{ borderColor: "rgba(255,255,255,.1)", color: "#E7ECEF" }}>
+        <a href={`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`} target="_blank" rel="noopener noreferrer" className="flex-1 rounded-[9px] border py-2.5 text-center text-[12px] font-bold text-fg" style={{ borderColor: "var(--color-border)" }}>
           WhatsApp
         </a>
       </div>
-      <p className="text-center text-[10px]" style={{ color: "#7a8794" }}>Instagram: save the image, then post it from your camera roll.</p>
+      <p className="text-center text-[10px] text-muted">Instagram: save the image, then post it from your camera roll.</p>
     </div>
   );
 }

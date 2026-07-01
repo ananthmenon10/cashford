@@ -50,13 +50,13 @@ interface NodeVisual {
 
 const EMPTY = (ring: number): NodeVisual => ({
   fill: "transparent",
-  stroke: ring === 5 ? "#F2C94C" : "rgba(255,255,255,.13)",
+  stroke: ring === 5 ? "#F2C94C" : "var(--kc-empty)",
   strokeW: ring === 5 ? 2.4 : 1.3,
   dashed: true,
   gold: false,
   label: ring === 5 ? "?" : "",
   flagUrl: null,
-  txt: ring === 5 ? "#F2C94C" : "#9fb0bd",
+  txt: ring === 5 ? "#F2C94C" : "var(--kc-label-faint)",
 });
 
 function liveVisual(view: KnockoutView, ring: number, idx: number): NodeVisual {
@@ -64,10 +64,10 @@ function liveVisual(view: KnockoutView, ring: number, idx: number): NodeVisual {
   const sv = view.slots.find((s) => s.slot === k) ?? null;
   if (ring === 0) {
     if (!sv?.team) return EMPTY(0);
-    return { fill: chipColor(sv.team.code) + "26", stroke: chipColor(sv.team.code) + "88", strokeW: 1.2, dashed: false, gold: false, label: sv.team.code, flagUrl: sv.team.flagUrl, txt: "#cfd8df" };
+    return { fill: chipColor(sv.team.code) + "26", stroke: chipColor(sv.team.code) + "88", strokeW: 1.2, dashed: false, gold: false, label: sv.team.code, flagUrl: sv.team.flagUrl, txt: "var(--kc-label)" };
   }
   if (sv?.finished && sv.team) {
-    return { fill: chipColor(sv.team.code), stroke: "#ffffff22", strokeW: ring === 5 ? 2.6 : 1.3, dashed: false, gold: false, label: sv.team.code, flagUrl: sv.team.flagUrl, txt: "#fff" };
+    return { fill: chipColor(sv.team.code), stroke: "var(--kc-line)", strokeW: ring === 5 ? 2.6 : 1.3, dashed: false, gold: false, label: sv.team.code, flagUrl: sv.team.flagUrl, txt: "#fff" };
   }
   return EMPTY(ring);
 }
@@ -86,7 +86,7 @@ function picksVisual(view: KnockoutView, ps: PickState, ring: number, idx: numbe
         const ok = ps.userPicks[k] === ps.results[k];
         return { fill: chipColor(t.code), stroke: ok ? "#16A34A" : "#EF4444", strokeW: 2, dashed: false, gold: false, label: t.code, flagUrl: t.flagUrl, txt: "#fff" };
       }
-      return { fill: chipColor(t.code), stroke: "rgba(255,255,255,.55)", strokeW: 1.3, dashed: false, gold: false, label: t.code, flagUrl: t.flagUrl, txt: "#fff" };
+      return { fill: chipColor(t.code), stroke: "var(--kc-result-stroke)", strokeW: 1.3, dashed: false, gold: false, label: t.code, flagUrl: t.flagUrl, txt: "#fff" };
     }
     // the viewer's pick (still to be played)
     return { fill: chipColor(t.code), stroke: "#F2C94C", strokeW: 2, dashed: false, gold: false, label: t.code, flagUrl: t.flagUrl, txt: "#fff" };
@@ -105,7 +105,6 @@ export function KnockoutRing({
   onSelect,
   pick,
   onPromote,
-  size = 298,
 }: {
   view: KnockoutView;
   mode: BracketMode;
@@ -113,7 +112,6 @@ export function KnockoutRing({
   onSelect: (slot: SlotKey | null) => void;
   pick?: PickState; // present in My Picks mode
   onPromote?: (ring: number, idx: number) => void; // present when interactive
-  size?: number;
 }) {
   const ref = useReveal<SVGSVGElement>();
   const path = selected ? new Set(pathToFinal(selected)) : null;
@@ -131,12 +129,11 @@ export function KnockoutRing({
       ref={ref}
       className="kc-bracket"
       viewBox="0 0 298 298"
-      width={size}
-      height={size}
+      width="100%"
       role="group"
       aria-label="World Cup 2026 knockout bracket"
       data-selected={selected ?? undefined}
-      style={{ display: "block", maxWidth: "100%" }}
+      style={{ display: "block", width: "100%", height: "auto", maxWidth: "100%" }}
     >
       <defs>
         {NODES.map((n) => (
@@ -157,7 +154,7 @@ export function KnockoutRing({
             x2={l.x2}
             y2={l.y2}
             pathLength={1}
-            stroke={on ? "rgba(21,166,106,.7)" : "rgba(255,255,255,.09)"}
+            stroke={on ? "rgba(21,166,106,.7)" : "var(--kc-line)"}
             strokeWidth={on ? 1.8 : 1}
             style={{ ["--kc-ring-i" as string]: String(6 - l.ring) }}
           />
@@ -207,7 +204,7 @@ export function KnockoutRing({
               <circle className="kc-halo" cx={n.x} cy={n.y} r={n.r + 2.6} fill="none" stroke="#F2C94C" strokeWidth={1.3} strokeDasharray="2 3" />
             )}
             {/* fill/backdrop (flag nodes get a dark disc behind the inset flag) */}
-            <circle className="kc-nodefill" cx={n.x} cy={n.y} r={n.r} fill={v.flagUrl ? "#0b0f14" : v.fill} />
+            <circle className="kc-nodefill" cx={n.x} cy={n.y} r={n.r} fill={v.flagUrl ? "var(--kc-node-bg)" : v.fill} />
             {v.flagUrl && (
               <image
                 href={v.flagUrl}
