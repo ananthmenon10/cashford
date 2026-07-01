@@ -430,17 +430,17 @@ export function bracketSvg(view: BracketSvgView, opts: BracketSvgOpts = {}): str
 
 // ---- Fixture → slot binding (pure) --------------------------------------------
 //
-// Walk the tree top-down from the Final using ESPN's feeder labels
-// ("Semifinal 1 Winner", "Quarterfinal 2 Winner", "Round of 16 5 Winner"), which
-// encode the REAL (non-sequential) bracket. For a round that has resolved we prefer
-// advancer-matching (the fixture's actual team → the child whose advancer is that
-// team) over the label. R32→R16 edges are resolved ONLY by advancer-match (ESPN's
-// "Round of 32 N" numbering ≠ external_id order, so pending R16 feeders stay TBD until
-// their R32 finishes). Slots we can't place yet are returned in `pending` (render TBD).
+// The WC-2026 knockout bracket is a fixed draw. We hardcode the 16 Round-of-32
+// fixtures (by ESPN external_id) in BRACKET ORDER — ring-1 slot i is R32_ORDER[i], and
+// its two ring-0 entrants are that fixture's home/away. This places all 32 flags + the
+// full tree immediately (matching the official radial draw). The order was read from
+// the official draw and verified against ESPN's already-resolved R16 edges (760502 ←
+// {760486,760488}, 760503 ← {760489,760492}, 760504 ← {760487,760490}).
 //
-// ASSUMPTION (flagged for the FIFA-draw cross-check): a "Round of 16/Quarterfinal/
-// Semifinal N Winner" ordinal N maps to the N-th fixture of that round by external_id.
-// Internally consistent with the live labels; yields a valid binary tree.
+// Rings 2..5 bind by ADVANCER-MATCH: a round-N fixture whose two participants equal the
+// winners of a slot's two children is placed at that slot (correct + self-correcting as
+// matches finish). Slots whose children aren't decided yet get a stable fallback fixture
+// (so a pick can persist); results[] stays null for them, so scoring is never affected.
 
 export interface KnockoutFixture {
   externalId: number;
@@ -452,80 +452,89 @@ export interface KnockoutFixture {
   advancerTeamId: string | null;
 }
 
-const FEEDER_RE: Array<[RegExp, KnockoutFixture["round"]]> = [
-  [/^Round of 32 (\d+) Winner$/i, "r32"],
-  [/^Round of 16 (\d+) Winner$/i, "r16"],
-  [/^Quarterfinal (\d+) Winner$/i, "qf"],
-  [/^Semifinal (\d+) Winner$/i, "sf"],
+// R32 fixtures in bracket order (ring-1 slots 0..15). Consecutive pairs feed each R16,
+// etc. (standard binary tree). Derived from the official WC-2026 draw.
+export const R32_ORDER: readonly number[] = [
+  760489, // Germany v Paraguay
+  760492, // France v Sweden
+  760486, // South Africa v Canada
+  760488, // Netherlands v Morocco
+  760496, // Portugal v Croatia
+  760497, // Spain v Austria
+  760494, // USA v Bosnia
+  760493, // Belgium v Senegal
+  760501, // Colombia v Ghana
+  760498, // Switzerland v Algeria
+  760499, // Australia v Egypt
+  760500, // Argentina v Cape Verde
+  760495, // England v Congo DR
+  760491, // Mexico v Ecuador
+  760490, // Ivory Coast v Norway
+  760487, // Brazil v Japan
 ];
-
-function parseFeeder(label: string | null): { round: KnockoutFixture["round"]; ord: number } | null {
-  if (!label) return null;
-  for (const [re, round] of FEEDER_RE) {
-    const m = re.exec(label.trim());
-    if (m) return { round, ord: Number(m[1]) };
-  }
-  return null;
-}
 
 export interface BracketBinding {
   slotFixtureExternalId: Record<SlotKey, number>; // rings 1..5 → fixture external_id
   ring0TeamId: Record<number, string>; // ring-0 index (0..31) → entrant team id
-  pending: SlotKey[]; // slots not yet placeable (feeding match undetermined)
+  pending: SlotKey[]; // slots with no fixture yet (missing from the data)
 }
 
-/** Bind KO fixtures to radial slots by parsing feeder labels + advancer-matching. Pure. */
+/** Bind KO fixtures to radial slots: static R32 order + advancer-match for upper rounds. Pure. */
 export function bindBracket(fixtures: KnockoutFixture[]): BracketBinding {
-  const byRound = (r: KnockoutFixture["round"]) =>
-    fixtures.filter((f) => f.round === r).sort((a, b) => a.externalId - b.externalId);
-  const rounds: Record<string, KnockoutFixture[]> = {
-    r32: byRound("r32"), r16: byRound("r16"), qf: byRound("qf"), sf: byRound("sf"), final: byRound("final"),
-  };
-  const advTo: Record<string, Map<string, KnockoutFixture>> = {};
-  for (const r of ["r32", "r16", "qf", "sf"]) {
-    advTo[r] = new Map();
-    for (const f of rounds[r]) if (f.advancerTeamId) advTo[r].set(f.advancerTeamId, f);
-  }
-  const CHILD_ROUND: Record<number, string> = { 3: "r16", 4: "qf", 5: "sf" };
+  const byExt = new Map(fixtures.map((f) => [f.externalId, f]));
+  const byRound = (r: string) => fixtures.filter((f) => f.round === r).sort((a, b) => a.externalId - b.externalId);
+  const CHILD_ROUND: Record<number, string> = { 2: "r16", 3: "qf", 4: "sf", 5: "final" };
 
   const slotFixtureExternalId: Record<SlotKey, number> = {};
   const ring0TeamId: Record<number, string> = {};
   const pending: SlotKey[] = [];
 
-  function place(fx: KnockoutFixture, ring: number, idx: number): void {
-    slotFixtureExternalId[key(ring, idx)] = fx.externalId;
-    if (ring === 1) return; // R32 fixture; ring-0 teams set by the ring-2 caller
-
-    if (ring === 2) {
-      // r16 → r32 children: advancer-match on resolved teams only (RO32 ordinal undecodable)
-      [fx.homeTeamId, fx.awayTeamId].forEach((teamId, side) => {
-        const j = 2 * idx + side; // ring-1 slot
-        const child = teamId ? advTo.r32.get(teamId) : undefined;
-        if (child) {
-          slotFixtureExternalId[key(1, j)] = child.externalId;
-          if (child.homeTeamId) ring0TeamId[2 * j] = child.homeTeamId;
-          if (child.awayTeamId) ring0TeamId[2 * j + 1] = child.awayTeamId;
-        } else {
-          pending.push(key(1, j));
-        }
-      });
+  // ring 1 (R32) + ring 0 (entrants) from the static order
+  R32_ORDER.forEach((ext, i) => {
+    const f = byExt.get(ext);
+    if (!f) {
+      pending.push(key(1, i));
       return;
     }
+    slotFixtureExternalId[key(1, i)] = ext;
+    if (f.homeTeamId) ring0TeamId[2 * i] = f.homeTeamId;
+    if (f.awayTeamId) ring0TeamId[2 * i + 1] = f.awayTeamId;
+  });
 
-    // rings 3..5 → child fixtures: prefer advancer-match (resolved), else the label ordinal
-    const cr = CHILD_ROUND[ring];
-    ([[fx.homeTeamId, fx.homeLabel], [fx.awayTeamId, fx.awayLabel]] as const).forEach(([teamId, label], side) => {
-      let child: KnockoutFixture | undefined;
-      if (teamId && advTo[cr].has(teamId)) child = advTo[cr].get(teamId);
-      else {
-        const fdr = parseFeeder(label);
-        if (fdr && fdr.round === cr) child = rounds[cr][fdr.ord - 1];
+  // winner occupying a slot (its bound fixture's advancer), computed bottom-up
+  const winnerAt = (ring: number, idx: number): string | undefined => {
+    if (ring === 0) return ring0TeamId[idx];
+    const ext = slotFixtureExternalId[key(ring, idx)];
+    return ext != null ? byExt.get(ext)?.advancerTeamId ?? undefined : undefined;
+  };
+
+  // rings 2..5: place each round's fixtures by matching participants to the slot's feeders
+  for (let ring = 2; ring <= 5; ring++) {
+    const pool = byRound(CHILD_ROUND[ring]);
+    const used = new Set<number>();
+    // pass 1: advancer-match to the exact slot
+    for (let idx = 0; idx < GEO.counts[ring]; idx++) {
+      const wA = winnerAt(ring - 1, 2 * idx);
+      const wB = winnerAt(ring - 1, 2 * idx + 1);
+      if (wA && wB) {
+        const m = pool.find(
+          (f) => !used.has(f.externalId) && ((f.homeTeamId === wA && f.awayTeamId === wB) || (f.homeTeamId === wB && f.awayTeamId === wA)),
+        );
+        if (m) {
+          slotFixtureExternalId[key(ring, idx)] = m.externalId;
+          used.add(m.externalId);
+        }
       }
-      if (child) place(child, ring - 1, 2 * idx + side);
-      else pending.push(key(ring - 1, 2 * idx + side));
+    }
+    // pass 2: give remaining slots a stable fallback fixture (for pick persistence)
+    const openSlots: number[] = [];
+    for (let idx = 0; idx < GEO.counts[ring]; idx++) if (slotFixtureExternalId[key(ring, idx)] == null) openSlots.push(idx);
+    const remaining = pool.filter((f) => !used.has(f.externalId));
+    openSlots.forEach((idx, k) => {
+      if (remaining[k]) slotFixtureExternalId[key(ring, idx)] = remaining[k].externalId;
+      else pending.push(key(ring, idx));
     });
   }
 
-  if (rounds.final[0]) place(rounds.final[0], 5, 0);
   return { slotFixtureExternalId, ring0TeamId, pending };
 }

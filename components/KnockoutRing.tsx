@@ -63,10 +63,10 @@ function liveVisual(view: KnockoutView, ring: number, idx: number): NodeVisual {
   const sv = view.slots.find((s) => s.slot === k) ?? null;
   if (ring === 0) {
     if (!sv?.team) return EMPTY(0);
-    return { fill: chipColor(sv.team.code) + "26", stroke: chipColor(sv.team.code) + "88", strokeW: 1.2, dashed: false, gold: false, label: sv.team.code, flagUrl: null, txt: "#cfd8df" };
+    return { fill: chipColor(sv.team.code) + "26", stroke: chipColor(sv.team.code) + "88", strokeW: 1.2, dashed: false, gold: false, label: sv.team.code, flagUrl: sv.team.flagUrl, txt: "#cfd8df" };
   }
   if (sv?.finished && sv.team) {
-    return { fill: chipColor(sv.team.code), stroke: "#ffffff22", strokeW: ring === 5 ? 2.6 : 1.3, dashed: false, gold: false, label: sv.team.code, flagUrl: ring >= 3 ? sv.team.flagUrl : null, txt: "#fff" };
+    return { fill: chipColor(sv.team.code), stroke: "#ffffff22", strokeW: ring === 5 ? 2.6 : 1.3, dashed: false, gold: false, label: sv.team.code, flagUrl: sv.team.flagUrl, txt: "#fff" };
   }
   return EMPTY(ring);
 }
@@ -83,12 +83,12 @@ function picksVisual(view: KnockoutView, ps: PickState, ring: number, idx: numbe
       // auto-locked result. On a locked scorecard, colour by the user's own pick.
       if (ps.locked && ps.userPicks[k]) {
         const ok = ps.userPicks[k] === ps.results[k];
-        return { fill: chipColor(t.code), stroke: ok ? "#16A34A" : "#EF4444", strokeW: 2, dashed: false, gold: false, label: t.code, flagUrl: ring >= 3 ? t.flagUrl : null, txt: "#fff" };
+        return { fill: chipColor(t.code), stroke: ok ? "#16A34A" : "#EF4444", strokeW: 2, dashed: false, gold: false, label: t.code, flagUrl: t.flagUrl, txt: "#fff" };
       }
-      return { fill: chipColor(t.code), stroke: "rgba(255,255,255,.55)", strokeW: 1.3, dashed: false, gold: false, label: t.code, flagUrl: ring >= 3 ? t.flagUrl : null, txt: "#fff" };
+      return { fill: chipColor(t.code), stroke: "rgba(255,255,255,.55)", strokeW: 1.3, dashed: false, gold: false, label: t.code, flagUrl: t.flagUrl, txt: "#fff" };
     }
     // the viewer's pick (still to be played)
-    return { fill: chipColor(t.code), stroke: "#F2C94C", strokeW: 2, dashed: false, gold: false, label: t.code, flagUrl: ring >= 3 ? t.flagUrl : null, txt: "#fff" };
+    return { fill: chipColor(t.code), stroke: "#F2C94C", strokeW: 2, dashed: false, gold: false, label: t.code, flagUrl: t.flagUrl, txt: "#fff" };
   }
   // empty slot: gold "pick-next" if both feeders are ready, else faint upcoming
   if (!ps.locked && feedersReady(ps.effective, ps.field, ring, idx) && !isAutoLocked(ps.results, ring, idx)) {
@@ -138,7 +138,7 @@ export function KnockoutRing({
       style={{ display: "block", maxWidth: "100%" }}
     >
       <defs>
-        {NODES.filter((n) => n.ring >= 3).map((n) => (
+        {NODES.map((n) => (
           <clipPath key={`clip-${n.slot}`} id={`kc-clip-${n.ring}-${n.idx}`}>
             <circle cx={n.x} cy={n.y} r={n.r} />
           </clipPath>

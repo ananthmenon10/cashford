@@ -22,6 +22,7 @@ import {
   chipColor,
   bracketSvg,
   bindBracket,
+  R32_ORDER,
   type Picks,
   type Results,
   type KnockoutFixture,
@@ -256,84 +257,61 @@ describe("chipColor", () => {
   });
 });
 
-describe("bindBracket — label-recursion + advancer-match", () => {
-  // Canonical SEQUENTIAL full bracket (32 teams). r16[j] fed by r32[2j],r32[2j+1];
-  // home always advances. qf/sf/final reference children by "<round> N Winner" labels.
-  // (Sequentiality is just for the generator — bindBracket reads the labels, which is
-  // what makes it work for the real non-sequential draw too.)
-  function fullBracket(opts: { r16Resolved?: boolean; dropR32?: number } = {}): KnockoutFixture[] {
-    const { r16Resolved = true, dropR32 = -1 } = opts;
-    const fx: KnockoutFixture[] = [];
+describe("bindBracket — static R32 order + advancer-match", () => {
+  // Build a full WC-shaped fixture set keyed by the REAL R32_ORDER external_ids. Each
+  // R32 fixture i has teams H{i}/A{i}; home advances. R16..final teams are the winners
+  // of their two feeder slots, so upper rounds bind by advancer-match.
+  function fullBracket(opts: { dropR32slot?: number; resolveR16?: number } = {}): KnockoutFixture[] {
+    const { dropR32slot = -1, resolveR16 = -1 } = opts;
     const F = (externalId: number, round: KnockoutFixture["round"], o: Partial<KnockoutFixture>): KnockoutFixture => ({
       externalId, round, homeTeamId: null, awayTeamId: null, homeLabel: null, awayLabel: null, advancerTeamId: null, ...o,
     });
-    // r32: ext 100..115; home "H{i}" advances
-    for (let i = 0; i < 16; i++) {
-      const resolved = i !== dropR32;
-      fx.push(F(100 + i, "r32", {
-        homeTeamId: `H${i}`, awayTeamId: `A${i}`,
-        advancerTeamId: resolved ? `H${i}` : null,
-      }));
-    }
-    // r16: ext 200..207; feeders r32[2j],r32[2j+1]; home team = H{2j}
+    const fx: KnockoutFixture[] = [];
+    R32_ORDER.forEach((ext, i) => {
+      if (i === dropR32slot) return; // omit this R32 fixture entirely
+      fx.push(F(ext, "r32", { homeTeamId: `H${i}`, awayTeamId: `A${i}`, advancerTeamId: `H${i}` }));
+    });
+    // R16: slot j is fed by R32 slots 2j, 2j+1 → winners H{2j}, H{2j+1}
     for (let j = 0; j < 8; j++) {
-      const homeT = r16Resolved && j * 2 !== dropR32 ? `H${2 * j}` : null;
-      const awayT = r16Resolved && j * 2 + 1 !== dropR32 ? `H${2 * j + 1}` : null;
-      fx.push(F(200 + j, "r16", {
-        homeLabel: `Round of 32 ${2 * j + 1} Winner`, awayLabel: `Round of 32 ${2 * j + 2} Winner`,
-        homeTeamId: homeT, awayTeamId: awayT, advancerTeamId: homeT,
-      }));
+      const resolved = j <= resolveR16;
+      fx.push(F(900 + j, "r16", { homeTeamId: `H${2 * j}`, awayTeamId: `H${2 * j + 1}`, advancerTeamId: resolved ? `H${2 * j}` : null }));
     }
-    // qf: ext 300..303; feeders r16[2k],r16[2k+1]
-    for (let k = 0; k < 4; k++)
-      fx.push(F(300 + k, "qf", { homeLabel: `Round of 16 ${2 * k + 1} Winner`, awayLabel: `Round of 16 ${2 * k + 2} Winner` }));
-    // sf: ext 400..401
-    for (let m = 0; m < 2; m++)
-      fx.push(F(400 + m, "sf", { homeLabel: `Quarterfinal ${2 * m + 1} Winner`, awayLabel: `Quarterfinal ${2 * m + 2} Winner` }));
-    // final + a third-place (must be ignored)
-    fx.push(F(500, "final", { homeLabel: "Semifinal 1 Winner", awayLabel: "Semifinal 2 Winner" }));
-    fx.push(F(501, "third", { homeLabel: "Semifinal 1 Loser", awayLabel: "Semifinal 2 Loser" }));
+    for (let k = 0; k < 4; k++) fx.push(F(950 + k, "qf", { homeTeamId: null, awayTeamId: null }));
+    for (let m = 0; m < 2; m++) fx.push(F(980 + m, "sf", { homeTeamId: null, awayTeamId: null }));
+    fx.push(F(990, "final", { homeTeamId: null, awayTeamId: null }));
+    fx.push(F(991, "third", { homeTeamId: null, awayTeamId: null })); // must never be placed
     return fx;
   }
 
-  it("places all 31 slots + 32 entrants, no pending, when the tree is fully derivable", () => {
+  it("places all 32 entrants + 16 R32 slots from the static order, in bracket order", () => {
     const b = bindBracket(fullBracket());
-    expect(Object.keys(b.slotFixtureExternalId)).toHaveLength(31);
     expect(Object.keys(b.ring0TeamId)).toHaveLength(32);
-    expect(b.pending).toHaveLength(0);
+    // ring-1 slot i = R32_ORDER[i]; its entrants are at ring-0 2i, 2i+1
+    R32_ORDER.forEach((ext, i) => {
+      expect(b.slotFixtureExternalId[`1:${i}`]).toBe(ext);
+      expect(b.ring0TeamId[2 * i]).toBe(`H${i}`);
+      expect(b.ring0TeamId[2 * i + 1]).toBe(`A${i}`);
+    });
+    expect(Object.values(b.slotFixtureExternalId)).not.toContain(991); // third-place excluded
   });
 
-  it("reconstructs the tree from labels (champion=final, ring-1=r32, ring-0=entrants)", () => {
-    const b = bindBracket(fullBracket());
-    expect(b.slotFixtureExternalId["5:0"]).toBe(500); // final at champion slot
-    expect(b.slotFixtureExternalId["4:0"]).toBe(400); // sf1
-    expect(b.slotFixtureExternalId["3:0"]).toBe(300); // qf1
-    expect(b.slotFixtureExternalId["2:0"]).toBe(200); // r16[0]
-    expect(b.slotFixtureExternalId["1:0"]).toBe(100); // r32[0]
-    expect(b.slotFixtureExternalId["1:1"]).toBe(101); // r32[1]
-    expect(b.ring0TeamId[0]).toBe("H0");
-    expect(b.ring0TeamId[1]).toBe("A0");
-    // third-place fixture is never placed
-    expect(Object.values(b.slotFixtureExternalId)).not.toContain(501);
+  it("advancer-matches an R16 to the slot fed by its two R32 winners", () => {
+    const b = bindBracket(fullBracket({ resolveR16: 7 })); // all R16 resolved
+    // R16 fixture 900+j has teams H{2j},H{2j+1} → the winners of ring-1 slots 2j,2j+1 → ring-2 slot j
+    for (let j = 0; j < 8; j++) expect(b.slotFixtureExternalId[`2:${j}`]).toBe(900 + j);
   });
 
-  it("leaves a ring-1 slot pending when its feeding R32 hasn't resolved", () => {
-    const b = bindBracket(fullBracket({ dropR32: 0 })); // r32[0] unresolved → r16[0] home TBD
-    expect(b.pending).toContain("1:0");
-    expect(b.slotFixtureExternalId["1:0"]).toBeUndefined();
-    // the rest of the tree is unaffected
-    expect(b.slotFixtureExternalId["1:1"]).toBe(101);
-    expect(b.slotFixtureExternalId["5:0"]).toBe(500);
+  it("gives unresolved upper slots a stable fallback fixture (so picks can persist)", () => {
+    const b = bindBracket(fullBracket()); // no R16 resolved
+    // every ring-2 slot still has some r16 fixture bound (fallback), and champion has the final
+    for (let j = 0; j < 8; j++) expect(b.slotFixtureExternalId[`2:${j}`]).toBeGreaterThanOrEqual(900);
+    expect(b.slotFixtureExternalId["5:0"]).toBe(990);
   });
 
-  it("uses advancer-match for higher rounds too when they've resolved", () => {
-    // Resolve qf1's home team to r16[0]'s advancer so the qf uses advancer-match, not the label.
-    const fx = fullBracket();
-    const qf1 = fx.find((f) => f.externalId === 300)!;
-    qf1.homeTeamId = "H0"; // = advancer of r16[0] (200)
-    qf1.homeLabel = "Some Country"; // label no longer a "Winner" pattern
-    const b = bindBracket(fx);
-    expect(b.slotFixtureExternalId["2:0"]).toBe(200); // still resolved via advancer-match
-    expect(b.pending).toHaveLength(0);
+  it("marks a ring-1 slot pending when its R32 fixture is missing from the data", () => {
+    const b = bindBracket(fullBracket({ dropR32slot: 3 }));
+    expect(b.pending).toContain("1:3");
+    expect(b.slotFixtureExternalId["1:3"]).toBeUndefined();
+    expect(b.slotFixtureExternalId["1:0"]).toBe(R32_ORDER[0]); // rest unaffected
   });
 });
