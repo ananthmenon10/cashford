@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { loadKnockoutView } from "@/lib/knockout-data";
+import { loadKnockoutView, loadKnockoutLeaderboards } from "@/lib/knockout-data";
 import { KnockoutCircle } from "@/components/KnockoutCircle";
+import { KnockoutLeaderboard } from "@/components/KnockoutLeaderboard";
 
 // The Knockout Circle is an always-dark, immersive "arena" screen (its own route, not
 // an in-home tab panel). Explicit dark palette (matches the prototype + html.dark
@@ -17,6 +18,7 @@ export default async function BracketPage() {
   if (!user) redirect("/login");
 
   const view = await loadKnockoutView(supabase, user.id);
+  const leaderboards = await loadKnockoutLeaderboards(supabase, user.id, view.results);
 
   return (
     <div style={{ background: "#0B0F14", minHeight: "100vh", color: "#E7ECEF" }}>
@@ -38,6 +40,7 @@ export default async function BracketPage() {
         </div>
 
         <KnockoutCircle view={view} />
+        <KnockoutLeaderboard leaderboards={leaderboards} />
       </div>
     </div>
   );

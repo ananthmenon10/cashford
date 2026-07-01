@@ -5,7 +5,7 @@ import "server-only";
 // assembles a serializable KnockoutView the client ring renders. Live results fill a
 // slot only when its match is final (advancer set); everything else is TBD/upcoming.
 
-import { bindBracket, key, GEO, CIRCLE_MATCHES, type KnockoutFixture, type SlotKey } from "./knockout";
+import { bindBracket, key, GEO, CIRCLE_MATCHES, score, type KnockoutFixture, type SlotKey, type Picks, type Results } from "./knockout";
 import type { createClient } from "./supabase/server";
 import type { createServiceRoleClient } from "./supabase/service";
 
@@ -46,6 +46,66 @@ export interface KnockoutView {
 }
 
 const LIVE_STATUSES = new Set(["in", "in_progress", "live", "ht", "halftime"]);
+
+// ---- Per-league bracket-accuracy leaderboard ---------------------------------
+export interface LeaderboardRow {
+  userId: string;
+  name: string;
+  correct: number;
+  decided: number; // decided matches this member actually predicted
+  isYou: boolean;
+}
+export interface LeagueLeaderboard {
+  leagueId: string;
+  name: string;
+  slug: string;
+  rows: LeaderboardRow[];
+}
+
+/**
+ * Bracket-accuracy board per league the viewer belongs to. One bulk query per table
+ * (no N+1); RLS restricts picks to the viewer's own + leaguemates' REVEALED rows, and
+ * score() only counts DECIDED matches — so no undecided pick is ever exposed. Ranked by
+ * correct count, then by decided (rewards predicting more), then name.
+ */
+export async function loadKnockoutLeaderboards(supabase: RlsClient, userId: string, results: Results): Promise<LeagueLeaderboard[]> {
+  const [{ data: leagues }, { data: members }] = await Promise.all([
+    supabase.from("leagues").select("id, name, slug"),
+    supabase.from("league_members").select("league_id, user_id"),
+  ]);
+  const memberIds = [...new Set((members ?? []).map((m) => m.user_id as string))];
+  if (memberIds.length === 0) return [];
+  const [{ data: profiles }, { data: picks }] = await Promise.all([
+    supabase.from("profiles").select("id, username").in("id", memberIds),
+    supabase.from("knockout_predictions").select("user_id, slot_key, predicted_team_id").in("user_id", memberIds).eq("tournament_id", TOURNAMENT),
+  ]);
+
+  const byUser = new Map<string, Picks>();
+  for (const p of picks ?? []) {
+    const m = byUser.get(p.user_id as string) ?? {};
+    m[p.slot_key as string] = p.predicted_team_id as string;
+    byUser.set(p.user_id as string, m);
+  }
+  const nameOf = new Map((profiles ?? []).map((p) => [p.id as string, (p.username as string) ?? "?"]));
+  const byLeague = new Map<string, string[]>();
+  for (const m of members ?? []) {
+    const a = byLeague.get(m.league_id as string) ?? [];
+    a.push(m.user_id as string);
+    byLeague.set(m.league_id as string, a);
+  }
+
+  return (leagues ?? []).map((lg) => ({
+    leagueId: lg.id as string,
+    name: lg.name as string,
+    slug: lg.slug as string,
+    rows: (byLeague.get(lg.id as string) ?? [])
+      .map((uid) => {
+        const sc = score(byUser.get(uid) ?? {}, results);
+        return { userId: uid, name: nameOf.get(uid) ?? "?", correct: sc.correct, decided: sc.decided, isYou: uid === userId };
+      })
+      .sort((a, b) => b.correct - a.correct || b.decided - a.decided || a.name.localeCompare(b.name)),
+  }));
+}
 
 export async function loadKnockoutView(supabase: RlsClient, userId: string | null): Promise<KnockoutView> {
   const [{ data: fixtureRows }, { data: teamRows }] = await Promise.all([
