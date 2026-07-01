@@ -25,6 +25,7 @@ import {
 } from "@/lib/knockout";
 import type { KnockoutView } from "@/lib/knockout-data";
 import { applyKnockoutPromote, resetKnockoutBracket, lockKnockoutBracket, unlockKnockoutBracket } from "@/app/bracket/actions";
+import { KnockoutShare } from "./KnockoutShare";
 
 const MUT = "#7a8794";
 const TXT = "#E7ECEF";
@@ -200,6 +201,7 @@ function LockedPanel({ view, score, effective, pending, onEdit }: { view: Knocko
         {score.decided > 0 ? `${score.correct}/${score.decided} correct so far` : "No predicted matches decided yet"} · we'll score them live as each match finishes.
       </div>
       <button onClick={onEdit} disabled={pending} className="rounded-[9px] border px-3.5 py-2.5 text-[12px] font-bold" style={{ borderColor: "rgba(255,255,255,.08)", color: MUT }}>Edit</button>
+      {view.shareToken && <KnockoutShare shareToken={view.shareToken} championName={champ?.name ?? ""} accuracy={score.decided > 0 ? `${score.correct}/${score.decided} correct` : ""} />}
     </div>
   );
 }

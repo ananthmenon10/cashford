@@ -7,7 +7,7 @@ import "server-only";
 
 import { bindBracket, key, GEO, CIRCLE_MATCHES, score, type KnockoutFixture, type SlotKey, type Picks, type Results } from "./knockout";
 import type { createClient } from "./supabase/server";
-import type { createServiceRoleClient } from "./supabase/service";
+import { createServiceRoleClient } from "./supabase/service";
 
 type RlsClient = Awaited<ReturnType<typeof createClient>>;
 type AdminClient = ReturnType<typeof createServiceRoleClient>;
@@ -68,6 +68,26 @@ export interface LeagueLeaderboard {
  * score() only counts DECIDED matches — so no undecided pick is ever exposed. Ranked by
  * correct count, then by decided (rewards predicting more), then name.
  */
+/**
+ * Public share read: resolve a LOCKED bracket by its opaque share_token (service-role,
+ * no auth). Returns the owner's full bracket view (read-only) + owner name, or null if
+ * the token is unknown or the bracket isn't locked (never exposes an unlocked bracket).
+ */
+export async function loadPublicBracket(shareToken: string): Promise<{ view: KnockoutView; ownerName: string } | null> {
+  const admin = createServiceRoleClient();
+  const { data: b } = await admin
+    .from("knockout_brackets")
+    .select("user_id, locked_at")
+    .eq("share_token", shareToken)
+    .not("locked_at", "is", null)
+    .maybeSingle();
+  if (!b) return null;
+  const ownerId = b.user_id as string;
+  const view = await loadKnockoutView(admin as unknown as RlsClient, ownerId);
+  const { data: p } = await admin.from("profiles").select("username").eq("id", ownerId).maybeSingle();
+  return { view, ownerName: (p?.username as string) ?? "" };
+}
+
 export async function loadKnockoutLeaderboards(supabase: RlsClient, userId: string, results: Results): Promise<LeagueLeaderboard[]> {
   const [{ data: leagues }, { data: members }] = await Promise.all([
     supabase.from("leagues").select("id, name, slug"),
