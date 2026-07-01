@@ -213,6 +213,12 @@ body {
 .kc-pulse { transform-box: fill-box; transform-origin: center; animation: kc-ringpulse 1.2s ease-out infinite; }
 @keyframes kc-ringpulse { 0% { transform: scale(.85); opacity: .6; } 70% { transform: scale(1.7); opacity: 0; } 100% { opacity: 0; } }
 
+/* Home attention banner: rise-in + a light shimmer sweep (first-login pull). */
+.kc-banner { animation: kc-rise .5s var(--cf-ease) both; }
+@keyframes kc-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.kc-shimmer { animation: kc-shimmer 2.6s ease-in-out .6s infinite; }
+@keyframes kc-shimmer { 0% { transform: translateX(-130%) skewX(-18deg); } 100% { transform: translateX(240%) skewX(-18deg); } }
+
 /* Accessibility — collapse all motion to the final resting state. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

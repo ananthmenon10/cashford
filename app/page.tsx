@@ -9,6 +9,7 @@ import { LinkPending } from "@/components/LinkPending";
 import { LocalTime } from "@/components/LocalTime";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { HomeTabs } from "@/components/HomeTabs";
+import { KnockoutBanner } from "@/components/KnockoutBanner";
 import { MatchesTab } from "@/components/MatchesTab";
 import { AnalyticsTab } from "@/components/AnalyticsTab";
 import { CountUp } from "@/components/motion";
@@ -79,6 +80,7 @@ export default async function Home() {
   // ── Tab 1: Leagues (unchanged from the previous home) ──────────────────────────────
   const leaguesPanel = (
     <div className="px-5 py-5">
+      <KnockoutBanner />
       <h1 className="mb-3.5 text-xl font-extrabold tracking-[-.01em]">Your leagues</h1>
 
       {(leagues ?? []).length === 0 ? (
