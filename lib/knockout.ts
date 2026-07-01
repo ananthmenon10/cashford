@@ -102,7 +102,11 @@ export interface NodePos {
  * so a ring-L slot points down the middle of its sub-bracket (matches the handoff).
  */
 export function angleOf(ring: number, idx: number): number {
-  if (ring === 0) return -90 + idx * (360 / GEO.counts[0]);
+  // Ring 0 is offset by half a step (½·11.25°) so the two finalists land dead on the
+  // horizontal axis (0° / 180°) and the very top and bottom of the circle fall in the
+  // GAP between two nodes. That makes the whole bracket mirror-symmetric about BOTH the
+  // vertical and horizontal axes (matches the World Cup poster), not just point-symmetric.
+  if (ring === 0) return -90 + (idx + 0.5) * (360 / GEO.counts[0]);
   return (angleOf(ring - 1, 2 * idx) + angleOf(ring - 1, 2 * idx + 1)) / 2;
 }
 

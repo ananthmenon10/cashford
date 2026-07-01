@@ -63,11 +63,14 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
   const complete = completeBracket(effective);
   const sc = score(userPicks, view.results);
   const champ = effective["5:0"] ? view.teams[effective["5:0"]] : null;
+  // First-run nudge on My Picks: shown until the viewer makes their first prediction.
+  const noPicksYet = mode === "picks" && !view.locked && Object.keys(userPicks).length === 0;
 
   const onPromote = (ring: number, idx: number) => {
     if (view.locked) return;
     const team = at(effective, view.field, ring, idx);
     if (!team) return;
+    setOpen(true); // tapping a flag reveals the drawer, so the Lock button is discoverable
     const r = promote(effective, view.field, view.results, ring, idx);
     if (r.hint) {
       setHint(r.hint);
@@ -147,6 +150,15 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
         {seg("live", "Live Bracket", 0)}
         {seg("picks", "My Picks", 1)}
       </div>
+
+      {noPicksYet && (
+        <div
+          className="mx-3 flex items-center justify-center gap-1.5 rounded-[10px] px-3 py-2 text-center text-[12px] font-semibold"
+          style={{ background: "rgba(21,166,106,.12)", color: "#15A66A" }}
+        >
+          <span aria-hidden>👆</span> Tap any flag to send that team through to the next round.
+        </div>
+      )}
 
       {/* The visualization gets maximum room — full width up to a comfortable cap. */}
       <div className="mx-auto w-full px-3" style={{ maxWidth: 460 }}>

@@ -61,14 +61,33 @@ describe("geometry — deterministic, pinned", () => {
     expect(links()).toHaveLength(CIRCLE_MATCHES * 2); // 31 parents × 2 feeders
   });
 
-  it("pins ring-0 node 0 (top), ring-0 node 8 (right), and the champion (centre)", () => {
-    const n0 = nodePosition(0, 0); // angle -90° → top
-    expect(n0.x).toBeCloseTo(149, 5);
-    expect(n0.y).toBeCloseTo(12, 5); // 149 - 137
-    const n8 = nodePosition(0, 8); // angle 0° → right
-    expect(n8.x).toBeCloseTo(286, 5); // 149 + 137
-    expect(n8.y).toBeCloseTo(149, 5);
+  it("pins the champion to the centre and the two finalists to the horizontal axis", () => {
     expect(nodePosition(5, 0)).toEqual({ x: 149, y: 149 }); // champion = centre
+    // The half-step offset lands both finalists (ring 4) exactly on the horizontal axis,
+    // one to the right of centre and one to the left — the final reads left-vs-right.
+    const [f0, f1] = [nodePosition(4, 0), nodePosition(4, 1)];
+    expect(f0.y).toBeCloseTo(149, 5);
+    expect(f1.y).toBeCloseTo(149, 5);
+    expect(f0.x - 149).toBeCloseTo(-(f1.x - 149), 5); // mirror across the vertical axis
+  });
+
+  it("is mirror-symmetric about BOTH axes (why: the poster reads symmetric)", () => {
+    // Vertical-axis mirror: node idx pairs with (31-idx) — same height, mirrored x.
+    for (let idx = 0; idx < 32; idx++) {
+      const a = nodePosition(0, idx);
+      const b = nodePosition(0, 31 - idx);
+      expect(a.x + b.x).toBeCloseTo(2 * 149, 5); // x's straddle the centre line
+      expect(a.y).toBeCloseTo(b.y, 5); // same vertical position
+    }
+    // Horizontal-axis mirror: node idx pairs with (15-idx mod 32) — same x, mirrored y.
+    for (let idx = 0; idx < 32; idx++) {
+      const a = nodePosition(0, idx);
+      const b = nodePosition(0, (15 - idx + 32) % 32);
+      expect(a.y + b.y).toBeCloseTo(2 * 149, 5);
+      expect(a.x).toBeCloseTo(b.x, 5);
+    }
+    // No node sits on the axes at 12/6 o'clock — the top & bottom fall in a gap.
+    expect(geometry().filter((n) => n.ring === 0).some((n) => Math.abs(n.x - 149) < 0.5)).toBe(false);
   });
 
   it("ring-L nodes sit at the midpoint angle of their two children", () => {
