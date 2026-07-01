@@ -37,6 +37,8 @@ export interface KnockoutView {
   total: number; // 31
   results: Record<SlotKey, string | null>; // slot → advancer teamId (rings 1..5), for scoring/autoPicks
   myPicks: Record<SlotKey, string>; // viewer's picks (rings 1..5), slot → teamId
+  field: Record<number, string>; // ring-0 index → entrant teamId (placed entrants)
+  slotFixtureId: Record<SlotKey, string>; // slot (rings 1..5) → fixture UUID (for pick writes)
   teams: Record<string, KnockoutTeam>; // teamId → team
   locked: boolean; // viewer's bracket locked?
   shareToken: string | null; // viewer's share token (once locked)
@@ -49,7 +51,7 @@ export async function loadKnockoutView(supabase: RlsClient, userId: string | nul
   const [{ data: fixtureRows }, { data: teamRows }] = await Promise.all([
     supabase
       .from("fixtures")
-      .select("external_id, round, home_team_id, away_team_id, home_label, away_label, advancer_team_id, kickoff_at, status")
+      .select("id, external_id, round, home_team_id, away_team_id, home_label, away_label, advancer_team_id, kickoff_at, status")
       .eq("is_knockout", true),
     supabase.from("teams").select("id, short_name, name, flag_url"),
   ]);
@@ -72,6 +74,12 @@ export async function loadKnockoutView(supabase: RlsClient, userId: string | nul
   const rawByExt = new Map((fixtureRows ?? []).map((f) => [f.external_id as number, f]));
 
   const { slotFixtureExternalId, ring0TeamId } = bindBracket(fixtures);
+  const idByExt = new Map((fixtureRows ?? []).map((f) => [f.external_id as number, f.id as string]));
+  const slotFixtureId: Record<SlotKey, string> = {};
+  for (const [slot, ext] of Object.entries(slotFixtureExternalId)) {
+    const id = idByExt.get(ext);
+    if (id) slotFixtureId[slot] = id;
+  }
 
   const results: Record<SlotKey, string | null> = {};
   const slots: KnockoutSlotView[] = [];
@@ -126,6 +134,8 @@ export async function loadKnockoutView(supabase: RlsClient, userId: string | nul
     total: CIRCLE_MATCHES,
     results,
     myPicks,
+    field: ring0TeamId,
+    slotFixtureId,
     teams,
     locked,
     shareToken,

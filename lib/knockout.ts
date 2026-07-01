@@ -170,9 +170,11 @@ export function links(): Link[] {
 
 export type Picks = Record<SlotKey, string>;
 export type Results = Record<SlotKey, string | null>;
+// Ring-0 entrants by index (0..31). A plain string[] is assignable to this too.
+export type FieldMap = Record<number, string>;
 
 /** The team currently occupying a slot: ring 0 = fixed field; rings 1..5 = pick. */
-export function at(picks: Picks, field: readonly string[], ring: number, idx: number): string | undefined {
+export function at(picks: Picks, field: FieldMap, ring: number, idx: number): string | undefined {
   if (ring === 0) return field[idx];
   return picks[key(ring, idx)];
 }
@@ -181,7 +183,7 @@ export function at(picks: Picks, field: readonly string[], ring: number, idx: nu
  * Are both feeders of slot (ring, idx) filled, so this slot can be decided?
  * Ring 1's feeders are ring-0 entrants, which always exist → always true.
  */
-export function feedersReady(picks: Picks, field: readonly string[], ring: number, idx: number): boolean {
+export function feedersReady(picks: Picks, field: FieldMap, ring: number, idx: number): boolean {
   if (ring < 1) return false;
   if (ring === 1) return field[2 * idx] != null && field[2 * idx + 1] != null;
   return at(picks, field, ring - 1, 2 * idx) != null && at(picks, field, ring - 1, 2 * idx + 1) != null;
@@ -209,7 +211,7 @@ export interface PromoteResult {
  */
 export function promote(
   picks: Picks,
-  field: readonly string[],
+  field: FieldMap,
   results: Results,
   ring: number,
   idx: number,
@@ -257,7 +259,7 @@ export function autoPicks(results: Results): Picks {
 }
 
 /** The effective occupant of a slot for validity checks: real result if decided, else the pick. */
-function effectiveAt(picks: Picks, field: readonly string[], results: Results, ring: number, idx: number): string | undefined {
+function effectiveAt(picks: Picks, field: FieldMap, results: Results, ring: number, idx: number): string | undefined {
   if (ring === 0) return field[idx];
   const res = results[key(ring, idx)];
   return res ?? picks[key(ring, idx)];
@@ -274,7 +276,7 @@ export interface ValidateResult {
  * cascades all the way to the champion (correctness C-04/T04). Callers must pass
  * the POST-autoPicks-merge map so already-finished slots read as their real result.
  */
-export function validate(picks: Picks, field: readonly string[], results: Results): ValidateResult {
+export function validate(picks: Picks, field: FieldMap, results: Results): ValidateResult {
   const stale = new Set<SlotKey>();
   for (let ring = 1; ring <= 5; ring++) {
     for (let idx = 0; idx < GEO.counts[ring]; idx++) {

@@ -2,64 +2,99 @@
 
 // The radial bracket SVG. Renders from the pure geometry in lib/knockout (single
 // source shared with the server SVG-string generator). Live mode fills a slot only
-// when its match is final; My Picks overlays the viewer's picks (read-only here —
-// interactivity lands in KnockoutCircle, Phase 3). Tap/enter a node to trace its road
-// to the final: dimming is done via a CSS class on the <svg> root (no re-render of the
-// ~120 elements). Draw-on entrance fires when .in-view lands (see globals kc-* + motion).
+// when its match is final. My Picks renders the effective map (auto-locked results +
+// the viewer's picks) and, when unlocked, is interactive (tap a filled team to advance
+// it). Tap-to-trace dimming is a CSS class on the <svg> root (no re-render of ~120
+// elements). Draw-on entrance fires when .in-view lands (globals kc-* + motion).
 
 import { useReveal } from "./motion";
-import { geometry, links, GEO, chipColor, pathToFinal, parseKey, RING_LABEL, type SlotKey } from "@/lib/knockout";
+import {
+  geometry,
+  links,
+  chipColor,
+  pathToFinal,
+  feedersReady,
+  isAutoLocked,
+  RING_LABEL,
+  type SlotKey,
+  type Picks,
+  type Results,
+} from "@/lib/knockout";
 import type { KnockoutView } from "@/lib/knockout-data";
 
 export type BracketMode = "live" | "picks";
 
 const NODES = geometry();
 const LINES = links();
-const CHAMP: SlotKey = "5:0";
+
+export interface PickState {
+  effective: Picks; // auto-locked results ∪ user picks (working display map)
+  userPicks: Picks; // the viewer's own picks only (for scorecard coloring)
+  field: Record<number, string>; // ring-0 idx → entrant teamId
+  results: Results;
+  hint: SlotKey | null; // slot to pulse (gating nudge)
+  locked: boolean;
+}
 
 interface NodeVisual {
   fill: string;
   stroke: string;
   strokeW: number;
   dashed: boolean;
+  gold: boolean; // gold rotating "pick-next" halo
   label: string;
   flagUrl: string | null;
   txt: string;
 }
 
-function visualFor(view: KnockoutView, mode: BracketMode, ring: number, idx: number): NodeVisual {
+const EMPTY = (ring: number): NodeVisual => ({
+  fill: "transparent",
+  stroke: ring === 5 ? "#F2C94C" : "rgba(255,255,255,.13)",
+  strokeW: ring === 5 ? 2.4 : 1.3,
+  dashed: true,
+  gold: false,
+  label: ring === 5 ? "?" : "",
+  flagUrl: null,
+  txt: ring === 5 ? "#F2C94C" : "#9fb0bd",
+});
+
+function liveVisual(view: KnockoutView, ring: number, idx: number): NodeVisual {
   const k = `${ring}:${idx}`;
   const sv = view.slots.find((s) => s.slot === k) ?? null;
-  const base: NodeVisual = { fill: "transparent", stroke: "rgba(255,255,255,.13)", strokeW: 1.3, dashed: true, label: "", flagUrl: null, txt: "#9fb0bd" };
-
   if (ring === 0) {
-    if (!sv?.team) return base; // TBD entrant
-    return { fill: chipColor(sv.team.code) + "26", stroke: chipColor(sv.team.code) + "88", strokeW: 1.2, dashed: false, label: sv.team.code, flagUrl: null, txt: "#cfd8df" };
+    if (!sv?.team) return EMPTY(0);
+    return { fill: chipColor(sv.team.code) + "26", stroke: chipColor(sv.team.code) + "88", strokeW: 1.2, dashed: false, gold: false, label: sv.team.code, flagUrl: null, txt: "#cfd8df" };
   }
+  if (sv?.finished && sv.team) {
+    return { fill: chipColor(sv.team.code), stroke: "#ffffff22", strokeW: ring === 5 ? 2.6 : 1.3, dashed: false, gold: false, label: sv.team.code, flagUrl: ring >= 3 ? sv.team.flagUrl : null, txt: "#fff" };
+  }
+  return EMPTY(ring);
+}
 
-  const resultTeamId = view.results[k] ?? null;
-  const pickTeamId = view.myPicks[k];
+function picksVisual(view: KnockoutView, ps: PickState, ring: number, idx: number): NodeVisual {
+  const k = `${ring}:${idx}`;
+  if (ring === 0) return liveVisual(view, 0, idx); // entrants same in both modes
+  const teamId = ps.effective[k];
+  const t = teamId ? view.teams[teamId] : null;
+  const isResult = ps.results[k] != null;
 
-  if (mode === "live") {
-    if (sv?.finished && sv.team) {
-      return { fill: chipColor(sv.team.code), stroke: "#ffffff22", strokeW: ring === 5 ? 2.6 : 1.3, dashed: false, label: sv.team.code, flagUrl: ring >= 3 ? sv.team.flagUrl : null, txt: "#fff" };
+  if (teamId && t) {
+    if (isResult) {
+      // auto-locked result. On a locked scorecard, colour by the user's own pick.
+      if (ps.locked && ps.userPicks[k]) {
+        const ok = ps.userPicks[k] === ps.results[k];
+        return { fill: chipColor(t.code), stroke: ok ? "#16A34A" : "#EF4444", strokeW: 2, dashed: false, gold: false, label: t.code, flagUrl: ring >= 3 ? t.flagUrl : null, txt: "#fff" };
+      }
+      return { fill: chipColor(t.code), stroke: "rgba(255,255,255,.55)", strokeW: 1.3, dashed: false, gold: false, label: t.code, flagUrl: ring >= 3 ? t.flagUrl : null, txt: "#fff" };
     }
-    // not final → empty slot (no live indicators in Live mode, per design)
-    return { ...base, stroke: ring === 5 ? "#F2C94C" : base.stroke, strokeW: ring === 5 ? 2.4 : base.strokeW, label: ring === 5 ? "?" : "", txt: ring === 5 ? "#F2C94C" : base.txt };
+    // the viewer's pick (still to be played)
+    return { fill: chipColor(t.code), stroke: "#F2C94C", strokeW: 2, dashed: false, gold: false, label: t.code, flagUrl: ring >= 3 ? t.flagUrl : null, txt: "#fff" };
   }
-
-  // picks mode (read-only in Phase 2)
-  if (resultTeamId) {
-    const t = view.teams[resultTeamId];
-    const correct = pickTeamId ? pickTeamId === resultTeamId : null;
-    const stroke = view.locked && correct != null ? (correct ? "#16A34A" : "#EF4444") : "rgba(255,255,255,.55)";
-    return { fill: chipColor(t?.code), stroke, strokeW: 1.3, dashed: false, label: t?.code ?? "", flagUrl: ring >= 3 ? (t?.flagUrl ?? null) : null, txt: "#fff" };
+  // empty slot: gold "pick-next" if both feeders are ready, else faint upcoming
+  if (!ps.locked && feedersReady(ps.effective, ps.field, ring, idx) && !isAutoLocked(ps.results, ring, idx)) {
+    return { ...EMPTY(ring), stroke: "#F2C94C", strokeW: 1.8, gold: ring < 5, label: ring === 5 ? "?" : "?", txt: "#F2C94C" };
   }
-  if (pickTeamId) {
-    const t = view.teams[pickTeamId];
-    return { fill: chipColor(t?.code), stroke: "#F2C94C", strokeW: 2, dashed: false, label: t?.code ?? "", flagUrl: ring >= 3 ? (t?.flagUrl ?? null) : null, txt: "#fff" };
-  }
-  return { ...base, stroke: ring === 5 ? "#F2C94C" : base.stroke, label: ring === 5 ? "?" : "", txt: ring === 5 ? "#F2C94C" : base.txt };
+  return EMPTY(ring);
 }
 
 export function KnockoutRing({
@@ -67,18 +102,29 @@ export function KnockoutRing({
   mode,
   selected,
   onSelect,
+  pick,
+  onPromote,
   size = 298,
 }: {
   view: KnockoutView;
   mode: BracketMode;
   selected: SlotKey | null;
   onSelect: (slot: SlotKey | null) => void;
+  pick?: PickState; // present in My Picks mode
+  onPromote?: (ring: number, idx: number) => void; // present when interactive
   size?: number;
 }) {
   const ref = useReveal<SVGSVGElement>();
   const path = selected ? new Set(pathToFinal(selected)) : null;
+  const interactive = mode === "picks" && !!pick && !pick.locked && !!onPromote;
 
-  // ring index of each parent for line stagger; group lines by parent ring
+  const promotable = (ring: number, idx: number): boolean => {
+    if (!interactive || !pick || ring > 4) return false;
+    const team = ring === 0 ? pick.field[idx] : pick.effective[`${ring}:${idx}`];
+    if (!team) return false;
+    return !isAutoLocked(pick.results, ring + 1, Math.floor(idx / 2));
+  };
+
   return (
     <svg
       ref={ref}
@@ -99,7 +145,6 @@ export function KnockoutRing({
         ))}
       </defs>
 
-      {/* connector lines (draw-on staggered by parent ring) */}
       {LINES.map((l, i) => {
         const on = path && path.has(l.fromSlot) && path.has(l.toSlot);
         return (
@@ -118,38 +163,48 @@ export function KnockoutRing({
         );
       })}
 
-      {/* nodes */}
       {NODES.map((n) => {
-        const v = visualFor(view, mode, n.ring, n.idx);
+        const v = mode === "picks" && pick ? picksVisual(view, pick, n.ring, n.idx) : liveVisual(view, n.ring, n.idx);
         const onPath = !path || path.has(n.slot);
-        const interactive = v.label !== "" || v.flagUrl != null;
-        const teamName = view.slots.find((s) => s.slot === n.slot)?.team?.name;
-        const aria = `${RING_LABEL[n.ring]}${teamName ? `, ${teamName}` : v.label ? `, ${v.label}` : ", to be decided"}`;
+        const canPromote = promotable(n.ring, n.idx);
+        const hintPulse = pick?.hint === n.slot;
+        const activatable = v.label !== "" || v.flagUrl != null || canPromote;
+        const teamName = view.slots.find((s) => s.slot === n.slot)?.team?.name ?? (pick && view.teams[pick.effective[n.slot] ?? ""]?.name);
+        const aria = `${RING_LABEL[n.ring]}${teamName ? `, ${teamName}` : v.label && v.label !== "?" ? `, ${v.label}` : ", to be decided"}${canPromote ? ", tap to advance" : ""}`;
+
+        const activate = () => {
+          if (canPromote && onPromote) onPromote(n.ring, n.idx);
+          else if (activatable) onSelect(selected === n.slot ? null : n.slot);
+        };
+
         return (
           <g
             key={n.slot}
             data-node=""
             {...(onPath && selected ? { "data-node-path": "" } : {})}
-            role={interactive ? "button" : "img"}
+            role={activatable ? "button" : "img"}
             aria-label={aria}
-            tabIndex={interactive ? 0 : -1}
-            onClick={interactive ? () => onSelect(selected === n.slot ? null : n.slot) : undefined}
+            tabIndex={activatable ? 0 : -1}
+            onClick={activatable ? activate : undefined}
             onKeyDown={
-              interactive
+              activatable
                 ? (e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      onSelect(selected === n.slot ? null : n.slot);
-                    } else if (e.key === "Escape") {
-                      onSelect(null);
-                    }
+                      activate();
+                    } else if (e.key === "Escape") onSelect(null);
                   }
                 : undefined
             }
-            style={{ cursor: interactive ? "pointer" : "default", outline: "none" }}
+            style={{ cursor: activatable ? "pointer" : "default", outline: "none" }}
           >
-            {/* enlarged invisible hit target (>=44pt effective) */}
-            {interactive && <circle cx={n.x} cy={n.y} r={Math.max(n.r, 11)} fill="transparent" />}
+            {activatable && <circle cx={n.x} cy={n.y} r={Math.max(n.r, 11)} fill="transparent" />}
+            {hintPulse && (
+              <circle className="kc-pulse" cx={n.x} cy={n.y} r={n.r + 3} fill="none" stroke="#F2C94C" strokeWidth={2} />
+            )}
+            {v.gold && (
+              <circle className="kc-halo" cx={n.x} cy={n.y} r={n.r + 2.6} fill="none" stroke="#F2C94C" strokeWidth={1.3} strokeDasharray="2 3" />
+            )}
             <circle
               className="kc-nodefill"
               cx={n.x}
@@ -184,6 +239,3 @@ export function KnockoutRing({
     </svg>
   );
 }
-
-// (CHAMP referenced to keep the champion slot key handy for callers/tests.)
-export { CHAMP as CHAMPION_SLOT };

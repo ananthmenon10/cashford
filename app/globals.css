@@ -207,6 +207,12 @@ body {
 .kc-bracket[data-selected] [data-node]:not([data-node-path]) { opacity: .22; }
 .kc-nodefill { transition: fill .3s var(--cf-ease), stroke .3s var(--cf-ease); }
 
+/* My Picks: rotating gold "pick-next" halo + one-shot gating pulse. */
+.kc-halo { transform-box: fill-box; transform-origin: center; animation: kc-spin 16s linear infinite; }
+@keyframes kc-spin { to { transform: rotate(360deg); } }
+.kc-pulse { transform-box: fill-box; transform-origin: center; animation: kc-ringpulse 1.2s ease-out infinite; }
+@keyframes kc-ringpulse { 0% { transform: scale(.85); opacity: .6; } 70% { transform: scale(1.7); opacity: 0; } 100% { opacity: 0; } }
+
 /* Accessibility — collapse all motion to the final resting state. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
