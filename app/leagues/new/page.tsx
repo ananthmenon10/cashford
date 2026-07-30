@@ -1,260 +1,249 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState } from "react";
-import { createLeague, checkSlug, type CreateState } from "./actions";
+import { useActionState, useEffect, useState } from "react";
+import { CompetitionPicker } from "@/components/gw/CompetitionPicker";
+import {
+  C35,
+  GW_CREATE_COPY,
+  GW_UI_COPY,
+  createLiveCopy,
+  shareInviteCopy,
+} from "@/lib/gw-copy";
 import { slugify, validateSlug, validateStake } from "@/lib/validation";
+import {
+  checkSlug,
+  createLeague,
+  listCreatableCompetitions,
+  type CreatableCompetition,
+  type CreateState,
+} from "./actions";
 
 const STAKE_CHIPS = [50, 100, 500, 1000];
 const INITIAL: CreateState = { error: null };
 
-// Debounce helper
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [delay, value]);
   return debounced;
 }
 
 export default function NewLeaguePage() {
   const [state, formAction, pending] = useActionState(createLeague, INITIAL);
-
   const [name, setName] = useState("");
   const [stake, setStake] = useState("500");
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
-
-  // Slug availability
+  const [competitions, setCompetitions] = useState<CreatableCompetition[] | null>(
+    null,
+  );
+  const [competition, setCompetition] = useState("");
+  const [competitionError, setCompetitionError] = useState(false);
   const [slugStatus, setSlugStatus] = useState<
     "idle" | "checking" | "available" | "taken" | "invalid"
   >("idle");
   const [slugError, setSlugError] = useState<string | null>(null);
-
-  // Client-side stake validity (instant, styled — no native browser popup)
-  const [stakeError, setStakeError] = useState<string | null>(null);
-
-  // Copy feedback
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
-
+  const [copied, setCopied] = useState<"link" | "code" | null>(null);
   const debouncedSlug = useDebounce(slug, 400);
+  const stakeResult = validateStake(stake);
 
-  // Auto-derive slug from name unless the user has manually edited it
   useEffect(() => {
-    if (!slugEdited) {
-      setSlug(slugify(name));
-    }
+    let active = true;
+    listCreatableCompetitions()
+      .then((list) => {
+        if (!active) return;
+        setCompetitions(list);
+        setCompetition(list[0]?.slug ?? "");
+      })
+      .catch(() => {
+        if (!active) return;
+        setCompetitions([]);
+        setCompetitionError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!slugEdited) setSlug(slugify(name));
   }, [name, slugEdited]);
 
-  // Instant client-side validity on every keystroke — kills the stale-"Available"
-  // flash while the debounced server check is pending, and surfaces reserved/format
-  // errors immediately without a round-trip.
   useEffect(() => {
     if (!slug) {
       setSlugStatus("idle");
       setSlugError(null);
       return;
     }
-    const v = validateSlug(slug);
-    if (!v.ok) {
+    const local = validateSlug(slug);
+    if (!local.ok) {
       setSlugStatus("invalid");
-      setSlugError(v.error);
-    } else {
-      setSlugStatus("checking");
-      setSlugError(null);
+      setSlugError(local.error);
+      return;
     }
+    setSlugStatus("checking");
+    setSlugError(null);
   }, [slug]);
 
-  // Debounced server availability check — only for client-valid slugs.
   useEffect(() => {
     if (!debouncedSlug || !validateSlug(debouncedSlug).ok) return;
-    let cancelled = false;
-    checkSlug(debouncedSlug).then((res) => {
-      if (cancelled) return;
-      if (res.error) {
+    let active = true;
+    checkSlug(debouncedSlug)
+      .then((result) => {
+        if (!active) return;
+        if (result.error) {
+          setSlugStatus("invalid");
+          setSlugError(result.error);
+        } else if (result.available) {
+          setSlugStatus("available");
+          setSlugError(null);
+        } else {
+          setSlugStatus("taken");
+          setSlugError(GW_CREATE_COPY.taken);
+        }
+      })
+      .catch(() => {
+        if (!active) return;
         setSlugStatus("invalid");
-        setSlugError(res.error);
-      } else if (res.available) {
-        setSlugStatus("available");
-        setSlugError(null);
-      } else {
-        setSlugStatus("taken");
-        setSlugError("That URL is already taken.");
-      }
-    });
+        setSlugError(GW_CREATE_COPY.taken);
+      });
     return () => {
-      cancelled = true;
+      active = false;
     };
   }, [debouncedSlug]);
 
-  // Instant stake validity — styled inline error instead of the native browser popup.
-  useEffect(() => {
-    if (stake === "") {
-      setStakeError(null);
-      return;
-    }
-    const v = validateStake(stake);
-    setStakeError(v.ok ? null : v.error);
-  }, [stake]);
+  function copyText(value: string, kind: "link" | "code") {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(kind);
+      window.setTimeout(() => setCopied(null), 2000);
+    });
+  }
 
-  // ── Share panel (post-success) ──────────────────────────────────────────
   if (state.created) {
-    const { name: lgName, token, shortCode, slug: lgSlug } = state.created;
-    // This panel only renders client-side (after submit), so window is defined;
-    // the fallback is just a safe prod default.
+    const league = state.created;
     const origin =
-      typeof window !== "undefined" ? window.location.origin : "https://cashford.vercel.app";
-    const inviteLink = `${origin}/j/${token}`;
-    const waText = encodeURIComponent(
-      `Join my World Cup 2026 league "${lgName}" on Cashford!\n${inviteLink}\n\nOr enter code: ${shortCode}`,
+      typeof window === "undefined"
+        ? "https://cashford.vercel.app"
+        : window.location.origin;
+    const inviteLink = `${origin}/leagues/join?token=${encodeURIComponent(league.token)}`;
+    const whatsAppText = encodeURIComponent(
+      shareInviteCopy(league.name, inviteLink, league.shortCode),
     );
-
-    const copyText = (text: string, cb: (v: boolean) => void) => {
-      navigator.clipboard.writeText(text).then(() => {
-        cb(true);
-        setTimeout(() => cb(false), 2000);
-      });
-    };
-
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-bg px-5">
+      <main className="flex min-h-screen items-center justify-center bg-cs2-canvas px-5 py-8">
         <div className="w-full max-w-[400px]">
-          {/* Success heading */}
           <div className="mb-6 text-center">
-            <div className="mb-2 text-4xl">🏆</div>
-            <div className="text-2xl font-extrabold tracking-tight">{lgName} is live</div>
-            <div className="mt-1 text-sm text-muted">Share the link with your group</div>
+            <h1 className="text-2xl font-extrabold">{createLiveCopy(league.name)}</h1>
+            <p className="mt-1 text-sm text-cs2-ink-3">{GW_CREATE_COPY.shareBody}</p>
           </div>
 
-          {/* Invite link */}
-          <div className="mb-4 rounded-card border border-border bg-surface p-4">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
-              Invite link
-            </div>
-            <div className="mb-3 break-all font-mono text-[13px] text-fg">{inviteLink}</div>
+          <div className="mb-3 rounded-cs2-lg border border-cs2-line bg-cs2-paper p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-cs2-ink-3">
+              {GW_CREATE_COPY.inviteLink}
+            </p>
+            <p className="my-3 break-all font-mono text-[13px]">{inviteLink}</p>
             <button
-              onClick={() => copyText(inviteLink, setCopiedLink)}
-              className="w-full rounded-control bg-primary py-2.5 text-[14px] font-bold text-white shadow-[0_4px_12px_rgba(21,166,106,.3)]"
+              type="button"
+              onClick={() => copyText(inviteLink, "link")}
+              className="w-full rounded-cs2-md bg-cs2-green py-2.5 text-[14px] font-bold text-white"
             >
-              {copiedLink ? "Copied!" : "Copy link"}
+              {copied === "link" ? GW_CREATE_COPY.copied : GW_CREATE_COPY.copyLink}
             </button>
           </div>
 
-          {/* Short code */}
-          <div className="mb-4 rounded-card border border-border bg-surface p-4">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
-              Short code (manual entry)
-            </div>
-            <div className="mb-3 font-mono text-2xl font-bold tracking-[0.15em]">
-              {shortCode}
-            </div>
+          <div className="mb-3 rounded-cs2-lg border border-cs2-line bg-cs2-paper p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-cs2-ink-3">
+              {GW_CREATE_COPY.shortCode}
+            </p>
+            <p className="my-3 font-mono text-2xl font-bold tracking-[0.15em]">
+              {league.shortCode}
+            </p>
             <button
-              onClick={() => copyText(shortCode, setCopiedCode)}
-              className="w-full rounded-control border border-border bg-subtle py-2.5 text-[14px] font-semibold text-fg"
+              type="button"
+              onClick={() => copyText(league.shortCode, "code")}
+              className="w-full rounded-cs2-md border border-cs2-line bg-cs2-paper-2 py-2.5 text-[14px] font-semibold"
             >
-              {copiedCode ? "Copied!" : "Copy code"}
+              {copied === "code" ? GW_CREATE_COPY.copied : GW_CREATE_COPY.copyCode}
             </button>
           </div>
 
-          {/* WhatsApp */}
           <a
-            href={`https://wa.me/?text=${waText}`}
+            href={`https://wa.me/?text=${whatsAppText}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-control border border-[#25D366] bg-[#25D366] py-2.5 text-[14px] font-bold text-white"
+            className="mb-3 flex w-full items-center justify-center rounded-cs2-md bg-[#25D366] py-3 text-[14px] font-bold text-white"
           >
-            <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-            </svg>
-            Share on WhatsApp
+            {GW_CREATE_COPY.shareWhatsApp}
           </a>
-
-          {/* Open league */}
           <Link
-            href={`/leagues/${lgSlug}`}
-            className="flex w-full items-center justify-center gap-1 rounded-control border border-border bg-surface py-3 text-[14px] font-bold text-primary-press"
+            href={`/leagues/${league.slug}`}
+            className="flex w-full items-center justify-center rounded-cs2-md border border-cs2-line bg-cs2-paper py-3 text-[14px] font-bold text-cs2-green"
           >
-            Open league →
+            {GW_CREATE_COPY.openLeague}
           </Link>
-
         </div>
       </main>
     );
   }
 
-  // ── Creation form ───────────────────────────────────────────────────────
-  const slugIndicator =
-    slugStatus === "checking" ? (
-      <span className="text-muted">Checking…</span>
-    ) : slugStatus === "available" ? (
-      <span className="text-win font-semibold">✓ Available</span>
-    ) : slugStatus === "taken" || slugStatus === "invalid" ? (
-      <span className="text-loss font-semibold">✗ {slugError}</span>
-    ) : null;
-
+  const blocked =
+    competitions !== null && competitions.length === 0;
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-bg px-5">
+    <main className="flex min-h-screen items-center justify-center bg-cs2-canvas px-5 py-8">
       <div className="w-full max-w-[400px]">
-        {/* Header */}
-        <div className="mb-6">
-          <Link
-            href="/"
-            className="mb-5 inline-flex items-center gap-1 text-sm font-semibold text-muted"
-          >
-            ← Back
-          </Link>
-          <div className="text-2xl font-extrabold tracking-tight">Create a league</div>
-          <div className="mt-1 text-sm text-muted">
-            Set up your World Cup 2026 group in seconds.
-          </div>
-        </div>
+        <Link
+          href="/"
+          className="mb-5 inline-flex text-sm font-semibold text-cs2-ink-3"
+        >
+          ← {GW_UI_COPY.back}
+        </Link>
+        <h1 className="text-2xl font-extrabold">{GW_CREATE_COPY.title}</h1>
+        <p className="mb-6 mt-1 text-sm text-cs2-ink-3">
+          {GW_CREATE_COPY.subtitle}
+        </p>
 
         <form action={formAction} className="flex flex-col gap-4">
-          {/* League name */}
-          <div>
-            <label
-              className="mb-1.5 block text-xs font-semibold text-label"
-              htmlFor="name"
-            >
-              League name
-            </label>
+          <CompetitionPicker
+            competitions={competitions}
+            value={competition}
+            onChange={setCompetition}
+            unavailable={competitionError}
+          />
+
+          <label className="text-xs font-semibold text-cs2-ink-2">
+            {GW_UI_COPY.leagueName}
             <input
-              id="name"
               name="name"
               required
               maxLength={60}
               autoComplete="off"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Solid Yenne Boys"
-              className="w-full rounded-control border border-border bg-surface px-3.5 py-3 text-[15px] outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(21,166,106,.12)] placeholder:text-muted"
+              onChange={(event) => setName(event.target.value)}
+              placeholder={GW_CREATE_COPY.namePlaceholder}
+              className="mt-1.5 w-full rounded-cs2-md border border-cs2-line bg-cs2-paper px-3.5 py-3 text-[15px] outline-none focus:border-cs2-green"
             />
-          </div>
+          </label>
 
-          {/* Stake per match */}
           <div>
-            <label
-              className="mb-1.5 block text-xs font-semibold text-label"
-              htmlFor="stake"
-            >
-              Stake per match (₹)
+            <label className="mb-1.5 block text-xs font-semibold text-cs2-ink-2" htmlFor="stake">
+              {C35}
             </label>
-            {/* Quick-pick chips */}
             <div className="mb-2 flex gap-2">
               {STAKE_CHIPS.map((chip) => (
                 <button
                   key={chip}
                   type="button"
                   onClick={() => setStake(String(chip))}
-                  className={`flex-1 rounded-pill border py-1.5 text-[13px] font-semibold transition-colors ${
+                  className={`flex-1 rounded-cs2-pill border py-1.5 text-[13px] font-semibold ${
                     stake === String(chip)
-                      ? "border-primary bg-mint text-primary-press"
-                      : "border-border bg-surface text-fg"
+                      ? "border-cs2-green bg-cs2-mint text-cs2-green"
+                      : "border-cs2-line bg-cs2-paper"
                   }`}
                 >
-                  ₹{chip >= 1000 ? chip / 1000 + "k" : chip}
+                  ₹{chip.toLocaleString("en-IN")}
                 </button>
               ))}
             </div>
@@ -265,74 +254,55 @@ export default function NewLeaguePage() {
               step={1}
               inputMode="numeric"
               value={stake}
-              onChange={(e) => setStake(e.target.value)}
-              aria-invalid={stakeError ? true : undefined}
-              className={`w-full rounded-control border bg-surface px-3.5 py-3 text-[15px] outline-none focus:shadow-[0_0_0_3px_rgba(21,166,106,.12)] ${
-                stakeError ? "border-loss" : "border-border focus:border-primary"
-              }`}
+              onChange={(event) => setStake(event.target.value)}
+              aria-invalid={!stakeResult.ok}
+              className="w-full rounded-cs2-md border border-cs2-line bg-cs2-paper px-3.5 py-3 text-[15px] outline-none focus:border-cs2-green"
             />
-            {stakeError ? (
-              <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-loss">
-                <span className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full bg-loss text-[8px] font-extrabold text-white">
-                  !
-                </span>
-                {stakeError}
-              </p>
-            ) : (
-              <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
-                Min ₹50. Stakes are an honour-system tally settled outside the app — treat it as
-                points if you don&apos;t play for money; it&apos;s just so the leaderboard works.
-              </p>
-            )}
+            <p className={`mt-1.5 text-[11px] ${stakeResult.ok ? "text-cs2-ink-3" : "font-semibold text-cs2-red"}`}>
+              {stakeResult.ok ? GW_CREATE_COPY.anteHelp : stakeResult.error}
+            </p>
           </div>
 
-          {/* Slug / invite URL */}
-          <div>
-            <label
-              className="mb-1.5 block text-xs font-semibold text-label"
-              htmlFor="slug"
-            >
-              Invite URL
-            </label>
+          <label className="text-xs font-semibold text-cs2-ink-2">
+            {GW_CREATE_COPY.inviteUrl}
             <input
-              id="slug"
               name="slug"
+              required
               autoCapitalize="none"
               autoCorrect="off"
               value={slug}
-              onChange={(e) => {
-                setSlug(e.target.value);
+              onChange={(event) => {
+                setSlug(event.target.value);
                 setSlugEdited(true);
               }}
-              placeholder="your-league-name"
-              className="w-full rounded-control border border-border bg-surface px-3.5 py-3 text-[15px] font-mono outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(21,166,106,.12)] placeholder:text-muted"
+              placeholder={GW_CREATE_COPY.slugPlaceholder}
+              className="mt-1.5 w-full rounded-cs2-md border border-cs2-line bg-cs2-paper px-3.5 py-3 font-mono text-[15px] outline-none focus:border-cs2-green"
             />
-            {/* Preview + availability */}
-            <div className="mt-1.5 flex items-center justify-between">
-              <span className="font-mono text-[11px] text-muted">
-                cashford.vercel.app/leagues/
-                <span className={slug ? "text-fg" : "text-muted"}>{slug || "…"}</span>
-              </span>
-              <span className="text-[11px]">{slugIndicator}</span>
-            </div>
-          </div>
+          </label>
+          <p className={`text-[11px] ${slugError ? "font-semibold text-cs2-red" : "text-cs2-ink-3"}`}>
+            {slugError ??
+              (slugStatus === "checking"
+                ? GW_CREATE_COPY.checking
+                : slugStatus === "available"
+                  ? GW_CREATE_COPY.available
+                  : null)}
+          </p>
 
-          {/* Global error */}
-          {state.error && (
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-loss">
-              <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-loss text-[10px] font-extrabold text-white">
-                !
-              </span>
-              {state.error}
-            </div>
-          )}
-
+          {state.error ? (
+            <p className="text-xs font-semibold text-cs2-red">{state.error}</p>
+          ) : null}
           <button
             type="submit"
-            disabled={pending || !!stakeError || slugStatus === "invalid" || slugStatus === "taken"}
-            className="mt-1 w-full rounded-control bg-primary py-3.5 text-[15px] font-bold text-white shadow-[0_4px_12px_rgba(21,166,106,.3)] disabled:opacity-50"
+            disabled={
+              pending ||
+              blocked ||
+              !competition ||
+              !stakeResult.ok ||
+              slugStatus !== "available"
+            }
+            className="w-full rounded-cs2-md bg-cs2-green py-3.5 text-[15px] font-bold text-white disabled:opacity-50"
           >
-            {pending ? "Creating…" : "Create league"}
+            {pending ? GW_CREATE_COPY.creating : GW_CREATE_COPY.create}
           </button>
         </form>
       </div>

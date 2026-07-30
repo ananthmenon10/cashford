@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cashford 2.0 — low-fi wireframes</title>
+<style>
+  :root { --ink:#1a1a1a; --mid:#8a8a8a; --line:#c9c9c9; --fill:#efefef; --hot:#1a1a1a; }
+  * { box-sizing:border-box; margin:0; }
+  body { font:14px/1.45 ui-monospace, Menlo, monospace; color:var(--ink); background:#fafafa; padding:32px; }
+  h1 { font-size:20px; margin-bottom:4px; }
+  .sub { color:var(--mid); margin-bottom:28px; }
+  .row { display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start; margin-bottom:48px; }
+  .unit { width:300px; }
+  .cap { font-size:12px; color:var(--mid); margin:8px 2px 0; }
+  .cap b { color:var(--ink); }
+  .frame { width:300px; border:2px solid var(--ink); border-radius:14px; background:#fff; overflow:hidden; }
+  .bar { padding:10px 12px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-weight:bold; }
+  .tabs { display:flex; border-bottom:1px solid var(--line); }
+  .tabs span { flex:1; text-align:center; padding:8px 0; font-size:12px; color:var(--mid); }
+  .tabs .on { color:var(--ink); font-weight:bold; border-bottom:2px solid var(--ink); }
+  .pad { padding:12px; }
+  .card { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:10px; }
+  .box { background:var(--fill); border:1px dashed var(--line); border-radius:6px; padding:8px; margin:6px 0; font-size:12px; color:var(--mid); text-align:center; }
+  .k { font-size:11px; color:var(--mid); }
+  .v { font-weight:bold; }
+  .pill { display:inline-block; border:1px solid var(--ink); border-radius:99px; padding:1px 8px; font-size:11px; }
+  .pill.warn { background:var(--ink); color:#fff; }
+  .btn { display:block; text-align:center; border:2px solid var(--ink); border-radius:8px; padding:9px; font-weight:bold; margin-top:10px; }
+  .btn.solid { background:var(--ink); color:#fff; }
+  .fx { display:flex; align-items:center; gap:6px; padding:7px 0; border-bottom:1px solid var(--fill); font-size:13px; }
+  .fx .t { flex:1; }
+  .fx .t.r { text-align:right; }
+  .sc { width:26px; height:26px; border:1px solid var(--ink); border-radius:5px; text-align:center; line-height:24px; font-weight:bold; flex:none; }
+  .sc.empty { border-style:dashed; color:var(--line); }
+  .day { font-size:11px; color:var(--mid); margin:10px 0 2px; text-transform:uppercase; letter-spacing:.05em; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th, td { text-align:left; padding:5px 4px; border-bottom:1px solid var(--fill); }
+  th { color:var(--mid); font-weight:normal; font-size:11px; }
+  td.n, th.n { text-align:right; }
+  .note { font-size:11px; color:var(--mid); border-left:2px solid var(--line); padding-left:8px; margin:8px 0; }
+  .insight { background:var(--fill); border-radius:6px; padding:8px; font-size:11px; color:var(--mid); margin:4px 0 8px 32px; }
+  .modal { border:2px solid var(--ink); border-radius:10px; padding:12px; margin:10px; background:#fff; box-shadow:4px 4px 0 var(--line); }
+  .sect { font-size:16px; font-weight:bold; margin:40px 0 16px; border-top:2px solid var(--ink); padding-top:16px; }
+</style>
+</head>
+<body>
+
+<h1>Cashford 2.0 — low-fi wireframes</h1>
+<p class="sub">Grayscale, throwaway. Structure only — no visual design. Follows IA decisions D1–D5 (docs/plans/…-002). 26 Jul 2026.</p>
+
+<div class="sect">1 · App home — Leagues tab with entry-status badges (D1)</div>
+<div class="row">
+  <div class="unit">
+    <div class="frame">
+      <div class="bar"><span>Cashford</span><span class="k">v62 ◐</span></div>
+      <div class="tabs"><span class="on">Leagues</span><span>Matches</span><span>Analytics</span></div>
+      <div class="pad">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between"><span class="v">Solid Yenne Boys</span><span class="v">+₹340</span></div>
+          <div class="k">Premier League 2026-27</div>
+          <div style="margin-top:6px"><span class="pill warn">GW3 · NOT ENTERED</span></div>
+          <div class="k">Locks Fri 23:00 IST · 6/9 entered · pot ₹600</div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between"><span class="v">KK Bois</span><span class="v">−₹120</span></div>
+          <div class="k">Premier League 2026-27</div>
+          <div style="margin-top:6px"><span class="pill">GW3 · ENTERED ✓</span></div>
+          <div class="k">Locks Fri 23:00 IST · 4/7 entered · pot ₹400</div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between"><span class="v">PES Bois</span><span class="v">±₹0</span></div>
+          <div class="k">Premier League 2026-27</div>
+          <div style="margin-top:6px"><span class="pill">GW2 LIVE · you 7 pts · P2</span></div>
+        </div>
+        <div class="box">+ create / join league</div>
+      </div>
+    </div>
+    <p class="cap"><b>The badge IS the action queue.</b> Not-entered state is the loudest thing on screen. Balance stays league-level (all competitions).</p>
+  </div>
+
+  <div class="unit">
+    <div class="frame">
+      <div class="bar"><span>Cashford</span><span class="k">v62 ◐</span></div>
+      <div class="tabs"><span>Leagues</span><span class="on">Matches</span><span>Analytics</span></div>
+      <div class="pad">
+        <div class="box">competition: Premier League 26-27 ▾</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0">
+          <span>‹</span><span class="v">Gameweek 3</span><span>›</span>
+        </div>
+        <div class="day">Sat 5 Sep</div>
+        <div class="fx"><span class="t">Arsenal</span><span class="sc">2</span><span class="sc">0</span><span class="t r">Coventry</span></div>
+        <div class="fx"><span class="t">Leeds</span><span class="sc empty">·</span><span class="sc empty">·</span><span class="t r">Chelsea</span></div>
+        <div class="k" style="text-align:center">FT · 67′ LIVE · 17:30 …</div>
+        <div class="day">Sun 6 Sep</div>
+        <div class="fx"><span class="t">Liverpool</span><span class="sc empty">·</span><span class="sc empty">·</span><span class="t r">Man Utd</span></div>
+        <div class="box">…7 more fixtures</div>
+      </div>
+    </div>
+    <p class="cap"><b>Matches hub survives (D1/D4)</b> but is reorganized: gameweek navigator instead of date buckets. Tap a fixture → match detail.</p>
+  </div>
+</div>
+
+<div class="sect">2 · League → Gameweek tab: one place, three states (entry → live → settled)</div>
+<div class="row">
+  <div class="unit">
+    <div class="frame">
+      <div class="bar"><span>‹ Solid Yenne Boys</span><span class="k">⚙</span></div>
+      <div class="pad" style="padding-bottom:0"><div class="box">Premier League 2026-27 ▾ &nbsp;·&nbsp; competition switcher</div></div>
+      <div class="tabs"><span class="on">Gameweek</span><span>Season</span><span>Dues</span></div>
+      <div class="pad">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span>‹</span><span class="v">GW3 · OPEN</span><span>›</span></div>
+        <div class="card" style="border-width:2px">
+          <div class="v">You are NOT entered</div>
+          <div class="k">Deadline Fri 5 Sep, 23:00 IST (in 1d 4h)</div>
+          <div class="k">Ante ₹100 · 6/9 entered · pot ₹600</div>
+          <a class="btn solid">Make predictions →</a>
+        </div>
+        <div class="card">
+          <div class="k">ENTERED (6)</div>
+          <div style="font-size:12px">Harsh · Utki · Devang · Ash · Ronak · Sam</div>
+          <a class="btn" style="border-width:1px;font-weight:normal;font-size:12px">Share reminder to WhatsApp ↗</a>
+        </div>
+        <div class="card"><div class="k">LAST WEEK</div><div style="font-size:12px"><b>Utki won GW2</b> · 11 pts · took ₹800 →</div></div>
+      </div>
+    </div>
+    <p class="cap"><b>Pre-deadline.</b> Entry status + deadline + pot are the hero. Entrant names visible (decision: social nudge over sniping-protection). Last GW recap card, not a tab.</p>
+  </div>
+
+  <div class="unit">
+    <div class="frame">
+      <div class="bar"><span>‹ Solid Yenne Boys</span><span class="k">⚙</span></div>
+      <div class="tabs"><span class="on">Gameweek</span><span>Season</span><span>Dues</span></div>
+      <div class="pad">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span>‹</span><span class="v">GW3 · LIVE</span><span>›</span></div>
+        <table>
+          <tr><th>#</th><th>player</th><th class="n">exact</th><th class="n">pts</th></tr>
+          <tr><td>1</td><td><b>You</b></td><td class="n">1</td><td class="n"><b>7</b></td></tr>
+          <tr><td>2</td><td>Harsh</td><td class="n">1</td><td class="n">6</td></tr>
+          <tr><td>3</td><td>Utki</td><td class="n">0</td><td class="n">5</td></tr>
+          <tr><td>…</td><td>7 entrants · pot ₹700</td><td class="n"></td><td class="n"></td></tr>
+        </table>
+        <div class="note">tiebreak order shown when tied: exacts → total goal error</div>
+        <div class="day">Fixtures · 6 of 10 played</div>
+        <div class="fx"><span class="t">Arsenal 2-0 Coventry · FT</span><span class="k">you: 2-0 ✓✓ +3</span></div>
+        <div class="fx"><span class="t">Leeds 1-1 Chelsea · 67′</span><span class="k">you: 2-1 ✗ 0</span></div>
+        <div class="fx"><span class="t">Everton — Hull · void ⓘ</span><span class="k">postponed → GW14</span></div>
+        <div class="box">tap fixture → match detail (all picks, what-if)</div>
+      </div>
+    </div>
+    <p class="cap"><b>Live.</b> GW leaderboard first, per-fixture breakdown under it. Void fixture explained inline (Sol's gap). Same tab, new state.</p>
+  </div>
+
+  <div class="unit">
+    <div class="frame">
+      <div class="bar"><span>‹ Solid Yenne Boys</span><span class="k">⚙</span></div>
+      <div class="tabs"><span class="on">Gameweek</span><span>Season</span><span>Dues</span></div>
+      <div class="pad">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span>‹</span><span class="v">GW3 · SETTLED</span><span>›</span></div>
+        <div class="card" style="border-width:2px;text-align:center">
+          <div class="k">GAMEWEEK WINNER</div>
+          <div class="v" style="font-size:18px">🏆 You · 12 pts</div>
+          <div style="font-size:12px">won pot <b>₹700</b> (7 entrants × ₹100)</div>
+          <div class="k">tiebreak vs Harsh: 2 exacts vs 1</div>
+        </div>
+        <table>
+          <tr><th>#</th><th>player</th><th class="n">exact</th><th class="n">pts</th><th class="n">net</th></tr>
+          <tr><td>1</td><td><b>You</b></td><td class="n">2</td><td class="n">12</td><td class="n">+600</td></tr>
+          <tr><td>2</td><td>Harsh</td><td class="n">1</td><td class="n">12</td><td class="n">−100</td></tr>
+          <tr><td>3</td><td>Utki</td><td class="n">1</td><td class="n">9</td><td class="n">−100</td></tr>
+        </table>
+        <div class="note">settled Sun 22:40 · 9 fixtures counted, 1 void → Dues updated</div>
+        <a class="btn">Go to GW4 →</a>
+      </div>
+    </div>
+    <p class="cap"><b>Settled.</b> Winner, pot, tiebreak explanation inline. Once GW4 opens, default flips to its entry card and this becomes the recap.</p>
+  </div>
+</div>
+
+<div class="sect">3 · Entry sheet — one screen, all fixtures, submit = enter (D3: two states)</div>
+<div class="row">
+  <div class="unit">
+    <div class="frame">
+      <div class="bar"><span>‹ GW3 predictions</span><span class="k">8/10</span></div>
+      <div class="pad">
+        <div class="box" style="position:sticky">deadline Fri 23:00 IST · in 1d 4h · NOT ENTERED</div>
+        <div class="day">Sat 5 Sep</div>
+        <div class="fx"><span class="t">Arsenal</span><span class="sc">2</span><span class="sc">0</span><span class="t r">Coventry</span></div>
+        <div class="k" style="margin-left:2px">▾ insights</div>
+        <div class="insight">odds 1.35 / 4.8 / 8.2 · form WWWDW vs LDLLW · H2H · top scores 2-0 (14%), 2-1 (11%) · updated 2h ago</div>
+        <div class="fx"><span class="t">Leeds</span><span class="sc">2</span><span class="sc">1</span><span class="t r">Chelsea</span></div>
+        <div class="fx"><span class="t">Everton</span><span class="sc empty">·</span><span class="sc empty">·</span><span class="t r">Hull</span></div>
+        <div class="fx"><span class="t">Spurs</span><span class="sc empty">·</span><span class="sc empty">·</span><span class="t r">Fulham</span></div>
+        <div class="day">Sun 6 Sep</div>
+        <div class="fx"><span class="t">Liverpool</span><span class="sc">3</span><span class="sc">1</span><span class="t r">Man Utd</span></div>
+        <div class="box">…5 more</div>
+        <a class="btn">↓ next missing pick (2)</a>
+        <a class="btn solid" style="opacity:.45">Enter gameweek · stakes ₹100 (8/10 picked)</a>
+      </div>
+    </div>
+    <p class="cap"><b>Entry.</b> Day-grouped, steppers per row, insights expand inline (no page hop). Enter button disabled until 10/10 — partial entries impossible by construction. Picks are local until Enter.</p>
+  </div>
+
+  <div class="unit">
+    <div class="frame">
+      <div class="bar"><span>‹ GW3 predictions</span><span class="k">10/10</span></div>
+      <div class="modal">
+        <div class="v">Enter Gameweek 3?</div>
+        <div style="font-size:12px;margin:6px 0">10 predictions · ante <b>₹100</b> into the pot<br>currently 6 entered · pot becomes ₹700</div>
+        <div class="k">You can edit picks until Fri 23:00 IST. Withdrawing before the deadline returns your ante.</div>
+        <a class="btn solid">Confirm — I'm in</a>
+        <a class="btn" style="border-style:dashed">Cancel</a>
+      </div>
+      <div class="pad">
+        <div class="box">after entering: bar shows ENTERED ✓ · [Edit picks] [Withdraw]<br>+ "use these picks in KK Bois (₹50)? PES Bois (₹100)?" per-league consent</div>
+      </div>
+    </div>
+    <p class="cap"><b>Staking is explicit.</b> Confirmation names the ante and pot. Cross-league mirroring offered after entry, opt-in per league with its own stake shown. Withdraw = separate confirmed action.</p>
+  </div>
+</div>
+
+<div class="sect">4 · Season & Dues tabs</div>
+<div class="row">
+  <div class="unit">
+    <div class="frame">
+      <div class="bar"><span>‹ Solid Yenne Boys</span><span class="k">⚙</span></div>
+      <div class="tabs"><span>Gameweek</span><span class="on">Season</span><span>Dues</span></div>
+      <div class="pad">
+        <table>
+          <tr><th>#</th><th>player</th><th class="n">pts</th><th class="n">GW wins</th><th class="n">exacts</th><th class="n">net ₹</th></tr>
+          <tr><td>1</td><td>Utki</td><td class="n">31</td><td class="n">2</td><td class="n">4</td><td class="n">+1100</td></tr>
+          <tr><td>2</td><td><b>You</b></td><td class="n">29</td><td class="n">1</td><td class="n">3</td><td class="n">+400</td></tr>
+          <tr><td>3</td><td>Harsh</td><td class="n">27</td><td class="n">0</td><td class="n">2</td><td class="n">−300</td></tr>
+        </table>
+        <div class="day">Gameweek history</div>
+        <div class="fx"><span class="t">GW2 · Utki won ₹800 · 11 pts</span><span class="k">›</span></div>
+        <div class="fx"><span class="t">GW1 · Harsh won ₹600 · 9 pts</span><span class="k">›</span></div>
+        <div class="note">points count all GWs entered; sitting out costs nothing but scores nothing</div>
+      </div>
+    </div>
+    <p class="cap"><b>Season.</b> Standings + GW history only (D4: fixtures live in app-level Matches, analytics app-level). Tap a history row → that GW's settled view via the navigator.</p>
+  </div>
+
+  <div class="unit">
+    <div class="frame">
+      <div class="bar"><span>‹ Solid Yenne Boys</span><span class="k">⚙</span></div>
+      <div class="tabs"><span>Gameweek</span><span>Season</span><span class="on">Dues</span></div>
+      <div class="pad">
+        <div class="box">ALL COMPETITIONS · one balance since WC 2026 · no switcher here</div>
+        <div class="card" style="border-width:2px"><div class="k">PENDING YOUR CONFIRMATION</div><div style="font-size:12px"><b>Harsh says he paid you ₹300</b> · 24 Jul<br><a class="pill">confirm</a> <a class="pill">dispute</a></div></div>
+        <table>
+          <tr><th>player</th><th class="n">net</th></tr>
+          <tr><td><b>You</b></td><td class="n">+₹340</td></tr>
+          <tr><td>Utki</td><td class="n">+₹200</td></tr>
+          <tr><td>Harsh</td><td class="n">−₹540</td></tr>
+        </table>
+        <div class="day">Settle up (2 payments)</div>
+        <div class="fx"><span class="t">Harsh → You ₹340</span><span class="k">log ›</span></div>
+        <div class="fx"><span class="t">Harsh → Utki ₹200</span><span class="k">log ›</span></div>
+        <div class="day">Activity</div>
+        <div class="fx"><span class="t">PL GW3 pot · you +₹600</span><span class="k">25 Jul</span></div>
+        <div class="fx"><span class="t">WC Final · you −₹50</span><span class="k">19 Jul</span></div>
+        <div class="box">log payment → payer/receiver/amount/date/note · partial OK · confirmed = immutable, reversal only</div>
+      </div>
+    </div>
+    <p class="cap"><b>Dues.</b> League-level, above competitions. Pending confirmations pinned on top. Every activity row names its source. Two-party settlement logging per brief §4.</p>
+  </div>
+</div>
+
+<div class="sect">5 · Competition switcher & WC archive</div>
+<div class="row">
+  <div class="unit">
+    <div class="frame">
+      <div class="bar"><span>‹ Solid Yenne Boys</span><span class="k">⚙</span></div>
+      <div class="modal">
+        <div class="v">Competitions</div>
+        <div class="day">Active</div>
+        <div class="fx"><span class="t"><b>Premier League 2026-27</b> · GW3</span><span class="k">✓</span></div>
+        <div class="day">Past</div>
+        <div class="fx"><span class="t">World Cup 2026 · won by Utki</span><span class="k">›</span></div>
+        <div class="k" style="margin-top:8px">past competitions are read-only</div>
+      </div>
+      <div class="pad"><div class="box">future: more leagues & cups join this list — the league is permanent, competitions come and go</div></div>
+    </div>
+    <p class="cap"><b>Switcher.</b> Lives in the league header, applies to Gameweek + Season tabs only — never Dues.</p>
+  </div>
+
+  <div class="unit">
+    <div class="frame">
+      <div class="bar"><span>‹ World Cup 2026</span><span class="pill">ARCHIVED</span></div>
+      <div class="tabs"><span class="on">Matches</span><span>Bracket</span><span>Analytics</span></div>
+      <div class="pad">
+        <div class="box">read-only · rules as they applied then</div>
+        <div class="fx"><span class="t">Final · ARG 3-2 FRA · your pick 2-1 ✓</span><span class="k">›</span></div>
+        <div class="fx"><span class="t">SF · …</span><span class="k">›</span></div>
+        <div class="day">Your WC</div>
+        <div style="font-size:12px">38 predictions · 9 exact · net −₹50 · bracket 24/31</div>
+        <div class="box">knockout circle preserved as-was · public share links /b/[id] keep working</div>
+      </div>
+    </div>
+    <p class="cap"><b>WC archive.</b> The old tabs (incl. bracket) frozen inside the archived competition. Zero presence in daily nav.</p>
+  </div>
+</div>
+
+<p class="sub" style="border-top:2px solid var(--ink);padding-top:16px">Not wireframed yet (agreed, later): match detail drill-in · captain manage · analytics tab internals · blank/double GW banners · one-entrant refund state. Throwaway file — do not ship.</p>
+
+</body>
+</html>

@@ -8,6 +8,7 @@
 
 import { settleGameweek, type GwOutcome } from "./gameweek-settle";
 import { GwInputError, type GwInput } from "./gameweek-points";
+import { isGameweekResultDirty } from "./net-balance";
 
 type Admin = ReturnType<typeof import("./supabase/service").createServiceRoleClient>;
 
@@ -202,6 +203,7 @@ type Reader = {
  *   gameweek_entry_results.net_inr    — gameweek pots
  * Both are per-settlement snapshots that already sum to zero within their own contest, so the
  * union sums to zero across the league too.
+ * If any gameweek result in the league is dirty, the whole league balance is suppressed.
  *
  * Works with either client: pass the session-scoped client from a Server Component (RLS scopes
  * it to the viewer's leagues) or the service client from a job.
@@ -210,15 +212,15 @@ export async function leagueNetByUser(
   db: Reader,
   leagueId: string,
   seedUserIds: string[] = [],
-): Promise<Record<string, number>> {
+): Promise<Record<string, number> | "suppressed"> {
   const net: Record<string, number> = {};
   for (const id of seedUserIds) net[id] = 0;
 
   // gameweek_entry_results has TWO foreign keys to gameweek_entries (entry_id, and the composite
   // entry_id+gameweek_contest_id), so the embed must name the one to follow or PostgREST refuses
-  // it as ambiguous. A silent zero here would understate what a member is owed, so both reads
+  // it as ambiguous. A silent zero here would understate what a member is owed, so all reads
   // throw rather than fall back to an empty list.
-  const [legacy, gameweek] = await Promise.all([
+  const [legacy, gameweek, versions] = await Promise.all([
     db
       .from("contest_results")
       .select("user_id, net_inr, contests!inner(league_id)")
@@ -227,10 +229,36 @@ export async function leagueNetByUser(
       .from("gameweek_entry_results")
       .select("net_inr, gameweek_entries!gameweek_entry_results_entry_id_fkey!inner(user_id, league_id)")
       .eq("gameweek_entries.league_id", leagueId),
+    db
+      .from("gameweek_contests")
+      .select("input_version, gameweek_results(settled_version)")
+      .eq("league_id", leagueId),
   ]);
 
   if (legacy.error) throw new Error(`dues: contest_results read failed: ${legacy.error.message}`);
   if (gameweek.error) throw new Error(`dues: gameweek_entry_results read failed: ${gameweek.error.message}`);
+  if (versions.error) throw new Error(`dues: gameweek versions read failed: ${versions.error.message}`);
+
+  for (const row of (versions.data ?? []) as {
+    input_version: number;
+    gameweek_results:
+      | { settled_version: number }
+      | { settled_version: number }[]
+      | null;
+  }[]) {
+    const result = Array.isArray(row.gameweek_results)
+      ? row.gameweek_results[0] ?? null
+      : row.gameweek_results;
+    if (
+      result &&
+      isGameweekResultDirty({
+        inputVersion: row.input_version,
+        settledVersion: result.settled_version,
+      })
+    ) {
+      return "suppressed";
+    }
+  }
 
   for (const r of (legacy.data ?? []) as { user_id: string; net_inr: number }[]) {
     net[r.user_id] = (net[r.user_id] ?? 0) + (r.net_inr ?? 0);

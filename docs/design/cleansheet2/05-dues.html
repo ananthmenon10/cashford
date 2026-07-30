@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cashford 2.0 — League → Dues tab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ffffff;
+    --canvas:#f4f5f3;
+    --ink:#14171a;
+    --ink-2:#4a5257;
+    --ink-3:#868f95;
+    --line:#e5e8e4;
+    --line-2:#eff1ee;
+    --green:#12805c;
+    --green-soft:#e8f4ee;
+    --green-line:#bfe0cf;
+    --amber:#a86b12;
+    --amber-soft:#fdf3e3;
+    --amber-line:#f0dfc0;
+    --red:#a6382f;
+    --red-soft:#fbecea;
+    --red-line:#eccdc8;
+    --r-lg:20px; --r-md:14px; --r-sm:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  i{font-style:normal}
+  body{
+    font-family:'Hanken Grotesk',system-ui,sans-serif;
+    background:var(--canvas);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    padding:40px 24px 100px;
+  }
+  .num{font-family:'Geist Mono',monospace;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";white-space:nowrap}
+  a{color:inherit}
+
+  /* ---------- page chrome ---------- */
+  .doc-head{max-width:940px;margin:0 auto 40px}
+  .doc-kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+  .doc-title{font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:8px}
+  .doc-thesis{font-size:15px;color:var(--ink-2);margin-top:8px;max-width:62ch;line-height:1.55}
+  .doc-nav{max-width:940px;margin:16px auto 0;display:flex;flex-wrap:wrap;gap:8px}
+  .doc-nav a{
+    font-size:12px;font-weight:700;text-decoration:none;color:var(--ink-2);
+    background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:6px 12px;
+  }
+  .doc-nav a.here{background:var(--ink);border-color:var(--ink);color:#fff}
+
+  .stage{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .frame-wrap{width:390px}
+  .frame-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px;padding-left:2px}
+  .frame{
+    width:390px;background:var(--canvas);
+    border-radius:34px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(20,23,26,.06),0 18px 40px -12px rgba(20,23,26,.18);
+    border:1px solid var(--line);
+  }
+  .frame-cap{margin-top:14px;padding-left:2px}
+  .frame-cap b{display:block;font-size:13.5px;font-weight:800;letter-spacing:-.01em}
+  .frame-cap p{margin-top:5px;font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+  .scroll{padding-bottom:24px}
+  .status{height:34px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 22px 2px;font-size:11px;font-weight:600;color:var(--ink-3)}
+
+  /* ---------- app header ---------- */
+  .appbar{background:var(--paper);padding:6px 16px 14px;border-bottom:1px solid var(--line-2)}
+  .abrow{display:flex;align-items:center;gap:12px}
+  .icobtn{
+    width:34px;height:34px;flex:0 0 34px;border-radius:11px;border:1px solid var(--line);
+    background:var(--paper);display:grid;place-items:center;color:var(--ink-2);font-size:15px;
+  }
+  .abtitle{flex:1;min-width:0}
+  .abtitle h1{font-size:18px;font-weight:700;letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .abtitle .sub{font-size:11.5px;font-weight:600;color:var(--ink-3);margin-top:2px}
+  .balance{
+    display:inline-flex;align-items:baseline;padding:5px 10px;border-radius:9px;
+    background:var(--green-soft);color:var(--green);font-weight:700;font-size:14px;
+    border:1px solid var(--green-line);
+  }
+  .balance.neg{background:var(--red-soft);color:var(--red);border-color:var(--red-line)}
+  .comp{display:flex;align-items:center;gap:6px;margin-top:12px;color:var(--ink-2);font-size:13px;font-weight:600}
+  .comp .chip{display:inline-flex;align-items:center;gap:6px;background:var(--canvas);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+  .comp .chev{color:var(--ink-3);font-size:10px}
+  .comp .chip.archived{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+
+  .tabs{display:flex;gap:24px;margin-top:16px;padding:0 2px}
+  .tab{font-size:14px;font-weight:600;color:var(--ink-3);padding-bottom:11px;position:relative}
+  .tab.on{color:var(--ink);font-weight:700}
+  .tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;border-radius:2px;background:var(--green)}
+
+  /* bottom app tab bar */
+  .tabbar{
+    display:flex;background:var(--paper);border-top:1px solid var(--line);
+    padding:9px 8px 16px;position:sticky;bottom:0;
+  }
+  .tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-3)}
+  .tb .ic{font-size:17px;line-height:1}
+  .tb .lb{font-size:10.5px;font-weight:700;letter-spacing:.02em}
+  .tb.on{color:var(--green)}
+
+  /* ---------- gw navigator ---------- */
+  .gwnav{display:flex;align-items:center;justify-content:center;gap:14px;padding:18px 16px 6px}
+  .gwarrow{width:30px;height:30px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-2);font-size:13px}
+  .gwlabel{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .dot{width:4px;height:4px;border-radius:50%;background:var(--line);display:inline-block}
+  .open{font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--green);background:var(--green-soft);border:1px solid var(--green-line);padding:3px 8px;border-radius:6px}
+  .open.grey{color:var(--ink-3);background:var(--canvas);border-color:var(--line)}
+  .open.amber{color:var(--amber);background:var(--amber-soft);border-color:var(--amber-line)}
+
+  /* ---------- generic bits ---------- */
+  .body{padding:12px 16px 0;display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px}
+  .card.hero{padding:22px 20px}
+  .card.tight{padding:16px}
+  .card.flat{border-radius:var(--r-md)}
+
+  .state{display:flex;align-items:center;gap:9px}
+  .state .ring{width:9px;height:9px;border-radius:50%;border:2.5px solid var(--amber)}
+  .state .ring.g{border-color:var(--green)}
+  .state .ring.grey{border-color:var(--ink-3)}
+  .state h2{font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .state h2.sm{font-size:17px}
+
+  .dl{margin-top:14px;padding:12px 14px;border-radius:var(--r-md);background:var(--canvas);border:1px solid var(--line-2)}
+  .dl-k{font-size:10.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+  .dl-v{margin-top:5px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .dl-v .abs{color:var(--ink)}
+  .dl-v .cd{color:var(--amber);background:var(--amber-soft);border-radius:6px;padding:2px 7px;font-size:13px;font-weight:700}
+  .dl-v .cd.g{color:var(--green);background:var(--green-soft)}
+  .dl-v .cd.grey{color:var(--ink-3);background:var(--paper);border:1px solid var(--line)}
+
+  .facts{display:flex;align-items:stretch;margin-top:16px;border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden}
+  .fact{flex:1;padding:11px 12px;background:var(--paper)}
+  .fact+.fact{border-left:1px solid var(--line-2)}
+  .fact-k{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .fact-v{margin-top:4px;font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .fact-v.pot{color:var(--green)}
+  .fact-v.neg{color:var(--red)}
+  .fact-v.sm{font-size:14px}
+
+  .cta{
+    margin-top:18px;width:100%;border:none;border-radius:var(--r-md);
+    background:var(--green);color:#fff;font-family:inherit;font-size:15.5px;font-weight:700;
+    padding:15px;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:-.01em;
+    box-shadow:0 1px 0 rgba(0,0,0,.05),0 6px 14px -6px rgba(18,128,92,.5);
+  }
+  .cta-off{
+    width:100%;border:1px solid var(--line);border-radius:var(--r-md);background:var(--canvas);
+    color:var(--ink-3);font-family:inherit;font-size:15px;font-weight:700;padding:15px;
+    display:flex;align-items:center;justify-content:center;gap:8px;cursor:not-allowed;
+  }
+  .ghost{
+    margin-top:16px;width:100%;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .ghost.tightop{margin-top:12px}
+  .duo{display:flex;gap:10px;margin-top:16px}
+  .duo button{
+    flex:1;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px 10px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:7px;
+  }
+  .duo button.warn{color:var(--red);border-color:var(--red-line);background:var(--paper)}
+  .why{margin-top:9px;text-align:center;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+
+  .sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .sec-head h3{font-size:13px;font-weight:700;letter-spacing:-.005em}
+  .sec-head span{font-size:12px;font-weight:600;color:var(--ink-3)}
+  .people{display:flex;flex-wrap:wrap;gap:8px}
+  .person{display:flex;align-items:center;gap:7px;padding:6px 11px 6px 6px;border-radius:999px;background:var(--canvas);border:1px solid var(--line-2);font-size:13px;font-weight:600}
+  .person.out{color:var(--ink-3)}
+  .av{width:22px;height:22px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center;font-size:10.5px;font-weight:800;border:1px solid var(--green-line)}
+  .av.grey{background:var(--canvas);color:var(--ink-3);border-color:var(--line)}
+  .av.amber{background:var(--amber-soft);color:var(--amber);border-color:var(--amber-line)}
+
+  .recap{display:flex;gap:14px;align-items:flex-start}
+  .medal{width:36px;height:36px;flex:0 0 36px;border-radius:12px;background:var(--amber-soft);border:1px solid var(--amber-line);display:grid;place-items:center;font-size:16px}
+  .medal.g{background:var(--green-soft);border-color:var(--green-line)}
+  .recap-k{font-size:10.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+  .recap-v{margin-top:5px;font-size:14px;font-weight:600;line-height:1.45;color:var(--ink)}
+  .recap-v b{font-weight:800}
+  .note{margin-top:12px;font-size:12px;font-weight:600;color:var(--ink-3);line-height:1.5}
+
+  /* badges & strips */
+  .bdg{
+    display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;padding:4px 8px;border-radius:7px;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink-3);
+  }
+  .bdg.amber{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .bdg.green{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .bdg.red{background:var(--red-soft);border-color:var(--red-line);color:var(--red)}
+  .bdg.ink{background:var(--ink);border-color:var(--ink);color:#fff}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-soft);animation:pl 1.4s infinite}
+  @keyframes pl{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .strip{
+    display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--r-md);
+    background:var(--paper);border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink-2);
+  }
+  .strip.amber{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .strip.green{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .strip.grey{background:var(--canvas);border-color:var(--line);color:var(--ink-3)}
+  .strip .go{margin-left:auto;font-weight:800;font-size:11.5px;white-space:nowrap}
+  .strip b{font-weight:800}
+
+  /* fixture rows */
+  .daygrp{padding:0 16px}
+  .dayhead{
+    display:flex;align-items:center;gap:10px;padding:20px 2px 10px;
+    font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  }
+  .dayhead::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .fx{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);padding:13px 14px;margin-bottom:9px}
+  .fx.on{border-color:var(--green-line);background:linear-gradient(0deg,var(--green-soft) 0%,var(--paper) 62%)}
+  .fx.void{background:var(--canvas);border-style:dashed;color:var(--ink-3)}
+  .fx.open-panel{border-radius:var(--r-md) var(--r-md) 0 0;margin-bottom:0;border-bottom-color:transparent}
+  .fxrow{display:flex;align-items:center;gap:10px}
+  .team{flex:1;min-width:0;font-size:14.5px;font-weight:650;letter-spacing:-.01em;display:flex;align-items:center;gap:7px}
+  .team.away{justify-content:flex-end;text-align:right}
+  .crest{width:18px;height:18px;flex:0 0 18px;border-radius:5px;background:var(--canvas);border:1px solid var(--line);display:grid;place-items:center;font-size:8.5px;font-weight:800;color:var(--ink-3)}
+  .scorebox{display:flex;align-items:center;gap:5px}
+  .sq{
+    width:38px;height:40px;border-radius:10px;display:grid;place-items:center;
+    font-family:'Geist Mono',monospace;font-size:17px;font-weight:600;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink);
+  }
+  .sq.filled{background:var(--green);border-color:var(--green);color:#fff}
+  .sq.empty{color:var(--ink-3);border-style:dashed}
+  .sq.sm{width:30px;height:32px;font-size:15px}
+  .sep{color:var(--ink-3);font-size:12px}
+  .fxmeta{display:flex;align-items:center;justify-content:space-between;margin-top:9px;gap:10px}
+  .kick{font-size:11.5px;font-weight:600;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+  .kick .live{color:var(--green);font-weight:800}
+  .insights-toggle{font-size:11.5px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:5px}
+  .mypick{
+    margin-top:10px;padding-top:9px;border-top:1px solid var(--line-2);
+    display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-2);flex-wrap:wrap;
+  }
+  .mypick b{font-weight:800;color:var(--ink)}
+  .mypick .none{color:var(--ink-3)}
+  .pts{
+    font-family:'Geist Mono',monospace;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:6px;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink-3);
+  }
+  .pts.p1{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .pts.p3{background:var(--green);border-color:var(--green);color:#fff}
+  .vary{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--green)}
+  .prov{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+
+  /* insights panel */
+  .panel{
+    background:var(--paper);border:1px solid var(--green-line);border-top:1px dashed var(--green-line);
+    border-radius:0 0 var(--r-md) var(--r-md);padding:14px;margin-bottom:9px;
+  }
+  .panel.solo{border:1px solid var(--line);border-radius:var(--r-md);border-top:1px solid var(--line)}
+  .prow{display:flex;gap:10px;padding:8px 0}
+  .prow+.prow{border-top:1px solid var(--line-2)}
+  .pk{flex:0 0 62px;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+  .pv{flex:1;font-size:13px;font-weight:600;color:var(--ink)}
+  .odds{display:flex;gap:6px}
+  .oc{flex:1;text-align:center;background:var(--canvas);border:1px solid var(--line-2);border-radius:8px;padding:6px 2px}
+  .oc small{display:block;font-size:9.5px;font-weight:800;color:var(--ink-3);letter-spacing:.08em}
+  .oc b{font-family:'Geist Mono',monospace;font-size:13px;font-weight:600}
+  .form{display:flex;gap:3px;align-items:center}
+  .fp{width:17px;height:17px;border-radius:5px;display:grid;place-items:center;font-size:9.5px;font-weight:800;color:#fff}
+  .fp.W{background:var(--green)}.fp.D{background:#b8bfc4}.fp.L{background:#c9584f}
+  .vs{font-size:10.5px;color:var(--ink-3);font-weight:700;margin:0 5px}
+  .ts{display:flex;gap:7px;flex-wrap:wrap}
+  .tsi{background:var(--green-soft);border:1px solid var(--green-line);border-radius:7px;padding:4px 8px;font-size:12px;font-weight:700;color:var(--green)}
+  .tsi span{font-family:'Geist Mono',monospace;font-weight:500;opacity:.75}
+  .stale{margin-top:10px;font-size:10.5px;font-weight:600;color:var(--ink-3);text-align:right}
+  .mini-tbl{width:100%;border-collapse:collapse}
+  .mini-tbl td,.mini-tbl th{padding:4px 0;font-size:12px;font-weight:600;text-align:right}
+  .mini-tbl th{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .mini-tbl td:first-child,.mini-tbl th:first-child{text-align:left}
+  .mini-tbl tr.me td{color:var(--green)}
+
+  .more{
+    padding:13px;text-align:center;font-size:13px;font-weight:600;color:var(--ink-3);
+    background:var(--paper);border:1px dashed var(--line);border-radius:var(--r-md);
+  }
+  .util{margin:16px 16px 0}
+  .util button{
+    width:100%;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .util .cnt{font-family:'Geist Mono',monospace;font-weight:600;color:var(--ink-3)}
+
+  .footbar{
+    position:sticky;bottom:0;margin-top:20px;background:rgba(255,255,255,.94);
+    backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:14px 16px 20px;
+  }
+  .footbar .cta{margin-top:0}
+  .entered-bar{
+    position:sticky;bottom:0;margin-top:20px;background:rgba(255,255,255,.94);
+    backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:13px 16px 20px;
+  }
+
+  /* entry sheet bar */
+  .sheet-bar{background:var(--paper);border-bottom:1px solid var(--line-2);padding:6px 16px 16px}
+  .sb-row{display:flex;align-items:center;gap:12px}
+  .sb-title{flex:1}
+  .sb-title h1{font-size:18px;font-weight:700;letter-spacing:-.015em}
+  .prog{display:flex;align-items:center;gap:9px;margin-top:14px}
+  .prog-track{flex:1;height:6px;border-radius:99px;background:var(--line-2);overflow:hidden}
+  .prog-fill{height:100%;background:var(--green);border-radius:99px}
+  .prog-n{font-size:13px;font-weight:700}
+  .prog-n span{color:var(--ink-3)}
+  .stamp{
+    font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--amber);
+    background:var(--amber-soft);border:1px solid var(--amber-line);padding:3px 7px;border-radius:6px;
+  }
+  .stamp.g{color:var(--green);background:var(--green-soft);border-color:var(--green-line)}
+  .pinned{margin-top:12px;font-size:12.5px;font-weight:600;color:var(--ink-2);display:flex;align-items:center;gap:7px}
+  .pinned .cd{color:var(--amber);font-weight:700}
+
+  /* league cards (home) */
+  .lgcard{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}
+  .lg-top{display:flex;align-items:flex-start;gap:12px}
+  .lg-name{flex:1;min-width:0}
+  .lg-name h3{font-size:16.5px;font-weight:800;letter-spacing:-.015em}
+  .lg-name .cmp{margin-top:4px;font-size:12px;font-weight:600;color:var(--ink-3)}
+  .lg-badge{margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .lg-foot{
+    margin-top:13px;padding-top:12px;border-top:1px solid var(--line-2);
+    display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:600;color:var(--ink-2);
+  }
+  .lg-foot .pot{color:var(--green);font-weight:800}
+
+  /* tables / leaderboards */
+  .tbl{width:100%;border-collapse:collapse}
+  .tbl th{
+    font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
+    text-align:right;padding:0 0 9px;border-bottom:1px solid var(--line);
+  }
+  .tbl th:first-child,.tbl td:first-child{text-align:left}
+  .tbl td{padding:10px 0;font-size:13px;font-weight:600;text-align:right;border-bottom:1px solid var(--line-2)}
+  .tbl tr:last-child td{border-bottom:none}
+  .tbl tr.me td{background:var(--green-soft)}
+  .tbl tr.me td:first-child{border-radius:8px 0 0 8px;padding-left:8px}
+  .tbl tr.me td:last-child{border-radius:0 8px 8px 0;padding-right:8px}
+  .tbl .who{display:flex;align-items:center;gap:8px}
+  .tbl .rk{font-family:'Geist Mono',monospace;font-size:11.5px;color:var(--ink-3);width:14px;display:inline-block}
+  .pos{color:var(--green)}
+  .neg{color:var(--red)}
+  .zero{color:var(--ink-3)}
+
+  /* feed / payments */
+  .rowlist{display:flex;flex-direction:column}
+  .rl{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line-2)}
+  .rl:last-child{border-bottom:none}
+  .rl-ic{width:30px;height:30px;flex:0 0 30px;border-radius:9px;background:var(--canvas);border:1px solid var(--line);display:grid;place-items:center;font-size:13px;color:var(--ink-2)}
+  .rl-ic.g{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .rl-ic.r{background:var(--red-soft);border-color:var(--red-line);color:var(--red)}
+  .rl-ic.a{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .rl-txt{flex:1;min-width:0}
+  .rl-txt .t{font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+  .rl-txt .s{margin-top:3px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+  .rl-amt{font-family:'Geist Mono',monospace;font-size:14px;font-weight:600;white-space:nowrap}
+  .rl.dim .rl-txt .t{color:var(--ink-3);text-decoration:line-through}
+
+  .pay{
+    display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--line);
+    border-radius:var(--r-md);background:var(--paper);margin-bottom:9px;
+  }
+  .pay:last-child{margin-bottom:0}
+  .pay-txt{flex:1;font-size:13.5px;font-weight:600}
+  .pay-txt b{font-weight:800}
+  .pay-log{font-size:12px;font-weight:800;color:var(--green);white-space:nowrap}
+
+  /* form fields */
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+  .inp{
+    width:100%;background:var(--canvas);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:12px 13px;font-family:inherit;font-size:14.5px;font-weight:600;color:var(--ink);
+  }
+  .inp.num{font-family:'Geist Mono',monospace}
+  .inp.sel{display:flex;align-items:center;justify-content:space-between}
+  .inp.sel .chev{color:var(--ink-3);font-size:10px}
+  .field-row{display:flex;gap:10px}
+  .field-row .field{flex:1}
+
+  /* modal */
+  .modal-frame{position:relative}
+  .dim-layer{position:absolute;inset:0;background:rgba(20,23,26,.42);backdrop-filter:blur(1.5px);z-index:2}
+  .modal{
+    position:absolute;left:12px;right:12px;bottom:12px;z-index:3;
+    background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:20px;
+    box-shadow:0 24px 50px -12px rgba(20,23,26,.45);
+  }
+  .modal h3{font-size:18px;font-weight:800;letter-spacing:-.02em}
+  .modal p{margin-top:8px;font-size:13px;font-weight:600;color:var(--ink-2);line-height:1.5}
+  .modal .grabber{width:38px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 14px}
+  .mlist{margin-top:14px;border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden}
+  .mrow{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;font-size:13px;font-weight:600}
+  .mrow+.mrow{border-top:1px solid var(--line-2)}
+  .mrow .k{color:var(--ink-3);font-weight:700;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase}
+  .mrow .v{font-weight:800}
+  .mrow .v.g{color:var(--green)}
+
+  /* opt-in list (mirror) */
+  .optin{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-2)}
+  .optin:last-child{border-bottom:none}
+  .optin .txt{flex:1;font-size:13.5px;font-weight:700}
+  .optin .txt small{display:block;margin-top:3px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+  .sw{width:40px;height:23px;border-radius:99px;background:var(--line);position:relative;flex:0 0 40px}
+  .sw::after{content:"";position:absolute;top:2.5px;left:2.5px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .sw.on{background:var(--green)}
+  .sw.on::after{left:auto;right:2.5px}
+
+  /* analytics */
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-2);border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden;margin-top:16px}
+  .met{background:var(--paper);padding:13px 14px}
+  .met-k{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .met-v{margin-top:5px;font-size:20px;font-weight:700;letter-spacing:-.02em}
+  .met-v small{font-size:12px;font-weight:600;color:var(--ink-3);margin-left:3px}
+  .met.muted .met-v{color:var(--ink-3)}
+  .spark{margin-top:16px;padding:14px;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--canvas)}
+  .spark-k{display:flex;align-items:baseline;justify-content:space-between;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .lens{display:flex;align-items:center;gap:8px;overflow:hidden}
+  .lens .pill{font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+  .lens .pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .delta{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-2)}
+  .delta:last-child{border-bottom:none}
+  .delta .dk{flex:1;font-size:13px;font-weight:600}
+  .delta .dv{font-family:'Geist Mono',monospace;font-size:13px;font-weight:600;width:52px;text-align:right}
+  .delta .dd{font-family:'Geist Mono',monospace;font-size:12px;font-weight:600;width:60px;text-align:right}
+  .blur{filter:blur(3px);opacity:.5;pointer-events:none}
+
+  /* cases block */
+  .cases{max-width:940px;margin:56px auto 0;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px 28px}
+  .cases h4{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+  .cases h5{margin-top:20px;font-size:14px;font-weight:800;letter-spacing:-.01em}
+  .cases ul{margin-top:10px;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+  .cases li{font-size:13.5px;line-height:1.55;color:var(--ink-2);padding-left:16px;position:relative}
+  .cases li::before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--green-line)}
+  .cases li b{font-weight:800;color:var(--ink)}
+
+  /* index flows */
+  .flows{max-width:940px;margin:0 auto}
+  .flow{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px 22px;margin-bottom:14px}
+  .flow-h{display:flex;align-items:center;gap:10px}
+  .flow-n{width:24px;height:24px;flex:0 0 24px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:'Geist Mono',monospace;font-size:12px;font-weight:600}
+  .flow-h h3{font-size:15.5px;font-weight:800;letter-spacing:-.015em}
+  .steps{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .step{
+    display:inline-flex;align-items:center;gap:7px;text-decoration:none;
+    background:var(--canvas);border:1px solid var(--line);border-radius:999px;
+    padding:7px 13px;font-size:12.5px;font-weight:700;color:var(--ink);
+  }
+  .step small{font-family:'Geist Mono',monospace;font-size:10.5px;font-weight:600;color:var(--ink-3)}
+  .step.g{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .step.a{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .arw{color:var(--ink-3);font-size:12px;font-weight:700}
+  .pages{max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .plink{
+    display:block;text-decoration:none;background:var(--paper);border:1px solid var(--line);
+    border-radius:var(--r-lg);padding:18px 20px;
+  }
+  .plink .f{font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:var(--ink-3)}
+  .plink h3{margin-top:7px;font-size:16px;font-weight:800;letter-spacing:-.015em}
+  .plink p{margin-top:6px;font-size:13px;font-weight:600;color:var(--ink-2);line-height:1.5}
+  .sect{max-width:940px;margin:48px auto 18px}
+  .sect h2{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+</style>
+</head>
+<body>
+
+<nav class="doc-nav">
+  <a href="00-index.html">Overview</a>
+  <a href="01-home.html">Home</a>
+  <a href="02-league-gameweek.html">Gameweek</a>
+  <a href="03-entry-sheet.html">Entry</a>
+  <a href="04-season.html">Season</a>
+  <a href="05-dues.html" class="here">Dues</a>
+  <a href="06-match-detail.html">Match</a>
+  <a href="07-archive.html">Archive</a>
+  <a href="08-matches-tab.html">Matches tab</a>
+  <a href="09-join-create.html">Join</a>
+</nav>
+
+<div class="doc-head">
+  <div class="doc-kicker">Clean Sheet 2.0 · 05</div>
+  <div class="doc-title">League → Dues</div>
+  <p class="doc-thesis">Purpose: one true balance per league across every competition it has ever played, and a way to record the payments that actually happen over UPI and in person. Dues sits above competitions — there is no competition switcher here, ever.</p>
+</div>
+
+<div class="stage">
+
+  <!-- ============ 1 · MAIN ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">1 · Dues · main</div>
+    <div class="frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>Solid Yenne Boys</h1></div>
+          <div class="balance num">+₹940</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip" style="background:var(--paper)">All competitions · one balance</span></div>
+        <div class="tabs">
+          <div class="tab">Gameweek</div><div class="tab">Season</div><div class="tab on">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="body">
+
+          <div class="card hero" style="border-color:var(--amber-line)">
+            <div class="state"><i class="ring"></i><h2 class="sm">Ash says he paid you ₹300</h2></div>
+            <div class="mlist">
+              <div class="mrow"><span class="k">Amount</span><span class="v num">₹300</span></div>
+              <div class="mrow"><span class="k">Date</span><span class="v num">24 Sep 2026</span></div>
+              <div class="mrow"><span class="k">Note</span><span class="v" style="font-weight:600">"UPI, GW5 + GW6"</span></div>
+            </div>
+            <div class="duo">
+              <button style="background:var(--green);border-color:var(--green);color:#fff">Confirm</button>
+              <button class="warn">Dispute</button>
+            </div>
+            <div class="why">Once confirmed it can't be edited — only reversed, visibly.</div>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Net position</h3><span>9 members</span></div>
+            <table class="tbl">
+              <tr><th>Member</th><th>Net ₹</th></tr>
+              <tr class="me"><td><span class="who"><i class="av">Y</i><b>You</b></span></td><td class="num pos">+940</td></tr>
+              <tr><td><span class="who"><i class="av">U</i>Utki</span></td><td class="num pos">+1,250</td></tr>
+              <tr><td><span class="who"><i class="av">H</i>Harsh</span></td><td class="num pos">+310</td></tr>
+              <tr><td><span class="who"><i class="av grey">D</i>Devang</span></td><td class="num neg">−400</td></tr>
+              <tr><td><span class="who"><i class="av grey">A</i>Ash</span></td><td class="num neg">−700</td></tr>
+              <tr><td><span class="who"><i class="av grey">R</i>Ronak</span></td><td class="num neg">−600</td></tr>
+              <tr><td><span class="who"><i class="av grey">S</i>Sam</span></td><td class="num neg">−800</td></tr>
+            </table>
+            <div class="note">World Cup 2026 and Premier League 2026-27 movements, added up. Archived competitions keep their entries; the balance stays open forever.</div>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Settle up</h3><span>4 payments clear it</span></div>
+            <div class="pay">
+              <i class="av grey">S</i>
+              <div class="pay-txt"><b>Sam</b> pays <b>you</b></div>
+              <span class="rl-amt num">₹800</span>
+              <span class="pay-log">log ›</span>
+            </div>
+            <div class="pay">
+              <i class="av grey">A</i>
+              <div class="pay-txt"><b>Ash</b> pays <b>you</b></div>
+              <span class="rl-amt num">₹140</span>
+              <span class="pay-log">log ›</span>
+            </div>
+            <div class="pay">
+              <i class="av grey">R</i>
+              <div class="pay-txt"><b>Ronak</b> pays <b>Utki</b></div>
+              <span class="rl-amt num">₹600</span>
+              <span class="pay-log">log ›</span>
+            </div>
+            <div class="pay">
+              <i class="av grey">D</i>
+              <div class="pay-txt"><b>Devang</b> pays <b>Utki</b></div>
+              <span class="rl-amt num">₹400</span>
+              <span class="pay-log">log ›</span>
+            </div>
+            <div class="note">The fewest payments that clear every balance. You can log any payment, not only these.</div>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Activity</h3><span>every movement, sourced</span></div>
+            <div class="rowlist">
+              <div class="rl">
+                <div class="rl-ic g">🏆</div>
+                <div class="rl-txt"><div class="t">PL GW8 pot</div><div class="s">You won · 7 entrants · 26 Sep</div></div>
+                <div class="rl-amt pos">+₹600</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic g">₹</div>
+                <div class="rl-txt"><div class="t">Payment received from Harsh</div><div class="s">Confirmed 22 Sep · "UPI"</div></div>
+                <div class="rl-amt pos">+₹300</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic r">↓</div>
+                <div class="rl-txt"><div class="t">PL GW7 ante</div><div class="s">Utki won · 19 Sep</div></div>
+                <div class="rl-amt neg">−₹100</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic r">↓</div>
+                <div class="rl-txt"><div class="t">WC Final</div><div class="s">World Cup 2026 · archived · 19 Jul</div></div>
+                <div class="rl-amt neg">−₹50</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic g">🏆</div>
+                <div class="rl-txt"><div class="t">WC Semi-final pot</div><div class="s">World Cup 2026 · archived · 15 Jul</div></div>
+                <div class="rl-amt pos">+₹250</div>
+              </div>
+            </div>
+            <button class="ghost">Show all 68 movements</button>
+          </div>
+        </div>
+
+        <div class="footbar">
+          <button class="cta">＋ Log a payment</button>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>One balance, all competitions</b>
+      <p>A pending confirmation pins to the top because it is the only thing needing an answer. Below it: net position, the fewest payments that clear it, and an activity feed where every row names its source — a gameweek pot, an ante, a World Cup match, a payment.</p>
+    </div>
+  </div>
+
+  <!-- ============ 2 · LOG PAYMENT ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">2 · Log a payment</div>
+    <div class="frame modal-frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>Solid Yenne Boys</h1></div>
+          <div class="balance num">+₹940</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip" style="background:var(--paper)">All competitions · one balance</span></div>
+        <div class="tabs">
+          <div class="tab">Gameweek</div><div class="tab">Season</div><div class="tab on">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll" style="min-height:620px">
+        <div class="body">
+          <div class="card tight">
+            <div class="sec-head"><h3>Settle up</h3><span>4 payments clear it</span></div>
+            <div class="pay">
+              <i class="av grey">S</i>
+              <div class="pay-txt"><b>Sam</b> pays <b>you</b></div>
+              <span class="rl-amt num">₹800</span>
+              <span class="pay-log">log ›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dim-layer"></div>
+      <div class="modal">
+        <div class="grabber"></div>
+        <h3>Log a payment</h3>
+        <p>Records what actually moved between two people. It adjusts those two balances only.</p>
+
+        <div style="margin-top:16px">
+          <div class="field-row">
+            <div class="field"><label>Payer</label><div class="inp sel">Sam <span class="chev">▾</span></div></div>
+            <div class="field"><label>Receiver</label><div class="inp sel">You <span class="chev">▾</span></div></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Amount</label><div class="inp num">₹500</div></div>
+            <div class="field"><label>Date</label><div class="inp num">26 Sep 2026</div></div>
+          </div>
+          <div class="field"><label>Note (optional)</label><div class="inp" style="color:var(--ink-3)">Part payment, rest next week</div></div>
+        </div>
+
+        <div class="strip amber">
+          <span>ⓘ</span>
+          <span>Sam owes you <b class="num">₹800</b>. Logging <b class="num">₹500</b> leaves <b class="num">₹300</b> outstanding.</span>
+        </div>
+
+        <button class="cta">Log ₹500 · send to Sam to confirm</button>
+        <div class="why">Sam confirms or disputes. Partial payments are fine.</div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>Two-party record, exact amount</b>
+      <p>Payer, receiver, amount, date, note. Partial payments are first-class and the sheet does the arithmetic out loud. Overpaying warns instead of blocking, and the recorded number is always what was typed — a gameweek may settle while this sheet is open.</p>
+    </div>
+  </div>
+
+  <!-- ============ 3 · DISPUTE + REVERSAL ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">3 · Dispute &amp; reversal</div>
+    <div class="frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>Solid Yenne Boys</h1></div>
+          <div class="balance num">+₹940</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip" style="background:var(--paper)">All competitions · one balance</span></div>
+        <div class="tabs">
+          <div class="tab">Gameweek</div><div class="tab">Season</div><div class="tab on">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="body">
+
+          <div class="card hero" style="border-color:var(--red-line)">
+            <div class="state"><i class="ring" style="border-color:var(--red)"></i><h2 class="sm">Disputed · ₹300 from Ash</h2></div>
+            <p class="note">You said this payment never arrived. Nothing has moved: the record sits out of the balance until you and Ash agree. Sort it out in the group and either confirm it or let Ash cancel it.</p>
+            <div class="mlist">
+              <div class="mrow"><span class="k">Logged by</span><span class="v" style="font-weight:600">Ash · 24 Sep</span></div>
+              <div class="mrow"><span class="k">Amount</span><span class="v num">₹300</span></div>
+              <div class="mrow"><span class="k">Status</span><span class="v" style="color:var(--red)">Disputed by you</span></div>
+            </div>
+            <div class="duo">
+              <button style="background:var(--green);border-color:var(--green);color:#fff">It arrived — confirm</button>
+              <button>Share to WhatsApp</button>
+            </div>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Activity</h3><span>corrections stay visible</span></div>
+            <div class="rowlist">
+              <div class="rl">
+                <div class="rl-ic a">⚠</div>
+                <div class="rl-txt"><div class="t">Payment disputed · Ash → you</div><div class="s">Out of the balance · 24 Sep</div></div>
+                <div class="rl-amt zero">₹300</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic r">↩</div>
+                <div class="rl-txt"><div class="t">Reversal — logged in error</div><div class="s">Reverses "Payment from Devang ₹200" · 21 Sep</div></div>
+                <div class="rl-amt neg">−₹200</div>
+              </div>
+              <div class="rl dim">
+                <div class="rl-txt"><div class="t">Payment received from Devang</div><div class="s">Confirmed 20 Sep · reversed 21 Sep</div></div>
+                <div class="rl-amt">+₹200</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic a">↩</div>
+                <div class="rl-txt"><div class="t">GW1 re-settled</div><div class="s">Official score correction · pot moved Ash → Ronak · 24 Aug</div></div>
+                <div class="rl-amt num">₹600</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic g">₹</div>
+                <div class="rl-txt"><div class="t">Payment received from Harsh</div><div class="s">Confirmed 22 Sep · "UPI"</div></div>
+                <div class="rl-amt pos">+₹300</div>
+              </div>
+            </div>
+            <div class="note">A confirmed record is never edited. Mistakes get a reversal entry beside the original, and the original stays struck through in the feed.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>Disputed payment and a reversal</b>
+      <p>A dispute parks the record outside the balance rather than deleting it. A mistake on a confirmed record produces a visible reversal pair, so the history reads as an audit trail — the same treatment a re-settled gameweek gets.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="cases">
+  <h4>Cases &amp; flows</h4>
+  <ul>
+    <li><b>Two-party records only.</b> A settlement names a payer, a receiver, an exact amount and a date. It never "zeroes the league" and never touches a third person's balance.</li>
+    <li><b>Either party can log it; the other confirms.</b> States are pending → confirmed / disputed. Confirmed is immutable; corrections are reversal entries.</li>
+    <li><b>Partial payments allowed.</b> The amount recorded is what was entered, not "whatever clears the debt" — a gameweek can settle while the sheet is open and the typed number still stands.</li>
+    <li><b>Overpayment warns, never blocks.</b> Someone paying ahead is a real thing in a friend group.</li>
+    <li><b>No competition switcher on Dues.</b> One league, one currency (INR), one continuous balance across the World Cup and the Premier League. Archived competitions keep their entries immutable while the balance stays open forever.</li>
+    <li><b>Every activity row names its source</b> — "PL GW8 pot", "PL GW7 ante", "WC Final", "payment received" — so a number can always be traced to the thing that caused it.</li>
+    <li><b>Departed members keep their balance</b> and stay in the feed; they are deactivated rather than removed.</li>
+    <li><b>Cashford records, it does not move money.</b> The payments happen over UPI or in cash; this screen only agrees on what happened.</li>
+  </ul>
+</div>
+
+</body>
+</html>

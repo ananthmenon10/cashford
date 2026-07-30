@@ -2,10 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { Suspense, useActionState, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { login, type AuthState } from "./actions";
 
 const initial: AuthState = { error: null };
+
+function ReturnPathField() {
+  const searchParams = useSearchParams();
+  return <input type="hidden" name="next" value={searchParams.get("next") ?? ""} />;
+}
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, initial);
@@ -29,6 +35,9 @@ export default function LoginPage() {
         </div>
 
         <form action={formAction} className="flex flex-col">
+          <Suspense fallback={null}>
+            <ReturnPathField />
+          </Suspense>
           <label className="mb-1.5 text-xs font-semibold text-label" htmlFor="username">
             Username
           </label>

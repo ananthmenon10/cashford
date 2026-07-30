@@ -122,7 +122,8 @@ mirroring the Phase 1 `verify-phase1-db-cases.mjs` pattern. No runners exist yet
 | P2-P08 | a fixture's history is active→void→active, including duplicate history rows | effective-state derivation (§0b) | active wins over older void; the correct single effective state is derived, not double-counted |
 | P2-P09 | a fixture's history is active→void→excluded | effective-state derivation | void wins over a later excluded return (§0b ordering rule) |
 | P2-P10 | a fixture assigned to the GW post-deadline (state `excluded` per Phase 1 guarantee) | scoring | ignored entirely (L5) |
-| P2-P11 | FPL adds an active fixture to an open GW after entries exist | affected entries | flip to `needs_update`; an edit restores `entered` (L8) |
+| P2-P11 | FPL adds an active fixture to an open or upcoming GW after entries exist | reconciliation | every repairable entry gets a 0-0 pick and stays or returns `entered`; each affected pot gets one `fixture_zero_fill` audit row and exactly one `membership_change` input-version bump |
+| P2-P11b | an entry is missing a pick for an effective-active fixture through a path outside FPL reconciliation | completeness refresh | the dormant repair state remains reachable: the entry flips to `needs_update`, and an edit that supplies the other missing pick restores `entered` (L8) |
 | P2-P12 | an entry stays `needs_update` through the deadline | maintenance runs lock | flips to `invalid`: visible, stakes nothing, wins nothing — not withdrawal (L8) |
 | P2-P13 | eligibility grid: null/current/future `eligible_from` at both league and member level | enter routine (L9) | null = not yet eligible (never "eligible from the start"); current/future evaluated by GW **number** comparison, not UUID |
 | P2-P14 | a member joins right at a GW's deadline (±ε) | enter routine eligibility check | boundary resolves consistently with the numeric comparison rule, no off-by-one |
@@ -166,7 +167,7 @@ mirroring the Phase 1 `verify-phase1-db-cases.mjs` pattern. No runners exist yet
 
 | ID | Given | When | Then |
 |---|---|---|---|
-| P2-G01 | scratch league `ZZ-TEST-*`, 5 users; 5 enter via routines, one skips entirely, one goes `needs_update` then resolves via edit | scripted ESPN-style scores land, contest reaches ready, claim/finalize runs | transfers land correctly; Dues aggregation (legacy `contest_results` UNION `gameweek_entry_results.net_inr`) reflects the settled net; a later result revision flips the winner → re-settle runs with the M5 reversal rule; Σ non-reversed net = 0 and visibility end-state (who sees what, pre/post deadline) is correct throughout — ordered teardown, no browser step (that's Phase 3) |
+| P2-G01 | scratch league `ZZ-TEST-*`, 5 users; 5 enter via routines, one skips entirely, one is harness-forced to `needs_update` then resolves via edit | scripted ESPN-style scores land, contest reaches ready, claim/finalize runs | transfers land correctly; Dues aggregation (legacy `contest_results` UNION `gameweek_entry_results.net_inr`) reflects the settled net; a later result revision flips the winner → re-settle runs with the M5 reversal rule; Σ non-reversed net = 0 and visibility end-state (who sees what, pre/post deadline) is correct throughout — ordered teardown, no browser step (that's Phase 3) |
 
 ---
 

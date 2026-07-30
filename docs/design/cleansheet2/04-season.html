@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cashford 2.0 — League → Season tab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ffffff;
+    --canvas:#f4f5f3;
+    --ink:#14171a;
+    --ink-2:#4a5257;
+    --ink-3:#868f95;
+    --line:#e5e8e4;
+    --line-2:#eff1ee;
+    --green:#12805c;
+    --green-soft:#e8f4ee;
+    --green-line:#bfe0cf;
+    --amber:#a86b12;
+    --amber-soft:#fdf3e3;
+    --amber-line:#f0dfc0;
+    --red:#a6382f;
+    --red-soft:#fbecea;
+    --red-line:#eccdc8;
+    --r-lg:20px; --r-md:14px; --r-sm:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  i{font-style:normal}
+  body{
+    font-family:'Hanken Grotesk',system-ui,sans-serif;
+    background:var(--canvas);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    padding:40px 24px 100px;
+  }
+  .num{font-family:'Geist Mono',monospace;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";white-space:nowrap}
+  a{color:inherit}
+
+  /* ---------- page chrome ---------- */
+  .doc-head{max-width:940px;margin:0 auto 40px}
+  .doc-kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+  .doc-title{font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:8px}
+  .doc-thesis{font-size:15px;color:var(--ink-2);margin-top:8px;max-width:62ch;line-height:1.55}
+  .doc-nav{max-width:940px;margin:16px auto 0;display:flex;flex-wrap:wrap;gap:8px}
+  .doc-nav a{
+    font-size:12px;font-weight:700;text-decoration:none;color:var(--ink-2);
+    background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:6px 12px;
+  }
+  .doc-nav a.here{background:var(--ink);border-color:var(--ink);color:#fff}
+
+  .stage{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .frame-wrap{width:390px}
+  .frame-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px;padding-left:2px}
+  .frame{
+    width:390px;background:var(--canvas);
+    border-radius:34px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(20,23,26,.06),0 18px 40px -12px rgba(20,23,26,.18);
+    border:1px solid var(--line);
+  }
+  .frame-cap{margin-top:14px;padding-left:2px}
+  .frame-cap b{display:block;font-size:13.5px;font-weight:800;letter-spacing:-.01em}
+  .frame-cap p{margin-top:5px;font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+  .scroll{padding-bottom:24px}
+  .status{height:34px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 22px 2px;font-size:11px;font-weight:600;color:var(--ink-3)}
+
+  /* ---------- app header ---------- */
+  .appbar{background:var(--paper);padding:6px 16px 14px;border-bottom:1px solid var(--line-2)}
+  .abrow{display:flex;align-items:center;gap:12px}
+  .icobtn{
+    width:34px;height:34px;flex:0 0 34px;border-radius:11px;border:1px solid var(--line);
+    background:var(--paper);display:grid;place-items:center;color:var(--ink-2);font-size:15px;
+  }
+  .abtitle{flex:1;min-width:0}
+  .abtitle h1{font-size:18px;font-weight:700;letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .abtitle .sub{font-size:11.5px;font-weight:600;color:var(--ink-3);margin-top:2px}
+  .balance{
+    display:inline-flex;align-items:baseline;padding:5px 10px;border-radius:9px;
+    background:var(--green-soft);color:var(--green);font-weight:700;font-size:14px;
+    border:1px solid var(--green-line);
+  }
+  .balance.neg{background:var(--red-soft);color:var(--red);border-color:var(--red-line)}
+  .comp{display:flex;align-items:center;gap:6px;margin-top:12px;color:var(--ink-2);font-size:13px;font-weight:600}
+  .comp .chip{display:inline-flex;align-items:center;gap:6px;background:var(--canvas);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+  .comp .chev{color:var(--ink-3);font-size:10px}
+  .comp .chip.archived{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+
+  .tabs{display:flex;gap:24px;margin-top:16px;padding:0 2px}
+  .tab{font-size:14px;font-weight:600;color:var(--ink-3);padding-bottom:11px;position:relative}
+  .tab.on{color:var(--ink);font-weight:700}
+  .tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;border-radius:2px;background:var(--green)}
+
+  /* bottom app tab bar */
+  .tabbar{
+    display:flex;background:var(--paper);border-top:1px solid var(--line);
+    padding:9px 8px 16px;position:sticky;bottom:0;
+  }
+  .tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-3)}
+  .tb .ic{font-size:17px;line-height:1}
+  .tb .lb{font-size:10.5px;font-weight:700;letter-spacing:.02em}
+  .tb.on{color:var(--green)}
+
+  /* ---------- gw navigator ---------- */
+  .gwnav{display:flex;align-items:center;justify-content:center;gap:14px;padding:18px 16px 6px}
+  .gwarrow{width:30px;height:30px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-2);font-size:13px}
+  .gwlabel{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .dot{width:4px;height:4px;border-radius:50%;background:var(--line);display:inline-block}
+  .open{font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--green);background:var(--green-soft);border:1px solid var(--green-line);padding:3px 8px;border-radius:6px}
+  .open.grey{color:var(--ink-3);background:var(--canvas);border-color:var(--line)}
+  .open.amber{color:var(--amber);background:var(--amber-soft);border-color:var(--amber-line)}
+
+  /* ---------- generic bits ---------- */
+  .body{padding:12px 16px 0;display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px}
+  .card.hero{padding:22px 20px}
+  .card.tight{padding:16px}
+  .card.flat{border-radius:var(--r-md)}
+
+  .state{display:flex;align-items:center;gap:9px}
+  .state .ring{width:9px;height:9px;border-radius:50%;border:2.5px solid var(--amber)}
+  .state .ring.g{border-color:var(--green)}
+  .state .ring.grey{border-color:var(--ink-3)}
+  .state h2{font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .state h2.sm{font-size:17px}
+
+  .dl{margin-top:14px;padding:12px 14px;border-radius:var(--r-md);background:var(--canvas);border:1px solid var(--line-2)}
+  .dl-k{font-size:10.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+  .dl-v{margin-top:5px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .dl-v .abs{color:var(--ink)}
+  .dl-v .cd{color:var(--amber);background:var(--amber-soft);border-radius:6px;padding:2px 7px;font-size:13px;font-weight:700}
+  .dl-v .cd.g{color:var(--green);background:var(--green-soft)}
+  .dl-v .cd.grey{color:var(--ink-3);background:var(--paper);border:1px solid var(--line)}
+
+  .facts{display:flex;align-items:stretch;margin-top:16px;border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden}
+  .fact{flex:1;padding:11px 12px;background:var(--paper)}
+  .fact+.fact{border-left:1px solid var(--line-2)}
+  .fact-k{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .fact-v{margin-top:4px;font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .fact-v.pot{color:var(--green)}
+  .fact-v.neg{color:var(--red)}
+  .fact-v.sm{font-size:14px}
+
+  .cta{
+    margin-top:18px;width:100%;border:none;border-radius:var(--r-md);
+    background:var(--green);color:#fff;font-family:inherit;font-size:15.5px;font-weight:700;
+    padding:15px;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:-.01em;
+    box-shadow:0 1px 0 rgba(0,0,0,.05),0 6px 14px -6px rgba(18,128,92,.5);
+  }
+  .cta-off{
+    width:100%;border:1px solid var(--line);border-radius:var(--r-md);background:var(--canvas);
+    color:var(--ink-3);font-family:inherit;font-size:15px;font-weight:700;padding:15px;
+    display:flex;align-items:center;justify-content:center;gap:8px;cursor:not-allowed;
+  }
+  .ghost{
+    margin-top:16px;width:100%;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .ghost.tightop{margin-top:12px}
+  .duo{display:flex;gap:10px;margin-top:16px}
+  .duo button{
+    flex:1;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px 10px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:7px;
+  }
+  .duo button.warn{color:var(--red);border-color:var(--red-line);background:var(--paper)}
+  .why{margin-top:9px;text-align:center;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+
+  .sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .sec-head h3{font-size:13px;font-weight:700;letter-spacing:-.005em}
+  .sec-head span{font-size:12px;font-weight:600;color:var(--ink-3)}
+  .people{display:flex;flex-wrap:wrap;gap:8px}
+  .person{display:flex;align-items:center;gap:7px;padding:6px 11px 6px 6px;border-radius:999px;background:var(--canvas);border:1px solid var(--line-2);font-size:13px;font-weight:600}
+  .person.out{color:var(--ink-3)}
+  .av{width:22px;height:22px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center;font-size:10.5px;font-weight:800;border:1px solid var(--green-line)}
+  .av.grey{background:var(--canvas);color:var(--ink-3);border-color:var(--line)}
+  .av.amber{background:var(--amber-soft);color:var(--amber);border-color:var(--amber-line)}
+
+  .recap{display:flex;gap:14px;align-items:flex-start}
+  .medal{width:36px;height:36px;flex:0 0 36px;border-radius:12px;background:var(--amber-soft);border:1px solid var(--amber-line);display:grid;place-items:center;font-size:16px}
+  .medal.g{background:var(--green-soft);border-color:var(--green-line)}
+  .recap-k{font-size:10.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+  .recap-v{margin-top:5px;font-size:14px;font-weight:600;line-height:1.45;color:var(--ink)}
+  .recap-v b{font-weight:800}
+  .note{margin-top:12px;font-size:12px;font-weight:600;color:var(--ink-3);line-height:1.5}
+
+  /* badges & strips */
+  .bdg{
+    display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;padding:4px 8px;border-radius:7px;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink-3);
+  }
+  .bdg.amber{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .bdg.green{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .bdg.red{background:var(--red-soft);border-color:var(--red-line);color:var(--red)}
+  .bdg.ink{background:var(--ink);border-color:var(--ink);color:#fff}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-soft);animation:pl 1.4s infinite}
+  @keyframes pl{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .strip{
+    display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--r-md);
+    background:var(--paper);border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink-2);
+  }
+  .strip.amber{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .strip.green{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .strip.grey{background:var(--canvas);border-color:var(--line);color:var(--ink-3)}
+  .strip .go{margin-left:auto;font-weight:800;font-size:11.5px;white-space:nowrap}
+  .strip b{font-weight:800}
+
+  /* fixture rows */
+  .daygrp{padding:0 16px}
+  .dayhead{
+    display:flex;align-items:center;gap:10px;padding:20px 2px 10px;
+    font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  }
+  .dayhead::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .fx{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);padding:13px 14px;margin-bottom:9px}
+  .fx.on{border-color:var(--green-line);background:linear-gradient(0deg,var(--green-soft) 0%,var(--paper) 62%)}
+  .fx.void{background:var(--canvas);border-style:dashed;color:var(--ink-3)}
+  .fx.open-panel{border-radius:var(--r-md) var(--r-md) 0 0;margin-bottom:0;border-bottom-color:transparent}
+  .fxrow{display:flex;align-items:center;gap:10px}
+  .team{flex:1;min-width:0;font-size:14.5px;font-weight:650;letter-spacing:-.01em;display:flex;align-items:center;gap:7px}
+  .team.away{justify-content:flex-end;text-align:right}
+  .crest{width:18px;height:18px;flex:0 0 18px;border-radius:5px;background:var(--canvas);border:1px solid var(--line);display:grid;place-items:center;font-size:8.5px;font-weight:800;color:var(--ink-3)}
+  .scorebox{display:flex;align-items:center;gap:5px}
+  .sq{
+    width:38px;height:40px;border-radius:10px;display:grid;place-items:center;
+    font-family:'Geist Mono',monospace;font-size:17px;font-weight:600;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink);
+  }
+  .sq.filled{background:var(--green);border-color:var(--green);color:#fff}
+  .sq.empty{color:var(--ink-3);border-style:dashed}
+  .sq.sm{width:30px;height:32px;font-size:15px}
+  .sep{color:var(--ink-3);font-size:12px}
+  .fxmeta{display:flex;align-items:center;justify-content:space-between;margin-top:9px;gap:10px}
+  .kick{font-size:11.5px;font-weight:600;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+  .kick .live{color:var(--green);font-weight:800}
+  .insights-toggle{font-size:11.5px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:5px}
+  .mypick{
+    margin-top:10px;padding-top:9px;border-top:1px solid var(--line-2);
+    display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-2);flex-wrap:wrap;
+  }
+  .mypick b{font-weight:800;color:var(--ink)}
+  .mypick .none{color:var(--ink-3)}
+  .pts{
+    font-family:'Geist Mono',monospace;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:6px;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink-3);
+  }
+  .pts.p1{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .pts.p3{background:var(--green);border-color:var(--green);color:#fff}
+  .vary{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--green)}
+  .prov{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+
+  /* insights panel */
+  .panel{
+    background:var(--paper);border:1px solid var(--green-line);border-top:1px dashed var(--green-line);
+    border-radius:0 0 var(--r-md) var(--r-md);padding:14px;margin-bottom:9px;
+  }
+  .panel.solo{border:1px solid var(--line);border-radius:var(--r-md);border-top:1px solid var(--line)}
+  .prow{display:flex;gap:10px;padding:8px 0}
+  .prow+.prow{border-top:1px solid var(--line-2)}
+  .pk{flex:0 0 62px;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+  .pv{flex:1;font-size:13px;font-weight:600;color:var(--ink)}
+  .odds{display:flex;gap:6px}
+  .oc{flex:1;text-align:center;background:var(--canvas);border:1px solid var(--line-2);border-radius:8px;padding:6px 2px}
+  .oc small{display:block;font-size:9.5px;font-weight:800;color:var(--ink-3);letter-spacing:.08em}
+  .oc b{font-family:'Geist Mono',monospace;font-size:13px;font-weight:600}
+  .form{display:flex;gap:3px;align-items:center}
+  .fp{width:17px;height:17px;border-radius:5px;display:grid;place-items:center;font-size:9.5px;font-weight:800;color:#fff}
+  .fp.W{background:var(--green)}.fp.D{background:#b8bfc4}.fp.L{background:#c9584f}
+  .vs{font-size:10.5px;color:var(--ink-3);font-weight:700;margin:0 5px}
+  .ts{display:flex;gap:7px;flex-wrap:wrap}
+  .tsi{background:var(--green-soft);border:1px solid var(--green-line);border-radius:7px;padding:4px 8px;font-size:12px;font-weight:700;color:var(--green)}
+  .tsi span{font-family:'Geist Mono',monospace;font-weight:500;opacity:.75}
+  .stale{margin-top:10px;font-size:10.5px;font-weight:600;color:var(--ink-3);text-align:right}
+  .mini-tbl{width:100%;border-collapse:collapse}
+  .mini-tbl td,.mini-tbl th{padding:4px 0;font-size:12px;font-weight:600;text-align:right}
+  .mini-tbl th{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .mini-tbl td:first-child,.mini-tbl th:first-child{text-align:left}
+  .mini-tbl tr.me td{color:var(--green)}
+
+  .more{
+    padding:13px;text-align:center;font-size:13px;font-weight:600;color:var(--ink-3);
+    background:var(--paper);border:1px dashed var(--line);border-radius:var(--r-md);
+  }
+  .util{margin:16px 16px 0}
+  .util button{
+    width:100%;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .util .cnt{font-family:'Geist Mono',monospace;font-weight:600;color:var(--ink-3)}
+
+  .footbar{
+    position:sticky;bottom:0;margin-top:20px;background:rgba(255,255,255,.94);
+    backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:14px 16px 20px;
+  }
+  .footbar .cta{margin-top:0}
+  .entered-bar{
+    position:sticky;bottom:0;margin-top:20px;background:rgba(255,255,255,.94);
+    backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:13px 16px 20px;
+  }
+
+  /* entry sheet bar */
+  .sheet-bar{background:var(--paper);border-bottom:1px solid var(--line-2);padding:6px 16px 16px}
+  .sb-row{display:flex;align-items:center;gap:12px}
+  .sb-title{flex:1}
+  .sb-title h1{font-size:18px;font-weight:700;letter-spacing:-.015em}
+  .prog{display:flex;align-items:center;gap:9px;margin-top:14px}
+  .prog-track{flex:1;height:6px;border-radius:99px;background:var(--line-2);overflow:hidden}
+  .prog-fill{height:100%;background:var(--green);border-radius:99px}
+  .prog-n{font-size:13px;font-weight:700}
+  .prog-n span{color:var(--ink-3)}
+  .stamp{
+    font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--amber);
+    background:var(--amber-soft);border:1px solid var(--amber-line);padding:3px 7px;border-radius:6px;
+  }
+  .stamp.g{color:var(--green);background:var(--green-soft);border-color:var(--green-line)}
+  .pinned{margin-top:12px;font-size:12.5px;font-weight:600;color:var(--ink-2);display:flex;align-items:center;gap:7px}
+  .pinned .cd{color:var(--amber);font-weight:700}
+
+  /* league cards (home) */
+  .lgcard{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}
+  .lg-top{display:flex;align-items:flex-start;gap:12px}
+  .lg-name{flex:1;min-width:0}
+  .lg-name h3{font-size:16.5px;font-weight:800;letter-spacing:-.015em}
+  .lg-name .cmp{margin-top:4px;font-size:12px;font-weight:600;color:var(--ink-3)}
+  .lg-badge{margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .lg-foot{
+    margin-top:13px;padding-top:12px;border-top:1px solid var(--line-2);
+    display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:600;color:var(--ink-2);
+  }
+  .lg-foot .pot{color:var(--green);font-weight:800}
+
+  /* tables / leaderboards */
+  .tbl{width:100%;border-collapse:collapse}
+  .tbl th{
+    font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
+    text-align:right;padding:0 0 9px;border-bottom:1px solid var(--line);
+  }
+  .tbl th:first-child,.tbl td:first-child{text-align:left}
+  .tbl td{padding:10px 0;font-size:13px;font-weight:600;text-align:right;border-bottom:1px solid var(--line-2)}
+  .tbl tr:last-child td{border-bottom:none}
+  .tbl tr.me td{background:var(--green-soft)}
+  .tbl tr.me td:first-child{border-radius:8px 0 0 8px;padding-left:8px}
+  .tbl tr.me td:last-child{border-radius:0 8px 8px 0;padding-right:8px}
+  .tbl .who{display:flex;align-items:center;gap:8px}
+  .tbl .rk{font-family:'Geist Mono',monospace;font-size:11.5px;color:var(--ink-3);width:14px;display:inline-block}
+  .pos{color:var(--green)}
+  .neg{color:var(--red)}
+  .zero{color:var(--ink-3)}
+
+  /* feed / payments */
+  .rowlist{display:flex;flex-direction:column}
+  .rl{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line-2)}
+  .rl:last-child{border-bottom:none}
+  .rl-ic{width:30px;height:30px;flex:0 0 30px;border-radius:9px;background:var(--canvas);border:1px solid var(--line);display:grid;place-items:center;font-size:13px;color:var(--ink-2)}
+  .rl-ic.g{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .rl-ic.r{background:var(--red-soft);border-color:var(--red-line);color:var(--red)}
+  .rl-ic.a{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .rl-txt{flex:1;min-width:0}
+  .rl-txt .t{font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+  .rl-txt .s{margin-top:3px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+  .rl-amt{font-family:'Geist Mono',monospace;font-size:14px;font-weight:600;white-space:nowrap}
+  .rl.dim .rl-txt .t{color:var(--ink-3);text-decoration:line-through}
+
+  .pay{
+    display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--line);
+    border-radius:var(--r-md);background:var(--paper);margin-bottom:9px;
+  }
+  .pay:last-child{margin-bottom:0}
+  .pay-txt{flex:1;font-size:13.5px;font-weight:600}
+  .pay-txt b{font-weight:800}
+  .pay-log{font-size:12px;font-weight:800;color:var(--green);white-space:nowrap}
+
+  /* form fields */
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+  .inp{
+    width:100%;background:var(--canvas);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:12px 13px;font-family:inherit;font-size:14.5px;font-weight:600;color:var(--ink);
+  }
+  .inp.num{font-family:'Geist Mono',monospace}
+  .inp.sel{display:flex;align-items:center;justify-content:space-between}
+  .inp.sel .chev{color:var(--ink-3);font-size:10px}
+  .field-row{display:flex;gap:10px}
+  .field-row .field{flex:1}
+
+  /* modal */
+  .modal-frame{position:relative}
+  .dim-layer{position:absolute;inset:0;background:rgba(20,23,26,.42);backdrop-filter:blur(1.5px);z-index:2}
+  .modal{
+    position:absolute;left:12px;right:12px;bottom:12px;z-index:3;
+    background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:20px;
+    box-shadow:0 24px 50px -12px rgba(20,23,26,.45);
+  }
+  .modal h3{font-size:18px;font-weight:800;letter-spacing:-.02em}
+  .modal p{margin-top:8px;font-size:13px;font-weight:600;color:var(--ink-2);line-height:1.5}
+  .modal .grabber{width:38px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 14px}
+  .mlist{margin-top:14px;border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden}
+  .mrow{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;font-size:13px;font-weight:600}
+  .mrow+.mrow{border-top:1px solid var(--line-2)}
+  .mrow .k{color:var(--ink-3);font-weight:700;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase}
+  .mrow .v{font-weight:800}
+  .mrow .v.g{color:var(--green)}
+
+  /* opt-in list (mirror) */
+  .optin{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-2)}
+  .optin:last-child{border-bottom:none}
+  .optin .txt{flex:1;font-size:13.5px;font-weight:700}
+  .optin .txt small{display:block;margin-top:3px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+  .sw{width:40px;height:23px;border-radius:99px;background:var(--line);position:relative;flex:0 0 40px}
+  .sw::after{content:"";position:absolute;top:2.5px;left:2.5px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .sw.on{background:var(--green)}
+  .sw.on::after{left:auto;right:2.5px}
+
+  /* analytics */
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-2);border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden;margin-top:16px}
+  .met{background:var(--paper);padding:13px 14px}
+  .met-k{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .met-v{margin-top:5px;font-size:20px;font-weight:700;letter-spacing:-.02em}
+  .met-v small{font-size:12px;font-weight:600;color:var(--ink-3);margin-left:3px}
+  .met.muted .met-v{color:var(--ink-3)}
+  .spark{margin-top:16px;padding:14px;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--canvas)}
+  .spark-k{display:flex;align-items:baseline;justify-content:space-between;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .lens{display:flex;align-items:center;gap:8px;overflow:hidden}
+  .lens .pill{font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+  .lens .pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .delta{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-2)}
+  .delta:last-child{border-bottom:none}
+  .delta .dk{flex:1;font-size:13px;font-weight:600}
+  .delta .dv{font-family:'Geist Mono',monospace;font-size:13px;font-weight:600;width:52px;text-align:right}
+  .delta .dd{font-family:'Geist Mono',monospace;font-size:12px;font-weight:600;width:60px;text-align:right}
+  .blur{filter:blur(3px);opacity:.5;pointer-events:none}
+
+  /* cases block */
+  .cases{max-width:940px;margin:56px auto 0;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px 28px}
+  .cases h4{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+  .cases h5{margin-top:20px;font-size:14px;font-weight:800;letter-spacing:-.01em}
+  .cases ul{margin-top:10px;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+  .cases li{font-size:13.5px;line-height:1.55;color:var(--ink-2);padding-left:16px;position:relative}
+  .cases li::before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--green-line)}
+  .cases li b{font-weight:800;color:var(--ink)}
+
+  /* index flows */
+  .flows{max-width:940px;margin:0 auto}
+  .flow{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px 22px;margin-bottom:14px}
+  .flow-h{display:flex;align-items:center;gap:10px}
+  .flow-n{width:24px;height:24px;flex:0 0 24px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:'Geist Mono',monospace;font-size:12px;font-weight:600}
+  .flow-h h3{font-size:15.5px;font-weight:800;letter-spacing:-.015em}
+  .steps{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .step{
+    display:inline-flex;align-items:center;gap:7px;text-decoration:none;
+    background:var(--canvas);border:1px solid var(--line);border-radius:999px;
+    padding:7px 13px;font-size:12.5px;font-weight:700;color:var(--ink);
+  }
+  .step small{font-family:'Geist Mono',monospace;font-size:10.5px;font-weight:600;color:var(--ink-3)}
+  .step.g{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .step.a{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .arw{color:var(--ink-3);font-size:12px;font-weight:700}
+  .pages{max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .plink{
+    display:block;text-decoration:none;background:var(--paper);border:1px solid var(--line);
+    border-radius:var(--r-lg);padding:18px 20px;
+  }
+  .plink .f{font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:var(--ink-3)}
+  .plink h3{margin-top:7px;font-size:16px;font-weight:800;letter-spacing:-.015em}
+  .plink p{margin-top:6px;font-size:13px;font-weight:600;color:var(--ink-2);line-height:1.5}
+  .sect{max-width:940px;margin:48px auto 18px}
+  .sect h2{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+</style>
+</head>
+<body>
+
+<nav class="doc-nav">
+  <a href="00-index.html">Overview</a>
+  <a href="01-home.html">Home</a>
+  <a href="02-league-gameweek.html">Gameweek</a>
+  <a href="03-entry-sheet.html">Entry</a>
+  <a href="04-season.html" class="here">Season</a>
+  <a href="05-dues.html">Dues</a>
+  <a href="06-match-detail.html">Match</a>
+  <a href="07-archive.html">Archive</a>
+  <a href="08-matches-tab.html">Matches tab</a>
+  <a href="09-join-create.html">Join</a>
+</nav>
+
+<div class="doc-head">
+  <div class="doc-kicker">Clean Sheet 2.0 · 04</div>
+  <div class="doc-title">League → Season</div>
+  <p class="doc-thesis">Purpose: the official record for one league in one competition — who is actually the best predictor, and which gameweek each pot went to. Standings and gameweek history only; fixtures live in Matches and explanation lives in Analytics.</p>
+</div>
+
+<div class="stage">
+
+  <!-- ============ 1 · STANDINGS ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">1 · Standings · mid-season</div>
+    <div class="frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>Solid Yenne Boys</h1></div>
+          <div class="balance num">+₹940</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip">Premier League 2026-27 <span class="chev">▾</span></span></div>
+        <div class="tabs">
+          <div class="tab">Gameweek</div><div class="tab on">Season</div><div class="tab">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="body">
+          <div class="card tight">
+            <div class="sec-head"><h3>Cashford table</h3><span>after GW8</span></div>
+            <table class="tbl">
+              <tr><th>Member</th><th>Pts</th><th>Wins</th><th>Exact</th><th>Net ₹</th></tr>
+              <tr><td><span class="who"><i class="rk num">1</i>Utki</span></td><td class="num">67</td><td class="num">3</td><td class="num">14</td><td class="num pos">+1,250</td></tr>
+              <tr class="me"><td><span class="who"><i class="rk num">2</i><b>You</b></span></td><td class="num">64</td><td class="num">2</td><td class="num">15</td><td class="num pos">+940</td></tr>
+              <tr><td><span class="who"><i class="rk num">3</i>Harsh</span></td><td class="num">61</td><td class="num">2</td><td class="num">11</td><td class="num pos">+310</td></tr>
+              <tr><td><span class="who"><i class="rk num">4</i>Devang</span></td><td class="num">58</td><td class="num">1</td><td class="num">10</td><td class="num neg">−400</td></tr>
+              <tr><td><span class="who"><i class="rk num">5</i>Ash</span></td><td class="num">52</td><td class="num">0</td><td class="num">8</td><td class="num neg">−700</td></tr>
+              <tr><td><span class="who"><i class="rk num">6</i>Ronak</span></td><td class="num">49</td><td class="num">0</td><td class="num">7</td><td class="num neg">−600</td></tr>
+              <tr><td><span class="who"><i class="rk num">7</i>Sam</span></td><td class="num">44</td><td class="num">0</td><td class="num">6</td><td class="num neg">−800</td></tr>
+              <tr><td><span class="who"><i class="rk num">8</i>Nikhil</span></td><td class="num">21</td><td class="num">0</td><td class="num">3</td><td class="num neg">−100</td></tr>
+              <tr><td><span class="who"><i class="rk num">9</i>Kunal</span></td><td class="num zero">0</td><td class="num zero">0</td><td class="num zero">0</td><td class="num zero">0</td></tr>
+            </table>
+            <div class="note">Points count entered gameweeks only. Nikhil entered 3 of 8 — sitting out costs nothing and scores nothing. Kunal hasn't entered a gameweek yet.</div>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Season shape</h3><span>bragging rights only</span></div>
+            <div class="rowlist">
+              <div class="rl">
+                <div class="rl-ic a">🏆</div>
+                <div class="rl-txt"><div class="t">Most gameweek wins</div><div class="s">Utki · GW2, GW5, GW7</div></div>
+                <div class="rl-amt">3</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic g">◎</div>
+                <div class="rl-txt"><div class="t">Most exact scorelines</div><div class="s">You · 15 across 8 gameweeks</div></div>
+                <div class="rl-amt">15</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic">₹</div>
+                <div class="rl-txt"><div class="t">Pots paid out</div><div class="s">8 gameweeks · 1 void</div></div>
+                <div class="rl-amt">₹4,700</div>
+              </div>
+            </div>
+            <div class="note">No season-end prize money. The table is for arguments; the money is per gameweek.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>Standings after eight gameweeks</b>
+      <p>Points, gameweek wins, exacts and net rupees in tabular figures, with the viewer highlighted. Members who sat gameweeks out sit lower without being punished — the note says so, so nobody reads a low row as a fine.</p>
+    </div>
+  </div>
+
+  <!-- ============ 2 · GW HISTORY ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">2 · Gameweek history</div>
+    <div class="frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>Solid Yenne Boys</h1></div>
+          <div class="balance num">+₹940</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip">Premier League 2026-27 <span class="chev">▾</span></span></div>
+        <div class="tabs">
+          <div class="tab">Gameweek</div><div class="tab on">Season</div><div class="tab">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="body">
+          <div class="lens" style="padding:0 2px">
+            <span class="pill">Table</span>
+            <span class="pill on">Gameweeks</span>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Every gameweek</h3><span class="num">8 played</span></div>
+            <div class="rowlist">
+              <div class="rl">
+                <div class="rl-ic g">8</div>
+                <div class="rl-txt"><div class="t">You won · <span class="num">9 pts</span></div><div class="s">7 entrants · pot ₹700 · won on exacts</div></div>
+                <div class="rl-amt pos">+₹600</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic">7</div>
+                <div class="rl-txt"><div class="t">Utki won · <span class="num">12 pts</span></div><div class="s">8 entrants · pot ₹800</div></div>
+                <div class="rl-amt neg">−₹100</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic">6</div>
+                <div class="rl-txt"><div class="t">Harsh &amp; Devang split · <span class="num">10 pts</span></div><div class="s">7 entrants · pot ₹700 · tie unbroken</div></div>
+                <div class="rl-amt neg">−₹100</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic a">5</div>
+                <div class="rl-txt"><div class="t">Utki won · <span class="num">6 pts</span></div><div class="s">4 fixtures (blank gameweek) · pot ₹500</div></div>
+                <div class="rl-amt neg">−₹100</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic g">4</div>
+                <div class="rl-txt"><div class="t">You won · <span class="num">10 pts</span></div><div class="s">6 entrants · pot ₹600</div></div>
+                <div class="rl-amt pos">+₹500</div>
+              </div>
+              <div class="rl dim">
+                <div class="rl-ic a">3</div>
+                <div class="rl-txt"><div class="t">Void · one entrant</div><div class="s">Ante returned · nothing scored</div></div>
+                <div class="rl-amt zero">₹0</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic">2</div>
+                <div class="rl-txt"><div class="t">Utki won · <span class="num">11 pts</span></div><div class="s">8 entrants · pot ₹800</div></div>
+                <div class="rl-amt neg">−₹100</div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic">1</div>
+                <div class="rl-txt"><div class="t">Ronak won · <span class="num">8 pts</span></div><div class="s">6 entrants · pot ₹600 · re-settled 24 Aug</div></div>
+                <div class="rl-amt neg">−₹100</div>
+              </div>
+            </div>
+            <div class="note">Tap any gameweek to open its settled view — final table, tiebreak, every entrant's picks.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>History, newest first</b>
+      <p>One row per gameweek: winner, points, entrants, pot, your movement. Odd weeks carry their reason — blank gameweek, void with one entrant, a gameweek re-settled after an official correction. Each row opens that gameweek's settled screen.</p>
+    </div>
+  </div>
+
+  <!-- ============ 3 · EARLY SEASON ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">3 · Early season · after GW1</div>
+    <div class="frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>Solid Yenne Boys</h1></div>
+          <div class="balance num">+₹500</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip">Premier League 2026-27 <span class="chev">▾</span></span></div>
+        <div class="tabs">
+          <div class="tab">Gameweek</div><div class="tab on">Season</div><div class="tab">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="body">
+          <div class="strip">
+            <span>◔</span>
+            <span>One gameweek in. The table means very little yet.</span>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Cashford table</h3><span>after GW1</span></div>
+            <table class="tbl">
+              <tr><th>Member</th><th>Pts</th><th>Wins</th><th>Exact</th><th>Net ₹</th></tr>
+              <tr class="me"><td><span class="who"><i class="rk num">1</i><b>You</b></span></td><td class="num">10</td><td class="num">1</td><td class="num">3</td><td class="num pos">+500</td></tr>
+              <tr><td><span class="who"><i class="rk num">2</i>Utki</span></td><td class="num">7</td><td class="num">0</td><td class="num">1</td><td class="num neg">−100</td></tr>
+              <tr><td><span class="who"><i class="rk num">3</i>Harsh</span></td><td class="num">6</td><td class="num">0</td><td class="num">1</td><td class="num neg">−100</td></tr>
+              <tr><td><span class="who"><i class="rk num">4</i>Devang</span></td><td class="num">5</td><td class="num">0</td><td class="num">1</td><td class="num neg">−100</td></tr>
+              <tr><td><span class="who"><i class="rk num">5</i>Ash</span></td><td class="num">3</td><td class="num">0</td><td class="num">0</td><td class="num neg">−100</td></tr>
+              <tr><td><span class="who"><i class="rk num">6</i>Ronak</span></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num neg">−100</td></tr>
+              <tr><td><span class="who"><i class="rk num">7</i>Sam</span></td><td class="num zero">0</td><td class="num zero">0</td><td class="num zero">0</td><td class="num zero">0</td></tr>
+              <tr><td><span class="who"><i class="rk num">8</i>Nikhil</span></td><td class="num zero">0</td><td class="num zero">0</td><td class="num zero">0</td><td class="num zero">0</td></tr>
+              <tr><td><span class="who"><i class="rk num">9</i>Kunal</span></td><td class="num zero">0</td><td class="num zero">0</td><td class="num zero">0</td><td class="num zero">0</td></tr>
+            </table>
+            <div class="note">Sam, Nikhil and Kunal didn't enter GW1. A grey zero means "not in", not "scored nothing".</div>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Every gameweek</h3><span class="num">1 played</span></div>
+            <div class="rowlist">
+              <div class="rl">
+                <div class="rl-ic g">1</div>
+                <div class="rl-txt"><div class="t">You won · <span class="num">10 pts</span></div><div class="s">6 entrants · pot ₹600</div></div>
+                <div class="rl-amt pos">+₹500</div>
+              </div>
+            </div>
+            <button class="ghost">Go to GW2 <span>→</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>One gameweek played</b>
+      <p>The table exists from the first settlement but says so plainly. Non-entrants read as grey zeroes with a note, so an empty row is never mistaken for a bad week.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="cases">
+  <h4>Cases &amp; flows</h4>
+  <ul>
+    <li><b>Sitting out costs nothing and scores nothing.</b> Points count entered gameweeks only, so the table rewards turning up as well as predicting well — and the screen states that rather than leaving it to be inferred.</li>
+    <li><b>Never-entered members</b> appear with grey zeroes and no money, not with a losing balance.</li>
+    <li><b>Void gameweeks</b> (one entrant) show in history with the ante returned and contribute nothing to points or money.</li>
+    <li><b>Blank and double gameweeks</b> are labelled in history with their fixture count, because a 6-point win in a 4-fixture week needs the context.</li>
+    <li><b>Re-settled gameweeks</b> carry the date of the correction; the row's money reflects the reversal plus the new payout.</li>
+    <li><b>Departed members stay in history</b> and in the standings they earned; they are deactivated, never deleted, and their balance survives.</li>
+    <li><b>Season scope is one competition.</b> The switcher changes the table; the Dues balance underneath it does not, because money is league-level.</li>
+    <li><b>No season-end money</b> in v1 — the table is bragging rights, every pot is weekly.</li>
+  </ul>
+</div>
+
+</body>
+</html>

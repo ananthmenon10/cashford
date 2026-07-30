@@ -1,5 +1,6 @@
 import type { CardState } from "@/lib/contest-state";
 import { voidPresentation, type VoidReason } from "@/lib/contest-copy";
+import { C71, GW_BADGE_COPY } from "@/lib/gw-copy";
 
 const BADGE: Record<string, { label: string; cls: string; pulse?: boolean }> = {
   open_nopick: { label: "OPEN", cls: "text-primary-press bg-mint" },
@@ -16,7 +17,52 @@ const BADGE: Record<string, { label: string; cls: string; pulse?: boolean }> = {
   cancelled: { label: "CANCELLED", cls: "text-[#B91C1C] bg-[#FEE2E2] dark:text-[#fca5a5] dark:bg-[#ef44441f]" },
 };
 
-export function StatusBadge({ state, voidReason }: { state: CardState; voidReason?: VoidReason }) {
+export type GwBadgeState =
+  | "open"
+  | "entered"
+  | "locked"
+  | "live"
+  | "settled"
+  | "void"
+  | "action_needed"
+  | "recalculating";
+
+const GW_BADGE: Record<GwBadgeState, { label: string; cls: string; pulse?: boolean }> = {
+  open: { label: GW_BADGE_COPY.open, cls: "text-cs2-green bg-cs2-green-soft" },
+  entered: { label: GW_BADGE_COPY.entered, cls: "text-cs2-green bg-cs2-green-soft" },
+  locked: { label: GW_BADGE_COPY.locked, cls: "text-cs2-ink-2 bg-cs2-line-2" },
+  live: { label: GW_BADGE_COPY.live, cls: "text-white bg-live", pulse: true },
+  settled: { label: GW_BADGE_COPY.settled, cls: "text-cs2-green bg-cs2-green-soft" },
+  void: { label: GW_BADGE_COPY.void, cls: "text-cs2-ink-3 bg-cs2-line-2" },
+  action_needed: { label: GW_BADGE_COPY.actionNeeded, cls: "text-cs2-amber bg-cs2-amber-soft" },
+  recalculating: { label: C71, cls: "text-cs2-amber bg-cs2-amber-soft" },
+};
+
+type LegacyStatusBadgeProps = {
+  kind?: "cup";
+  state: CardState;
+  voidReason?: VoidReason;
+};
+
+type GameweekStatusBadgeProps = {
+  kind: "gameweek";
+  state: GwBadgeState;
+  voidReason?: never;
+};
+
+export function StatusBadge(props: LegacyStatusBadgeProps | GameweekStatusBadgeProps) {
+  if (props.kind === "gameweek") {
+    const normalized = props.state.toLowerCase().replaceAll(" ", "_") as GwBadgeState;
+    const badge = GW_BADGE[normalized] ?? GW_BADGE.locked;
+    return (
+      <span className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-[10px] font-bold tracking-[.06em] ${badge.cls}`}>
+        {badge.pulse && <span className="h-1.5 w-1.5 rounded-full bg-white animate-live-pulse" />}
+        {badge.label}
+      </span>
+    );
+  }
+
+  const { state, voidReason } = props;
   const b = BADGE[state] ?? BADGE.locked;
   // A "no_separation" void is a real result (all square), not a failure — distinct label + a
   // mint pill (like SETTLED) instead of the grey void pill.

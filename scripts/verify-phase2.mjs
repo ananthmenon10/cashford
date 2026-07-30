@@ -283,6 +283,7 @@ try {
     JSON.stringify(duesProbe.data));
 
   const dues1 = await leagueNetByUser(svc, league.id, ids.users);
+  if (dues1 === "suppressed") throw new Error("dues were suppressed after the first settlement");
   eq("dues match the entry results", [dues1[U1], dues1[U2], dues1[U3], dues1[U4], dues1[U5]], [200, -100, -100, 0, 0]);
   eq("dues sum to zero", Object.values(dues1).reduce((a, b) => a + b, 0), 0);
 
@@ -316,6 +317,7 @@ try {
   eq("u2 now collects", [netOf(er2, U1), netOf(er2, U2), netOf(er2, U3)], [-100, 200, -100]);
 
   const dues2 = await leagueNetByUser(svc, league.id, ids.users);
+  if (dues2 === "suppressed") throw new Error("dues were suppressed after re-settlement");
   eq("dues follow the re-settlement", [dues2[U1], dues2[U2], dues2[U3]], [-100, 200, -100]);
 
   const audit = await must("audit", svc.from("gameweek_audit_log")

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { consumePendingInvite } from "@/app/leagues/join/actions";
+import { safeReturnPath } from "@/lib/safe-return-path";
 import { redirect } from "next/navigation";
 
 export type AuthState = { error: string | null };
@@ -14,6 +15,7 @@ export async function login(
     .trim()
     .toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const returnPath = safeReturnPath(String(formData.get("next") ?? ""));
 
   if (!username || !password) {
     return { error: "Enter your username and password." };
@@ -33,5 +35,5 @@ export async function login(
   }
 
   // Middleware routes to /change-password if this is a first login.
-  redirect("/");
+  redirect(returnPath);
 }

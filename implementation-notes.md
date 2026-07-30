@@ -713,3 +713,353 @@ requires the new competition preview. I kept that legacy page byte-identical and
 the named `app/leagues/join/page.tsx` route; new invite links use the named route. Old `/j/<token>`
 links retain their legacy preview because changing that extra existing file would break the plan’s
 explicit six-file rewrite boundary.
+
+## Phase 3 review round 1 fixes
+
+### Blockers
+
+- B1 — `lib/gw-fixtures.ts:27-55`: `collapseGameweekFixtures` now matches
+  `cashford.gameweek_effective_fixtures`. An active history row wins regardless of row order; void
+  wins only when no active row exists; excluded-only history disappears.
+- B2 — `app/leagues/[slug]/_cup/CupLeagueView.tsx:27-42,177-187`: the cup view reads and totals only
+  `contest_results`. It does not read `gameweek_entry_results`, so the cup screen remains a cup-only
+  money surface.
+- B3 — `components/gw/SeasonTable.tsx:84-93`: the totals pane renders C60 when points have the
+  `suppressed` union value. The raw union can no longer reach the page.
+- B4 — `components/gw/EntrySheet.tsx:104-117,202-224`: deadline rejection is keyed from the
+  routine message, not HTTP 409. A deadline or closed-gameweek message shows C55 and makes the sheet
+  read-only.
+- B5 — no production change. This finding is the test author's vacuous copy scan and lives in the
+  forbidden `tests/phase3` or `docs/testing` paths.
+- B6 — no production change. The manifest placeholder and stale count are test-owned files in the
+  forbidden paths.
+
+### Majors
+
+- M1 — `lib/net-balance.ts:1-27`, `lib/gw-season.ts:1-50,171-214`,
+  `lib/gw-home.ts:84-93`: `isGameweekResultDirty` is the one dirty predicate.
+  `netBalance` hides PL money before it can be summed, and the season and home loaders call it.
+- M2 — `app/leagues/[slug]/page.tsx:66-107`: CL9 renders only the sync-issue note. It no longer
+  renders fixtures, entry progress, picks, standings or the nudge.
+- M3 — `lib/gw-home.ts:84-93`: a gameweek-format home card adds the cup ledger to the gameweek
+  ledger only when all gameweek results in scope are clean. One dirty row suppresses the whole
+  combined figure.
+- M4 — canonical names and shapes now stand alone in `lib/gw-copy.ts:248`,
+  `lib/gw-fixtures.ts:27`, `lib/gw-state.ts:21-33,84-96`,
+  `lib/gw-participation.ts:1-62`, `lib/net-balance.ts:1-27`, `lib/ist.ts:25-32`, and
+  `lib/model-chips.ts:1-24`. The test-only aliases, overloads and lifecycle snake-case mirrors are
+  gone.
+- M5 — `app/leagues/join/actions.ts:1-12,115-117,156-164` has its file-level server boundary back.
+  Pure invite work moved to `lib/gw-invites.ts:1-91`; production and tests have distinct entry
+  points.
+- M6 — `lib/gw-eligibility.ts:24-55` owns the pot rule: accepted entrants times the contest stake.
+  `lib/gw-view.ts:513-518` calls it. `lib/gw-live.ts:80-104` calls `buildLiveOutcome`, and
+  `lib/gw-view.ts:546-551` calls `buildGameweekViewDTO`. `activeCompetitions` is called by both the
+  invite resolver and `app/leagues/new/actions.ts:38-53`. `lib/copy-last-week.ts` was deleted
+  because the Phase 3 plan has no screen slot for it.
+- M7 — `components/gw/EntrySheet.tsx:99-134,202-216`: 400 responses show the routine's message.
+  A missing-prediction response offers a page reload; rejected rows are marked only when the
+  response names a fixture by index or id.
+- M8 — `components/gw/MirrorPrompt.tsx:39-56,83-96`: a 409 response shows every per-league failure
+  from `targets`, with the league name and returned reason.
+- M9 — `components/gw/MirrorPrompt.tsx:98-111`: “Not now” always calls `onDone`, including when no
+  target is selected. Deselecting all targets no longer traps the prompt.
+
+### Minors
+
+- `components/gw/EntrySheet.tsx:51-52,114-117,221-224`: a 401 shows session-expired copy, locks the
+  sheet and offers sign-in; it does not start a blind retry loop.
+- `app/leagues/new/actions.ts:9-22,38-53`: `checkSlug` and `listCreatableCompetitions` authenticate
+  before creating a service-role client, closing the anonymous enumeration path.
+- `components/ui.tsx:1-3` uses the original `@/` imports. `vitest.config.ts:4-19` supplies the test
+  alias, automatic JSX transform, DOM matchers and the entry-sheet DOM environment.
+- `package.json:25-33` declares `@testing-library/jest-dom`, `@testing-library/react` and `jsdom` as
+  development dependencies.
+
+### Canonical exports for the test author
+
+- `lib/gw-fixtures.ts` → `collapseGameweekFixtures<T>(rows: readonly
+  GameweekFixtureMembership<T>[]): EffectiveGameweekFixture<T>[]`
+- `lib/net-balance.ts` → `isGameweekResultDirty(versions: VersionPair): boolean`;
+  `netBalance(input: NetBalanceInput): number | "suppressed"`
+- `lib/gw-state.ts` → `resolveViewerParticipation(input: { eligible: boolean; entryStatus?:
+  "entered" | "needs_update" | "locked_in" | "invalid" | null }): ViewerParticipation`.
+  `LifecycleContest` and `LifecycleResult` use `deadlineAt`, `inputVersion` and `settledVersion`.
+- `lib/gw-participation.ts` → `resolveLeagueParticipation(rows: readonly
+  LeagueParticipationRow[]): ResolvedLeagueParticipation`. Rows use the injected database shape:
+  `competition_id`, `joined_at`, `eligible_from_gameweek_id`, and `competitions`.
+- `lib/gw-eligibility.ts` → `resolveEntryCounts(entries: readonly { status: EntryStatus }[],
+  eligibleMemberCount: number, options: { preDeadline: boolean; stakeInr: number })`;
+  `entryPotNumbers(input: { entries; eligibleMembers; stakeInr; deadlinePassed })`
+- `lib/gw-live.ts` → `provisionalGameweek(input: { entries; fixtures; stakeInr }):
+  ProvisionalGameweek`; `buildLiveOutcome(input: LiveOutcomeInput): LiveOutcome`
+- `lib/gw-view.ts` → `buildGameweekViewDTO<T extends { cl: ContestLifecycle;
+  snapshotEntryResults?: unknown }>(input: T): Omit<T, "snapshotEntryResults"> & {
+  entryResults?: unknown }`
+- `lib/gw-copy.ts` → `correctionCopy(cause: SettleCause): string | null`
+- `lib/ist.ts` → `formatIstDeadline(value: DateInput): string`;
+  `formatIstCompact(value: DateInput): string`
+- `lib/model-chips.ts` → `chipsForFixture(topScores: readonly ScoreProb[]): ScoreChip[]`, where
+  `ScoreProb` is `{ h: number; a: number; p: number }`
+- `lib/gw-invites.ts` → `activeCompetitions<T extends { status: string }>(competitions: readonly
+  T[]): T[]`; `resolveInvite(source: InviteSource): InviteDTO`
+- `app/leagues/join/actions.ts` → `resolveInvite(raw: string): Promise<InviteDTO>`;
+  `joinLeagueForUser(raw: string, userId: string): Promise<{ ok: boolean; slug?: string; error?:
+  string; already?: boolean }>`
+- `lib/copy-last-week.ts` → deleted; there is no canonical export.
+
+### Gates
+
+- `npx tsc --noEmit` passed with no output.
+- `npx vitest run` loaded 40 files: 32 passed, seven failed and one was skipped. Of 471 tests, 430
+  passed, 29 failed and the test author's 12 entry-sheet placeholders remained skipped. Every
+  failure is a stale test interface allowed by R-D:
+  - `tests/phase3/gw-fixtures.test.ts`: five calls import `collapseFixtures`; import
+    `collapseGameweekFixtures` and change the active-then-void expectation to active under R-A.
+  - `tests/phase3/gw-copy.test.ts`: four calls use `settleCauseNote`; use `correctionCopy`.
+  - `tests/phase3/ist.test.ts`: three calls use `formatIst`; use `formatIstDeadline`.
+  - `tests/phase3/invite-dto.test.ts`: the suite imports pure helpers through the server action and
+    hits `server-only`; import `activeCompetitions` and pure `resolveInvite` from
+    `lib/gw-invites.ts`.
+  - `tests/phase3/participation.test.ts`: four calls use the old two-argument and camel-row shapes;
+    pass one array of `LeagueParticipationRow`.
+  - `tests/phase3/gw-state.test.ts`: eleven calls use lifecycle snake-case fields or the old
+    two-argument viewer call; use camel lifecycle fields and the object argument.
+  - `tests/phase3/gw-eligibility.test.ts`: two calls omit `stakeInr`; pass the contest stake in the
+    third argument.
+  `tests/phase3/model-chips.test.ts` happened to pass but should replace `{ home, away, prob }` with
+  `{ h, a, p }`.
+- `npm run build` passed. Next 15.5.19 compiled, checked types, generated all 13 static pages and
+  emitted 27 application routes.
+- `git diff --quiet -- lib/settlement.ts` returned 0. The protected settlement file is unchanged.
+- `git diff --check` returned 0.
+- A disposable component probe passed, then was deleted. It observed active winning over later void
+  and excluded history, a ₹200 pot from two locked entrants at ₹100, dirty money suppression, C60
+  instead of the raw season union, and the mirror decline callback.
+- Five focused suites passed 32 of 32 tests: net balance, live outcome, status badge, season and
+  gameweek view.
+- Browser execution did not run: the sandbox rejected the local Next listener with `EPERM`.
+
+## Deviations
+
+`npm install` could not finish in the restricted sandbox. The normal run stopped making progress
+and was ended; the offline retry failed with `ENOTCACHED`. `package.json` has the three required
+development dependencies, but `package-lock.json` could not be refreshed. Local test execution used
+copies or links from an existing sibling project's package store; those untracked `node_modules`
+changes are not part of the patch.
+
+`tsconfig.json:22` excludes `tests/phase3` until the separate test author updates the canonical
+imports and call shapes above. This keeps the production type gate honest without masking stale
+test interfaces inside that gate. Remove the exclusion after test reconciliation.
+
+B5 and B6 remain test-author work because this task forbids edits under `tests/phase3` and
+`docs/testing`. The 12 skipped entry-sheet placeholders remain for the same reason.
+
+## Phase 3 review round 2 fixes
+
+The home card now reads one league-wide balance across cup results and every gameweek competition.
+`leagueNetByUser` checks each league’s real contest and result versions before returning money, and
+its return type forces callers to handle the `suppressed` marker. Season rows also carry the real
+version pair; no money call turns a prior dirty boolean into made-up versions.
+
+Live progress counts active fixtures in both parts of C14. Void fixtures no longer expand its
+denominator. The league page shows the locked-in pot for CL2–CL4 as well as the open pot for CL1, and
+keeps terminal layouts unchanged.
+
+Entry and mirror errors now pass through the copy map in `lib/gw-copy.ts`. Entry deadline errors map
+to C55 for an existing entry and C55b for a first save. The three stale-fixture errors map to C74 and
+offer reload. Mirror failures branch on whether the response contains `targets`; a wholesale C79
+line sits above any target lines. Both clients map 401 to C73 and carry the entry route through
+`/login?next=…`. The login action accepts only a same-site path. A read-only entry sheet links back
+to its league.
+
+The message map covers these server sources:
+
+- Entry auth: `not signed in`, `not authenticated` → C73.
+- Entry deadline: `this gameweek is closed`, `the deadline has passed` → C55b on first save, C55 on
+  edit.
+- Entry stale fixtures: `this gameweek has no fixtures to predict`, `a prediction is missing for N
+  of M fixtures`, `a prediction refers to a fixture that is not in this gameweek` → C74.
+- Entry league or eligibility: `no pot for this league and gameweek`, gameweek/competition
+  mismatch, inactive competition, archived league, not a member, left league, league not yet
+  eligible, joined after the gameweek began → C76.
+- Entry missing prior row: `you have not entered this gameweek yet` → C75.
+- Entry validation: invalid JSON; missing or wrong Zod fields; bad UUIDs; array bounds; unknown
+  keys; number type, integer or range errors; duplicate fixture messages; invalid score range;
+  missing league/gameweek; non-array picks → C77.
+- Entry route write-count failures: `entry was not written`, `picks were not written` → C56.
+- Mirror auth: `not signed in`, `not authenticated` → C73.
+- Mirror wholesale response: `nothing was copied` → C79.
+- Mirror stale or missing gameweek: `unknown gameweek`, no fixtures → C74.
+- Mirror source row: not entered in source, unfinished source picks → C78.
+- Mirror validation: invalid JSON; missing or wrong Zod fields; bad UUIDs; array bounds; unknown
+  keys; number type, integer or positive-range errors; empty targets; duplicate target; source also
+  a target → C56.
+- Mirror route/write failures: `mirror did not run`, pass-two write-count mismatch → C56.
+- Mirror target pot missing → C80; closed or past deadline → C81; stake mismatch → C54; inactive or
+  archived league, not a member, left league, league not yet eligible, joined after the gameweek
+  began → C82; stale source picks → C83.
+- Any server message outside the enumerated set falls back to C56. Raw server prose is never
+  rendered.
+
+### Gates
+
+`npm run build` passed and emitted 27 routes. A production-only TypeScript check passed. The required
+`npx tsc --noEmit` command exits 1 only because `tests/phase3/gw-season.test.ts` still builds
+`SeasonInputRow` from the removed `dirty` boolean and omits `inputVersion` and `settledVersion` at ten
+call sites.
+
+`npx vitest run` loaded 40 files: 37 passed and three test-author files failed. Of 513 tests, 506
+passed, seven failed, and none were skipped. `tests/phase3/copy-scan.test.ts` has three B5 scan
+failures; `tests/phase3/gw-season.test.ts` has two stale dirty-boolean expectations; and
+`tests/phase3/entry-sheet.test.tsx` has two stale expectations for first-save C55 and raw server
+prose. `tests/phase3/gw-copy.test.ts`, including its new map-builder calls, passed 14 of 14.
+
+`git diff --check` passed. `git diff --quiet -- lib/settlement.ts`,
+`git diff --quiet -- supabase/migrations`, and `git diff --quiet -- app/api/gw` all returned 0.
+Disposable production probes were removed after observing a two-competition combined balance of ₹0,
+dirty-league suppression, and the enumerated C-ID mappings with C56 as the unknown-message fallback.
+
+### Deviations
+
+B5, B6, F10 and all test edits remain with the test author. This production pass did not edit any
+file under `tests/phase3` or `docs/testing`. The first whole-suite run found stale test-side expectations
+for version pairs, first-save C55b, mapped error copy, the new C-ID builders, and the required login
+files in the copy manifest.
+
+## Phase 3 review round 3 fixes
+
+`safeReturnPath` is exported for a unit test and parses each leading-slash value against a fixed
+local origin. Cross-origin parses, malformed values and values without a leading slash return `/`.
+
+Pot counting now changes from `entered`/`needs_update` to `locked_in` only after the contest leaves
+`open`, which is the lock transaction boundary. The pot stays visible during a delayed lock and does
+not fall to zero just because the clock passed the deadline. Its locked-set copy is C5b:
+`Pot ₹1,400 · 7 locked in of 10`.
+
+A page-load absence no longer proves that the player still has no entry when a save fails. On a
+deadline-family failure after a first-save attempt, the entry client now reads `/api/gw/contest`
+once and uses its live `myEntry` state: `null` gets C55b, an entry gets C55, and a failed or malformed
+check stays on neutral C55. A page-load entry skips the check and gets C55 directly. Mirror failures
+now map the route's real top-level `error`, keep C79 above the returned target list, and show the
+reload control when either the top-level or a target mapping asks for it.
+
+The Phase 2 verifier now throws if either settled dues read is `suppressed` before it indexes the
+per-user map.
+
+### Gates
+
+`npx tsc --noEmit` passed with no output. `npm run build` passed, generated 13 static pages and
+listed 27 routes.
+
+`npx vitest run` loaded 40 files: 39 passed and `tests/phase3/entry-sheet.test.tsx` failed. Of 525
+tests, 524 passed and one failed. The first-save B4/F8 case mocks only the rejected save POST, so the
+new contest GET has no response and correctly falls back to C55. The test author must queue a second
+successful response with `{ myEntry: null }` for that GET before asserting C55b.
+
+A disposable probe was removed after it ran the three hostile return paths through the exported
+helper source, checked C55 for an unknown save-time entry state and C55b for proven absence, checked
+the C5b string, and rendered a real 409 mirror body with C79, its target error and the reload
+control. The local production server could not bind its port in this sandbox (`EPERM`), so no
+signed-in browser check ran.
+
+## Phase 3 review round 4 fixes
+
+R4-5 sets C55 and makes the entry sheet read-only before the first-save verification GET begins.
+That GET carries a three-second abort signal. A failed, malformed or timed-out check leaves C55 in
+place; only a confirmed no-stake state upgrades the copy to C55b.
+
+R4-6 suppresses the pot while the contest remains `open` at or after its deadline. The league page
+captures one timestamp and passes it to both the lifecycle loader and `PotSummary`; both decisions
+use the contest deadline. Once the contest status changes, the existing `locked_in` numerator and
+C5b copy render.
+
+R4-7 treats a verified `myEntry.status` of `invalid` like `myEntry: null`, because neither state
+staked money. Both states select C55b.
+
+MINOR-1 and MINOR-2 move `safeReturnPath` into `lib/safe-return-path.ts`. The helper keeps the
+leading-slash and parsed-origin checks from SEC-1, then returns the parser's normalized pathname,
+query and hash. The server action imports it and exports only the login action at runtime.
+
+MINOR-3 gives the mirror stake-mismatch mapping its reload flag, matching its reload-and-retry
+message and the existing mirror reload control.
+
+### Gates
+
+`npx tsc --noEmit` passed with no output. `npm run build` passed, generated 13 static pages and
+listed 27 routes. `npx vitest run` passed all 40 files and all 527 tests. The focused EntrySheet and
+copy suites passed all 39 tests, so this round broke no existing test.
+
+A disposable four-case production probe was removed after it observed the normalized local return
+path and blocked hostile origins; no pot in the open post-deadline window and C5b after lock; C55
+plus disabled steppers before a never-settling verification GET; C55b for a verified invalid entry;
+and the mirror stake reload flag.
+
+`git diff --check` passed. `lib/settlement.ts`, `supabase/migrations`, and `app/api/gw` have no diff.
+This round did not edit `tests/phase3` or `docs/testing`.
+
+## Decision #42 zero-fill slice
+
+Migration `20260727000003_zero_fill_added_fixtures.sql` replaces only
+`apply_fpl_reconciliation`. One transaction-time decision sends an added fixture to either the
+active-and-fill path or the excluded path. Open and upcoming gameweeks qualify before their deadline,
+and a null deadline also qualifies; a fixture at or past kickoff is excluded and logged. The active
+path inserts a 0-0 pick for each existing `entered` or legacy `needs_update` entry. `locked_in` and
+`invalid` stay untouched as terminal defensive states. The insert uses the new active
+`gameweek_fixtures.id`, matching entry and mirror provenance, and conflicts on the entry/fixture pair
+do nothing so later observations cannot replace a player edit. The return payload reports the total
+as `picks_filled`.
+
+The existing membership-change path still owns the input-version bump. Zero-filling does not call
+the bump helper, so the fixture addition increments each affected pot once and the existing dirty
+predicate sees the canonical fixture change without a second pick-driven increment. Each affected
+pot gets one `fixture_zero_fill` audit row with the fixture, membership, 0-0 value, filled-entry
+count and post-bump version.
+
+The migration keeps the competition gate, ascending gameweek advisory locks, query-driven loops,
+score predicates, security-definer boundary and pinned search path from `000002`. It restates the
+revoke for public, anon and authenticated and the service-role grant after replacement.
+
+The Phase 3 riders key the entry sheet by gameweek ID and announce its error text through a polite
+live region.
+
+## Deviations
+
+**Departed-member stake delta.** A member who leaves after entering but before a late fixture is
+added now gets the same 0-0 fill as every other saved entry, so that entry can still lock and stake.
+Before Decision #42, the missing pick made the entry invalid and removed its stake. This follows the
+existing soft-delete rule, but it changes the money path.
+
+**`now()`-window residual.** Reconciliation can start just before the deadline and finish just after
+it. In that narrow window, it fills a pick that the member can no longer edit. The gap lasts
+milliseconds to seconds and is strictly better than invalidating the entry.
+
+**Ananth accepted both deviations as-is ("both fine", 2026-07-30). Logged as decision #47.**
+
+### Gates
+
+`npm run typecheck` passed with no errors. `npm run build` passed, generated 13 static pages and
+listed 27 routes. `npm test` passed all 41 files and all 564 tests.
+
+The prover agents ran every recorded database proof on a fresh disposable cluster.
+`zerofill-test.sql` passed 72 of 72 assertions before this cleanup; it now contains 74 assertions
+for the separate Docker rerun and still applies the migration file twice. The migration chain was
+idempotent. Round 2 passed its 11-assertion and 22-assertion proofs; Round 3 passed its 19-assertion
+and 26-assertion proofs; the rework proof passed all 38 assertions.
+
+`zerofill-test.sql` covers the deadline straddle, final same-event past-kickoff exclusion,
+different-event recovery, upcoming and null-deadline states, edited-pick return, cross-pot fan-out,
+and an entry missing a different pick.
+
+Static inspection found no Decision #42 conflict in `round2-test.sql`, `round2-proof.mts`,
+`round3-test.sql`, `round3-proof.mts` or the scratchpad `pg/rework-test.sql`. Two older descriptions
+outside those named rerun suites had stated the overturned rule. `docs/testing/phase2-cases.md` was
+updated at P2-P11, P2-P11b and P2-G01. The direct-membership defensive scenario in
+`scripts/verify-phase2.mjs` still exercises the dormant completeness path because it bypasses FPL
+reconciliation; its description does not represent a normal FPL fixture add.
+
+## Phase 3 closed (2026-07-30)
+
+Staging browser pass: 8/8 PASS on cashford-staging.vercel.app (deployment dpl_7RxFSAiSUvVKZJfSNvzALqDTK4sB, after migration 000003). Covered: login + open-redirect vectors (both dead on the live site), Test League home (pot line + IST deadline), entry write via real UI (steppers clamp 0–9, save, reload, persist), pick edit + persist, dues page, Solid Yenne Boys read-only render, bogus-slug 404. Screenshots: scratchpad/p3-browser/. Writes touched only ZZ-P1 Test League; its GW1 now holds one QA entry (₹500 pot, test data).
+
+Backlog notes from the pass: stepper increment drops same-tick rapid clicks (likely missing functional state updater) — non-blocking, revisit before/during Phase 4; ZZ-P1 Test League uses real PL teams, not Gamma/Delta as older docs said.

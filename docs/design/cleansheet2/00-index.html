@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cashford 2.0 — Clean Sheet 2.0 screen set</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ffffff;
+    --canvas:#f4f5f3;
+    --ink:#14171a;
+    --ink-2:#4a5257;
+    --ink-3:#868f95;
+    --line:#e5e8e4;
+    --line-2:#eff1ee;
+    --green:#12805c;
+    --green-soft:#e8f4ee;
+    --green-line:#bfe0cf;
+    --amber:#a86b12;
+    --amber-soft:#fdf3e3;
+    --amber-line:#f0dfc0;
+    --red:#a6382f;
+    --red-soft:#fbecea;
+    --red-line:#eccdc8;
+    --r-lg:20px; --r-md:14px; --r-sm:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  i{font-style:normal}
+  body{
+    font-family:'Hanken Grotesk',system-ui,sans-serif;
+    background:var(--canvas);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    padding:40px 24px 100px;
+  }
+  .num{font-family:'Geist Mono',monospace;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";white-space:nowrap}
+  a{color:inherit}
+
+  /* ---------- page chrome ---------- */
+  .doc-head{max-width:940px;margin:0 auto 40px}
+  .doc-kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+  .doc-title{font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:8px}
+  .doc-thesis{font-size:15px;color:var(--ink-2);margin-top:8px;max-width:62ch;line-height:1.55}
+  .doc-nav{max-width:940px;margin:16px auto 0;display:flex;flex-wrap:wrap;gap:8px}
+  .doc-nav a{
+    font-size:12px;font-weight:700;text-decoration:none;color:var(--ink-2);
+    background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:6px 12px;
+  }
+  .doc-nav a.here{background:var(--ink);border-color:var(--ink);color:#fff}
+
+  .stage{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .frame-wrap{width:390px}
+  .frame-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px;padding-left:2px}
+  .frame{
+    width:390px;background:var(--canvas);
+    border-radius:34px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(20,23,26,.06),0 18px 40px -12px rgba(20,23,26,.18);
+    border:1px solid var(--line);
+  }
+  .frame-cap{margin-top:14px;padding-left:2px}
+  .frame-cap b{display:block;font-size:13.5px;font-weight:800;letter-spacing:-.01em}
+  .frame-cap p{margin-top:5px;font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+  .scroll{padding-bottom:24px}
+  .status{height:34px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 22px 2px;font-size:11px;font-weight:600;color:var(--ink-3)}
+
+  /* ---------- app header ---------- */
+  .appbar{background:var(--paper);padding:6px 16px 14px;border-bottom:1px solid var(--line-2)}
+  .abrow{display:flex;align-items:center;gap:12px}
+  .icobtn{
+    width:34px;height:34px;flex:0 0 34px;border-radius:11px;border:1px solid var(--line);
+    background:var(--paper);display:grid;place-items:center;color:var(--ink-2);font-size:15px;
+  }
+  .abtitle{flex:1;min-width:0}
+  .abtitle h1{font-size:18px;font-weight:700;letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .abtitle .sub{font-size:11.5px;font-weight:600;color:var(--ink-3);margin-top:2px}
+  .balance{
+    display:inline-flex;align-items:baseline;padding:5px 10px;border-radius:9px;
+    background:var(--green-soft);color:var(--green);font-weight:700;font-size:14px;
+    border:1px solid var(--green-line);
+  }
+  .balance.neg{background:var(--red-soft);color:var(--red);border-color:var(--red-line)}
+  .comp{display:flex;align-items:center;gap:6px;margin-top:12px;color:var(--ink-2);font-size:13px;font-weight:600}
+  .comp .chip{display:inline-flex;align-items:center;gap:6px;background:var(--canvas);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+  .comp .chev{color:var(--ink-3);font-size:10px}
+  .comp .chip.archived{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+
+  .tabs{display:flex;gap:24px;margin-top:16px;padding:0 2px}
+  .tab{font-size:14px;font-weight:600;color:var(--ink-3);padding-bottom:11px;position:relative}
+  .tab.on{color:var(--ink);font-weight:700}
+  .tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;border-radius:2px;background:var(--green)}
+
+  /* bottom app tab bar */
+  .tabbar{
+    display:flex;background:var(--paper);border-top:1px solid var(--line);
+    padding:9px 8px 16px;position:sticky;bottom:0;
+  }
+  .tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-3)}
+  .tb .ic{font-size:17px;line-height:1}
+  .tb .lb{font-size:10.5px;font-weight:700;letter-spacing:.02em}
+  .tb.on{color:var(--green)}
+
+  /* ---------- gw navigator ---------- */
+  .gwnav{display:flex;align-items:center;justify-content:center;gap:14px;padding:18px 16px 6px}
+  .gwarrow{width:30px;height:30px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-2);font-size:13px}
+  .gwlabel{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .dot{width:4px;height:4px;border-radius:50%;background:var(--line);display:inline-block}
+  .open{font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--green);background:var(--green-soft);border:1px solid var(--green-line);padding:3px 8px;border-radius:6px}
+  .open.grey{color:var(--ink-3);background:var(--canvas);border-color:var(--line)}
+  .open.amber{color:var(--amber);background:var(--amber-soft);border-color:var(--amber-line)}
+
+  /* ---------- generic bits ---------- */
+  .body{padding:12px 16px 0;display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px}
+  .card.hero{padding:22px 20px}
+  .card.tight{padding:16px}
+  .card.flat{border-radius:var(--r-md)}
+
+  .state{display:flex;align-items:center;gap:9px}
+  .state .ring{width:9px;height:9px;border-radius:50%;border:2.5px solid var(--amber)}
+  .state .ring.g{border-color:var(--green)}
+  .state .ring.grey{border-color:var(--ink-3)}
+  .state h2{font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .state h2.sm{font-size:17px}
+
+  .dl{margin-top:14px;padding:12px 14px;border-radius:var(--r-md);background:var(--canvas);border:1px solid var(--line-2)}
+  .dl-k{font-size:10.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+  .dl-v{margin-top:5px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .dl-v .abs{color:var(--ink)}
+  .dl-v .cd{color:var(--amber);background:var(--amber-soft);border-radius:6px;padding:2px 7px;font-size:13px;font-weight:700}
+  .dl-v .cd.g{color:var(--green);background:var(--green-soft)}
+  .dl-v .cd.grey{color:var(--ink-3);background:var(--paper);border:1px solid var(--line)}
+
+  .facts{display:flex;align-items:stretch;margin-top:16px;border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden}
+  .fact{flex:1;padding:11px 12px;background:var(--paper)}
+  .fact+.fact{border-left:1px solid var(--line-2)}
+  .fact-k{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .fact-v{margin-top:4px;font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .fact-v.pot{color:var(--green)}
+  .fact-v.neg{color:var(--red)}
+  .fact-v.sm{font-size:14px}
+
+  .cta{
+    margin-top:18px;width:100%;border:none;border-radius:var(--r-md);
+    background:var(--green);color:#fff;font-family:inherit;font-size:15.5px;font-weight:700;
+    padding:15px;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:-.01em;
+    box-shadow:0 1px 0 rgba(0,0,0,.05),0 6px 14px -6px rgba(18,128,92,.5);
+  }
+  .cta-off{
+    width:100%;border:1px solid var(--line);border-radius:var(--r-md);background:var(--canvas);
+    color:var(--ink-3);font-family:inherit;font-size:15px;font-weight:700;padding:15px;
+    display:flex;align-items:center;justify-content:center;gap:8px;cursor:not-allowed;
+  }
+  .ghost{
+    margin-top:16px;width:100%;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .ghost.tightop{margin-top:12px}
+  .duo{display:flex;gap:10px;margin-top:16px}
+  .duo button{
+    flex:1;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px 10px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:7px;
+  }
+  .duo button.warn{color:var(--red);border-color:var(--red-line);background:var(--paper)}
+  .why{margin-top:9px;text-align:center;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+
+  .sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .sec-head h3{font-size:13px;font-weight:700;letter-spacing:-.005em}
+  .sec-head span{font-size:12px;font-weight:600;color:var(--ink-3)}
+  .people{display:flex;flex-wrap:wrap;gap:8px}
+  .person{display:flex;align-items:center;gap:7px;padding:6px 11px 6px 6px;border-radius:999px;background:var(--canvas);border:1px solid var(--line-2);font-size:13px;font-weight:600}
+  .person.out{color:var(--ink-3)}
+  .av{width:22px;height:22px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center;font-size:10.5px;font-weight:800;border:1px solid var(--green-line)}
+  .av.grey{background:var(--canvas);color:var(--ink-3);border-color:var(--line)}
+  .av.amber{background:var(--amber-soft);color:var(--amber);border-color:var(--amber-line)}
+
+  .recap{display:flex;gap:14px;align-items:flex-start}
+  .medal{width:36px;height:36px;flex:0 0 36px;border-radius:12px;background:var(--amber-soft);border:1px solid var(--amber-line);display:grid;place-items:center;font-size:16px}
+  .medal.g{background:var(--green-soft);border-color:var(--green-line)}
+  .recap-k{font-size:10.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+  .recap-v{margin-top:5px;font-size:14px;font-weight:600;line-height:1.45;color:var(--ink)}
+  .recap-v b{font-weight:800}
+  .note{margin-top:12px;font-size:12px;font-weight:600;color:var(--ink-3);line-height:1.5}
+
+  /* badges & strips */
+  .bdg{
+    display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;padding:4px 8px;border-radius:7px;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink-3);
+  }
+  .bdg.amber{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .bdg.green{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .bdg.red{background:var(--red-soft);border-color:var(--red-line);color:var(--red)}
+  .bdg.ink{background:var(--ink);border-color:var(--ink);color:#fff}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-soft);animation:pl 1.4s infinite}
+  @keyframes pl{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .strip{
+    display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--r-md);
+    background:var(--paper);border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink-2);
+  }
+  .strip.amber{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .strip.green{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .strip.grey{background:var(--canvas);border-color:var(--line);color:var(--ink-3)}
+  .strip .go{margin-left:auto;font-weight:800;font-size:11.5px;white-space:nowrap}
+  .strip b{font-weight:800}
+
+  /* fixture rows */
+  .daygrp{padding:0 16px}
+  .dayhead{
+    display:flex;align-items:center;gap:10px;padding:20px 2px 10px;
+    font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  }
+  .dayhead::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .fx{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);padding:13px 14px;margin-bottom:9px}
+  .fx.on{border-color:var(--green-line);background:linear-gradient(0deg,var(--green-soft) 0%,var(--paper) 62%)}
+  .fx.void{background:var(--canvas);border-style:dashed;color:var(--ink-3)}
+  .fx.open-panel{border-radius:var(--r-md) var(--r-md) 0 0;margin-bottom:0;border-bottom-color:transparent}
+  .fxrow{display:flex;align-items:center;gap:10px}
+  .team{flex:1;min-width:0;font-size:14.5px;font-weight:650;letter-spacing:-.01em;display:flex;align-items:center;gap:7px}
+  .team.away{justify-content:flex-end;text-align:right}
+  .crest{width:18px;height:18px;flex:0 0 18px;border-radius:5px;background:var(--canvas);border:1px solid var(--line);display:grid;place-items:center;font-size:8.5px;font-weight:800;color:var(--ink-3)}
+  .scorebox{display:flex;align-items:center;gap:5px}
+  .sq{
+    width:38px;height:40px;border-radius:10px;display:grid;place-items:center;
+    font-family:'Geist Mono',monospace;font-size:17px;font-weight:600;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink);
+  }
+  .sq.filled{background:var(--green);border-color:var(--green);color:#fff}
+  .sq.empty{color:var(--ink-3);border-style:dashed}
+  .sq.sm{width:30px;height:32px;font-size:15px}
+  .sep{color:var(--ink-3);font-size:12px}
+  .fxmeta{display:flex;align-items:center;justify-content:space-between;margin-top:9px;gap:10px}
+  .kick{font-size:11.5px;font-weight:600;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+  .kick .live{color:var(--green);font-weight:800}
+  .insights-toggle{font-size:11.5px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:5px}
+  .mypick{
+    margin-top:10px;padding-top:9px;border-top:1px solid var(--line-2);
+    display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-2);flex-wrap:wrap;
+  }
+  .mypick b{font-weight:800;color:var(--ink)}
+  .mypick .none{color:var(--ink-3)}
+  .pts{
+    font-family:'Geist Mono',monospace;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:6px;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink-3);
+  }
+  .pts.p1{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .pts.p3{background:var(--green);border-color:var(--green);color:#fff}
+  .vary{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--green)}
+  .prov{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+
+  /* insights panel */
+  .panel{
+    background:var(--paper);border:1px solid var(--green-line);border-top:1px dashed var(--green-line);
+    border-radius:0 0 var(--r-md) var(--r-md);padding:14px;margin-bottom:9px;
+  }
+  .panel.solo{border:1px solid var(--line);border-radius:var(--r-md);border-top:1px solid var(--line)}
+  .prow{display:flex;gap:10px;padding:8px 0}
+  .prow+.prow{border-top:1px solid var(--line-2)}
+  .pk{flex:0 0 62px;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+  .pv{flex:1;font-size:13px;font-weight:600;color:var(--ink)}
+  .odds{display:flex;gap:6px}
+  .oc{flex:1;text-align:center;background:var(--canvas);border:1px solid var(--line-2);border-radius:8px;padding:6px 2px}
+  .oc small{display:block;font-size:9.5px;font-weight:800;color:var(--ink-3);letter-spacing:.08em}
+  .oc b{font-family:'Geist Mono',monospace;font-size:13px;font-weight:600}
+  .form{display:flex;gap:3px;align-items:center}
+  .fp{width:17px;height:17px;border-radius:5px;display:grid;place-items:center;font-size:9.5px;font-weight:800;color:#fff}
+  .fp.W{background:var(--green)}.fp.D{background:#b8bfc4}.fp.L{background:#c9584f}
+  .vs{font-size:10.5px;color:var(--ink-3);font-weight:700;margin:0 5px}
+  .ts{display:flex;gap:7px;flex-wrap:wrap}
+  .tsi{background:var(--green-soft);border:1px solid var(--green-line);border-radius:7px;padding:4px 8px;font-size:12px;font-weight:700;color:var(--green)}
+  .tsi span{font-family:'Geist Mono',monospace;font-weight:500;opacity:.75}
+  .stale{margin-top:10px;font-size:10.5px;font-weight:600;color:var(--ink-3);text-align:right}
+  .mini-tbl{width:100%;border-collapse:collapse}
+  .mini-tbl td,.mini-tbl th{padding:4px 0;font-size:12px;font-weight:600;text-align:right}
+  .mini-tbl th{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .mini-tbl td:first-child,.mini-tbl th:first-child{text-align:left}
+  .mini-tbl tr.me td{color:var(--green)}
+
+  .more{
+    padding:13px;text-align:center;font-size:13px;font-weight:600;color:var(--ink-3);
+    background:var(--paper);border:1px dashed var(--line);border-radius:var(--r-md);
+  }
+  .util{margin:16px 16px 0}
+  .util button{
+    width:100%;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .util .cnt{font-family:'Geist Mono',monospace;font-weight:600;color:var(--ink-3)}
+
+  .footbar{
+    position:sticky;bottom:0;margin-top:20px;background:rgba(255,255,255,.94);
+    backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:14px 16px 20px;
+  }
+  .footbar .cta{margin-top:0}
+  .entered-bar{
+    position:sticky;bottom:0;margin-top:20px;background:rgba(255,255,255,.94);
+    backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:13px 16px 20px;
+  }
+
+  /* entry sheet bar */
+  .sheet-bar{background:var(--paper);border-bottom:1px solid var(--line-2);padding:6px 16px 16px}
+  .sb-row{display:flex;align-items:center;gap:12px}
+  .sb-title{flex:1}
+  .sb-title h1{font-size:18px;font-weight:700;letter-spacing:-.015em}
+  .prog{display:flex;align-items:center;gap:9px;margin-top:14px}
+  .prog-track{flex:1;height:6px;border-radius:99px;background:var(--line-2);overflow:hidden}
+  .prog-fill{height:100%;background:var(--green);border-radius:99px}
+  .prog-n{font-size:13px;font-weight:700}
+  .prog-n span{color:var(--ink-3)}
+  .stamp{
+    font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--amber);
+    background:var(--amber-soft);border:1px solid var(--amber-line);padding:3px 7px;border-radius:6px;
+  }
+  .stamp.g{color:var(--green);background:var(--green-soft);border-color:var(--green-line)}
+  .pinned{margin-top:12px;font-size:12.5px;font-weight:600;color:var(--ink-2);display:flex;align-items:center;gap:7px}
+  .pinned .cd{color:var(--amber);font-weight:700}
+
+  /* league cards (home) */
+  .lgcard{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}
+  .lg-top{display:flex;align-items:flex-start;gap:12px}
+  .lg-name{flex:1;min-width:0}
+  .lg-name h3{font-size:16.5px;font-weight:800;letter-spacing:-.015em}
+  .lg-name .cmp{margin-top:4px;font-size:12px;font-weight:600;color:var(--ink-3)}
+  .lg-badge{margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .lg-foot{
+    margin-top:13px;padding-top:12px;border-top:1px solid var(--line-2);
+    display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:600;color:var(--ink-2);
+  }
+  .lg-foot .pot{color:var(--green);font-weight:800}
+
+  /* tables / leaderboards */
+  .tbl{width:100%;border-collapse:collapse}
+  .tbl th{
+    font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
+    text-align:right;padding:0 0 9px;border-bottom:1px solid var(--line);
+  }
+  .tbl th:first-child,.tbl td:first-child{text-align:left}
+  .tbl td{padding:10px 0;font-size:13px;font-weight:600;text-align:right;border-bottom:1px solid var(--line-2)}
+  .tbl tr:last-child td{border-bottom:none}
+  .tbl tr.me td{background:var(--green-soft)}
+  .tbl tr.me td:first-child{border-radius:8px 0 0 8px;padding-left:8px}
+  .tbl tr.me td:last-child{border-radius:0 8px 8px 0;padding-right:8px}
+  .tbl .who{display:flex;align-items:center;gap:8px}
+  .tbl .rk{font-family:'Geist Mono',monospace;font-size:11.5px;color:var(--ink-3);width:14px;display:inline-block}
+  .pos{color:var(--green)}
+  .neg{color:var(--red)}
+  .zero{color:var(--ink-3)}
+
+  /* feed / payments */
+  .rowlist{display:flex;flex-direction:column}
+  .rl{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line-2)}
+  .rl:last-child{border-bottom:none}
+  .rl-ic{width:30px;height:30px;flex:0 0 30px;border-radius:9px;background:var(--canvas);border:1px solid var(--line);display:grid;place-items:center;font-size:13px;color:var(--ink-2)}
+  .rl-ic.g{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .rl-ic.r{background:var(--red-soft);border-color:var(--red-line);color:var(--red)}
+  .rl-ic.a{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .rl-txt{flex:1;min-width:0}
+  .rl-txt .t{font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+  .rl-txt .s{margin-top:3px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+  .rl-amt{font-family:'Geist Mono',monospace;font-size:14px;font-weight:600;white-space:nowrap}
+  .rl.dim .rl-txt .t{color:var(--ink-3);text-decoration:line-through}
+
+  .pay{
+    display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--line);
+    border-radius:var(--r-md);background:var(--paper);margin-bottom:9px;
+  }
+  .pay:last-child{margin-bottom:0}
+  .pay-txt{flex:1;font-size:13.5px;font-weight:600}
+  .pay-txt b{font-weight:800}
+  .pay-log{font-size:12px;font-weight:800;color:var(--green);white-space:nowrap}
+
+  /* form fields */
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+  .inp{
+    width:100%;background:var(--canvas);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:12px 13px;font-family:inherit;font-size:14.5px;font-weight:600;color:var(--ink);
+  }
+  .inp.num{font-family:'Geist Mono',monospace}
+  .inp.sel{display:flex;align-items:center;justify-content:space-between}
+  .inp.sel .chev{color:var(--ink-3);font-size:10px}
+  .field-row{display:flex;gap:10px}
+  .field-row .field{flex:1}
+
+  /* modal */
+  .modal-frame{position:relative}
+  .dim-layer{position:absolute;inset:0;background:rgba(20,23,26,.42);backdrop-filter:blur(1.5px);z-index:2}
+  .modal{
+    position:absolute;left:12px;right:12px;bottom:12px;z-index:3;
+    background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:20px;
+    box-shadow:0 24px 50px -12px rgba(20,23,26,.45);
+  }
+  .modal h3{font-size:18px;font-weight:800;letter-spacing:-.02em}
+  .modal p{margin-top:8px;font-size:13px;font-weight:600;color:var(--ink-2);line-height:1.5}
+  .modal .grabber{width:38px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 14px}
+  .mlist{margin-top:14px;border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden}
+  .mrow{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;font-size:13px;font-weight:600}
+  .mrow+.mrow{border-top:1px solid var(--line-2)}
+  .mrow .k{color:var(--ink-3);font-weight:700;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase}
+  .mrow .v{font-weight:800}
+  .mrow .v.g{color:var(--green)}
+
+  /* opt-in list (mirror) */
+  .optin{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-2)}
+  .optin:last-child{border-bottom:none}
+  .optin .txt{flex:1;font-size:13.5px;font-weight:700}
+  .optin .txt small{display:block;margin-top:3px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+  .sw{width:40px;height:23px;border-radius:99px;background:var(--line);position:relative;flex:0 0 40px}
+  .sw::after{content:"";position:absolute;top:2.5px;left:2.5px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .sw.on{background:var(--green)}
+  .sw.on::after{left:auto;right:2.5px}
+
+  /* analytics */
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-2);border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden;margin-top:16px}
+  .met{background:var(--paper);padding:13px 14px}
+  .met-k{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .met-v{margin-top:5px;font-size:20px;font-weight:700;letter-spacing:-.02em}
+  .met-v small{font-size:12px;font-weight:600;color:var(--ink-3);margin-left:3px}
+  .met.muted .met-v{color:var(--ink-3)}
+  .spark{margin-top:16px;padding:14px;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--canvas)}
+  .spark-k{display:flex;align-items:baseline;justify-content:space-between;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .lens{display:flex;align-items:center;gap:8px;overflow:hidden}
+  .lens .pill{font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+  .lens .pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .delta{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-2)}
+  .delta:last-child{border-bottom:none}
+  .delta .dk{flex:1;font-size:13px;font-weight:600}
+  .delta .dv{font-family:'Geist Mono',monospace;font-size:13px;font-weight:600;width:52px;text-align:right}
+  .delta .dd{font-family:'Geist Mono',monospace;font-size:12px;font-weight:600;width:60px;text-align:right}
+  .blur{filter:blur(3px);opacity:.5;pointer-events:none}
+
+  /* cases block */
+  .cases{max-width:940px;margin:56px auto 0;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px 28px}
+  .cases h4{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+  .cases h5{margin-top:20px;font-size:14px;font-weight:800;letter-spacing:-.01em}
+  .cases ul{margin-top:10px;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+  .cases li{font-size:13.5px;line-height:1.55;color:var(--ink-2);padding-left:16px;position:relative}
+  .cases li::before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--green-line)}
+  .cases li b{font-weight:800;color:var(--ink)}
+
+  /* index flows */
+  .flows{max-width:940px;margin:0 auto}
+  .flow{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px 22px;margin-bottom:14px}
+  .flow-h{display:flex;align-items:center;gap:10px}
+  .flow-n{width:24px;height:24px;flex:0 0 24px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:'Geist Mono',monospace;font-size:12px;font-weight:600}
+  .flow-h h3{font-size:15.5px;font-weight:800;letter-spacing:-.015em}
+  .steps{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .step{
+    display:inline-flex;align-items:center;gap:7px;text-decoration:none;
+    background:var(--canvas);border:1px solid var(--line);border-radius:999px;
+    padding:7px 13px;font-size:12.5px;font-weight:700;color:var(--ink);
+  }
+  .step small{font-family:'Geist Mono',monospace;font-size:10.5px;font-weight:600;color:var(--ink-3)}
+  .step.g{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .step.a{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .arw{color:var(--ink-3);font-size:12px;font-weight:700}
+  .pages{max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .plink{
+    display:block;text-decoration:none;background:var(--paper);border:1px solid var(--line);
+    border-radius:var(--r-lg);padding:18px 20px;
+  }
+  .plink .f{font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:var(--ink-3)}
+  .plink h3{margin-top:7px;font-size:16px;font-weight:800;letter-spacing:-.015em}
+  .plink p{margin-top:6px;font-size:13px;font-weight:600;color:var(--ink-2);line-height:1.5}
+  .sect{max-width:940px;margin:48px auto 18px}
+  .sect h2{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+</style>
+</head>
+<body>
+
+<nav class="doc-nav">
+  <a href="00-index.html" class="here">Overview</a>
+  <a href="01-home.html">Home</a>
+  <a href="02-league-gameweek.html">Gameweek</a>
+  <a href="03-entry-sheet.html">Entry</a>
+  <a href="04-season.html">Season</a>
+  <a href="05-dues.html">Dues</a>
+  <a href="06-match-detail.html">Match</a>
+  <a href="07-archive.html">Archive</a>
+  <a href="08-matches-tab.html">Matches tab</a>
+  <a href="09-join-create.html">Join</a>
+</nav>
+
+<div class="doc-head">
+  <div class="doc-kicker">Clean Sheet 2.0 · overview</div>
+  <div class="doc-title">Cashford 2.0 — the whole product</div>
+  <p class="doc-thesis">Cashford is a prediction and settle-up game for a WhatsApp group. From August 2026 the unit is the gameweek, not the match: predict every fixture before one deadline to enter, stake the league ante, and the highest score takes that week's pot. Ties break on exacts, then on total goal miss. Leagues are permanent and carry one continuous balance — the World Cup archives read-only behind a competition switcher. Money never moves through the app; Dues records the payments people actually make and both parties confirm them.</p>
+  <p class="doc-thesis" style="margin-top:14px;color:var(--ink-3);font-size:13.5px">Pass 2 (27 Jul): entry is final so withdraw is gone everywhere, entering is one tap with no confirm sheet, mirroring shows only when another league has the same competition running, leagues gain a Table tab, the Matches tab collapses every league into one card and gains the real league table, the World Cup archive leads with Analytics and gives the bracket its own tab, and joining or creating a league finally has screens.</p>
+</div>
+
+<div class="sect"><h2>Six flows</h2></div>
+<div class="flows">
+
+  <div class="flow">
+    <div class="flow-h"><i class="flow-n">1</i><h3>Enter a gameweek</h3></div>
+    <div class="steps">
+      <a class="step a" href="01-home.html">Home badge<small>not entered</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="02-league-gameweek.html">League · Gameweek<small>frame 1</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="03-entry-sheet.html">Entry sheet<small>8/10 → 10/10</small></a>
+      <span class="arw">→</span>
+      <a class="step g" href="03-entry-sheet.html">Enter GW3<small>one tap, ₹100</small></a>
+      <span class="arw">→</span>
+      <a class="step g" href="03-entry-sheet.html">You&rsquo;re in ✓<small>picks stay editable</small></a>
+      <span class="arw">→</span>
+      <a class="step g" href="03-entry-sheet.html">Mirror to KK Bois<small>₹50, opt-in</small></a>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-h"><i class="flow-n">2</i><h3>Sweat the weekend</h3></div>
+    <div class="steps">
+      <a class="step" href="08-matches-tab.html">Matches · live<small>your GW3 card</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="06-match-detail.html">Match detail<small>67', what-if</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="02-league-gameweek.html">League race<small>frame 3</small></a>
+      <span class="arw">→</span>
+      <a class="step g" href="02-league-gameweek.html">Settled<small>won on exacts</small></a>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-h"><i class="flow-n">3</i><h3>Settle up</h3></div>
+    <div class="steps">
+      <a class="step g" href="02-league-gameweek.html">GW settles<small>+₹600</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="05-dues.html">Dues<small>net position</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="05-dues.html">Log a payment<small>₹500 partial</small></a>
+      <span class="arw">→</span>
+      <a class="step g" href="05-dues.html">Other party confirms<small>immutable</small></a>
+      <span class="arw">→</span>
+      <a class="step a" href="05-dues.html">Dispute → reversal<small>frame 3</small></a>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-h"><i class="flow-n">4</i><h3>Look back</h3></div>
+    <div class="steps">
+      <a class="step" href="04-season.html">Season table<small>after GW8</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="04-season.html">Gameweek history<small>tap a week</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="07-archive.html">Competition switcher<small>frame 1</small></a>
+      <span class="arw">→</span>
+      <a class="step a" href="07-archive.html">World Cup archive<small>analytics first</small></a>
+      <span class="arw">→</span>
+      <a class="step a" href="07-archive.html">Bracket tab<small>own tab now</small></a>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-h"><i class="flow-n">5</i><h3>Miss the deadline</h3></div>
+    <div class="steps">
+      <a class="step a" href="01-home.html">Amber badge<small>locks Fri 23:00</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="02-league-gameweek.html">Deadline passes<small>no grace</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="01-home.html">You sat this one out<small>frame C</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="04-season.html">Grey zero, no loss<small>frame 3</small></a>
+      <span class="arw">→</span>
+      <a class="step g" href="02-league-gameweek.html">Next gameweek opens<small>GW4</small></a>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-h"><i class="flow-n">6</i><h3>Start or join a league</h3></div>
+    <div class="steps">
+      <a class="step" href="09-join-create.html">Name &amp; ante<small>₹100 a week</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="09-join-create.html">Competition<small>PL preselected</small></a>
+      <span class="arw">→</span>
+      <a class="step g" href="09-join-create.html">Invite message<small>link + code</small></a>
+      <span class="arw">→</span>
+      <a class="step" href="09-join-create.html">Join preview<small>deal before the tap</small></a>
+      <span class="arw">→</span>
+      <a class="step a" href="09-join-create.html">Joined at GW3<small>before your time</small></a>
+    </div>
+  </div>
+
+</div>
+
+<div class="sect"><h2>The screens</h2></div>
+<div class="pages">
+  <a class="plink" href="01-home.html">
+    <div class="f">01-home.html</div>
+    <h3>App home — three tabs</h3>
+    <p>Leagues with entry-status badges, Matches as the live score hub, Analytics as My form. Plus the pre-GW1 empty state.</p>
+  </a>
+  <a class="plink" href="02-league-gameweek.html">
+    <div class="f">02-league-gameweek.html</div>
+    <h3>League → Gameweek</h3>
+    <p>One stateful screen through the week: not entered, entered, live race, settled, plus the void and blank-gameweek edges.</p>
+  </a>
+  <a class="plink" href="03-entry-sheet.html">
+    <div class="f">03-entry-sheet.html</div>
+    <h3>Gameweek entry sheet</h3>
+    <p>Ten scorelines with steppers and the model&rsquo;s top scores, inline insights, one-tap entry, and cross-league mirroring when it applies. No draft, no confirm sheet, no withdraw.</p>
+  </a>
+  <a class="plink" href="04-season.html">
+    <div class="f">04-season.html</div>
+    <h3>League → Season</h3>
+    <p>The official record: standings with gameweek wins and exacts, week-by-week history, and how it looks after one gameweek.</p>
+  </a>
+  <a class="plink" href="05-dues.html">
+    <div class="f">05-dues.html</div>
+    <h3>League → Dues</h3>
+    <p>One balance across all competitions, settle-up plan, payment logging with confirmation, disputes and reversals.</p>
+  </a>
+  <a class="plink" href="06-match-detail.html">
+    <div class="f">06-match-detail.html</div>
+    <h3>Match detail</h3>
+    <p>The drill-in: insights before, the revealed league board during, Exact / Result / Miss after. Never an entry surface.</p>
+  </a>
+  <a class="plink" href="07-archive.html">
+    <div class="f">07-archive.html</div>
+    <h3>Switcher &amp; World Cup archive</h3>
+    <p>Active and past competitions, and the World Cup kept exactly as it was. Analytics leads, Matches is a plain results list, and the bracket has its own tab.</p>
+  </a>
+  <a class="plink" href="08-matches-tab.html">
+    <div class="f">08-matches-tab.html</div>
+    <h3>Matches tab</h3>
+    <p>Every league you&rsquo;re in collapsed into one &ldquo;Your GW3&rdquo; card, results carrying the call you made, and the real competition table behind a segmented control.</p>
+  </a>
+  <a class="plink" href="09-join-create.html">
+    <div class="f">09-join-create.html</div>
+    <h3>Create &amp; join a league</h3>
+    <p>Two fields and two consequences to create; the deal shown before the tap to join; and GW1&ndash;2 reading &ldquo;Before your time&rdquo; for anyone who arrives mid-season.</p>
+  </a>
+  <a class="plink" href="https://cashford.vercel.app" style="background:var(--canvas)">
+    <div class="f">today</div>
+    <h3>Cashford 1.0 in production</h3>
+    <p>The World Cup app this set replaces. Same tokens family, same fonts — the shapes underneath change from match to gameweek.</p>
+  </a>
+</div>
+
+<div class="cases">
+  <h4>Design system &amp; later skins</h4>
+
+  <h5>Clean Sheet 2.0 — one system throughout</h5>
+  <ul>
+    <li><b>Type:</b> Hanken Grotesk for text, Geist Mono with tabular figures for every numeral, score, point total and rupee amount, so columns line up and scores never jitter.</li>
+    <li><b>Colour has meaning.</b> Quiet green is money and progress only. Amber is a deadline or a state needing attention. Red appears only for a dispute or a negative balance. Everything else is ink, paper and hairline dividers.</li>
+    <li><b>Money is always ₹</b> and always mono. Deadlines are always absolute local time plus a countdown, never a countdown alone.</li>
+    <li><b>Awkward states explain themselves in place</b> — void fixture, blank gameweek, one-entrant refund, re-settlement — rather than sending anyone to a rules page.</li>
+    <li><b>Soft shadows only on things that float</b>: the confirm sheets and the sticky call-to-action bar. Cards sit on hairlines.</li>
+  </ul>
+
+  <h5>Later skins (same data, same flows)</h5>
+  <ul>
+    <li><b>Broadcast</b> — for the live surfaces only: Matches during play, the gameweek race, match detail. Bigger scores, darker chrome, minute-by-minute emphasis.</li>
+    <li><b>Quant Desk</b> — for Analytics only: denser tables, small multiples, more numbers per square inch for the people who actually read them.</li>
+    <li>Both stay per-screen toggles back to Clean Sheet, which remains the default everywhere. No skin changes a rule, a label, or a number.</li>
+  </ul>
+</div>
+
+</body>
+</html>
