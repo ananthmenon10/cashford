@@ -1,15 +1,24 @@
 // Server-side persistence wiring for the pure settle() engine (Phase 5/7b).
 // Reuses lib/settlement.ts (19 golden tests) — the money logic lives in ONE place.
 // Runs with the service-role client (bypasses RLS).
+//
+// Per-fixture contests are CUP-FORMAT ONLY (Phase 1 §0). The DB enforces that with
+// contests_cup_only; these guards stop the engine touching a non-cup row that predates the
+// trigger or arrived some other way.
 
 import { settle, type Prediction, type Actual } from "./settlement";
 
 type Admin = ReturnType<typeof import("./supabase/service").createServiceRoleClient>;
 
+const CUP_ONLY = "fixtures!inner(competitions!inner(format))";
+
 // Lock contests whose lock_at has passed; void those with <2 valid entries (§7.3).
 export async function lockDueContests(admin: Admin) {
   const now = new Date().toISOString();
-  const { data: due } = await admin.from("contests").select("id").eq("status", "open").lte("lock_at", now);
+  const { data: due } = await admin
+    .from("contests").select(`id, ${CUP_ONLY}`)
+    .eq("status", "open").lte("lock_at", now)
+    .eq("fixtures.competitions.format", "cup");
   let locked = 0, voided = 0;
   for (const c of due ?? []) {
     const { count } = await admin.from("predictions").select("*", { count: "exact", head: true }).eq("contest_id", c.id);
@@ -26,6 +35,12 @@ export async function lockDueContests(admin: Admin) {
 
 // Settle one contest. Atomic claim (locked→settling) guarantees exactly-once.
 export async function settleContest(admin: Admin, contestId: string) {
+  // Cup-only guard runs BEFORE the claim so a non-cup row is never moved to 'settling'.
+  const { data: guard } = await admin
+    .from("contests").select(CUP_ONLY).eq("id", contestId)
+    .eq("fixtures.competitions.format", "cup").maybeSingle();
+  if (!guard) return { settled: false, reason: "not a cup fixture" };
+
   const { data: claimed } = await admin
     .from("contests").update({ status: "settling" })
     .eq("id", contestId).eq("status", "locked")
@@ -79,8 +94,9 @@ export async function settleContest(admin: Admin, contestId: string) {
 // Settle all locked contests whose fixture is finished/abnormal.
 export async function settleFinishedContests(admin: Admin) {
   const { data: locked } = await admin
-    .from("contests").select("id, fixtures!inner(status)")
+    .from("contests").select("id, fixtures!inner(status, competitions!inner(format))")
     .eq("status", "locked")
+    .eq("fixtures.competitions.format", "cup")
     .in("fixtures.status", ["finished", "cancelled", "abandoned", "postponed"]);
   let settled = 0;
   for (const c of locked ?? []) {

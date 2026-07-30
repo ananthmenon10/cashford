@@ -45,7 +45,7 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
   const { data: { user } } = await supabase.auth.getUser();
 
   const { data: c } = await supabase.from("contests")
-    .select("id, league_id, fixture_id, status, void_reason, lock_at, stake_inr, is_knockout, fixtures(external_id, round, group_label, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, venue, advancer_team_id)")
+    .select("id, league_id, fixture_id, status, void_reason, lock_at, stake_inr, is_knockout, fixtures(external_id, round, group_label, home_label, away_label, home_team_id, away_team_id, kickoff_at, status, status_detail, ft_home, ft_away, minute, venue, advancer_team_id, competitions(espn_slug))")
     .eq("id", id).single();
   if (!c) notFound();
   const f = (Array.isArray(c.fixtures) ? c.fixtures[0] : c.fixtures) as FixtureRow;
@@ -121,11 +121,13 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
     const inWindow = kickoffMs > now && kickoffMs - now <= INSIGHTS_WINDOW_MS;
     const { data: cachedRow } = await supabase.from("fixture_insights").select("*").eq("fixture_id", c.fixture_id).maybeSingle();
     let row: any = cachedRow;
-    if (!row && inWindow && f.external_id) {
+    // No espn_slug means ESPN cannot see this competition at all — never guess one.
+    const espnSlug: string | null = (f as any).competitions?.espn_slug ?? null;
+    if (!row && inWindow && f.external_id && espnSlug) {
       try {
         const r = await refreshInsights(
           createServiceRoleClient(),
-          { id: c.fixture_id, external_id: f.external_id },
+          { id: c.fixture_id, external_id: f.external_id, espn_slug: espnSlug },
           { ttlMs: 0, signal: AbortSignal.timeout(2000) },
         );
         row = r.row ?? null;
@@ -133,10 +135,11 @@ export default async function MatchPage({ params }: { params: Promise<{ slug: st
     }
     insightsView = mapInsightsView(row);
     // Warm for the next view (TTL-guarded no-op when fresh).
-    if (inWindow && f.external_id) {
+    if (inWindow && f.external_id && espnSlug) {
       const fxId = c.fixture_id;
       const ext = f.external_id as number;
-      after(async () => { try { await refreshInsights(createServiceRoleClient(), { id: fxId, external_id: ext }); } catch {} });
+      const slug = espnSlug;
+      after(async () => { try { await refreshInsights(createServiceRoleClient(), { id: fxId, external_id: ext, espn_slug: slug }); } catch {} });
     }
   }
 
