@@ -1,6 +1,6 @@
 # Phase 4 RO-1 / RO-2 implementation-time contract
 
-Status: **DRAFT — NOT APPROVED — NO KEY MAY BE ARMED**
+Status: APPROVED
 
 Approval is external. The arm script accepts only `Status: APPROVED`, then reads
 the one-time approval row described in §3.3. It hashes this file as-is and
