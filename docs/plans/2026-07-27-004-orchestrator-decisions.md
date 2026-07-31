@@ -90,3 +90,9 @@ implementers in one worktree). After Phase 5: build a demo-data environment — 
 carefully (dedicated planning pass, not a quick seed script). Rehearsal evening moves to
 after his all-phases testing. PAT regeneration deferred to season start. Bug widget live
 in prod (v97) + feedback migration applied.
+
+## 57 — Model routing update (2026-07-31, Ananth)
+All coding tasks: GPT 5.6 Luna at MAX reasoning (codex model_reasoning_effort=xhigh).
+Code reviews: Claude Opus (replaces Terra as the review seat).
+Sonnet: testing only (browser QC, provers). Effective immediately for all remaining work
+(Phase 5 remainder, Analytics build, demo-data pass).
