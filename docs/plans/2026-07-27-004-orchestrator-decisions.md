@@ -67,3 +67,17 @@ observed clean one-at-a-time. fotmob_slow deferred (Ananth D7: future improvemen
 Deviations logged in implementation-notes.md. Post-ceremony state: cron re-enabled; the
 Phase 4 pipeline is live and self-scheduling. Follow-ups: D6 analytics mockups (blocks
 Analytics UI slice), Phase 5 implementation, Phase 6 hardening backlog, FotMob enablement.
+
+## 55 — D6 closed: Analytics design + data rules (2026-07-31)
+Design: merged mockup docs/design/throwaway/analytics-v5-merged.html (V1 card feed base,
+V3 editorial headline on the lead card, V4 pinned league-lens pill; written for 4-entrant
+reality). Data rules confirmed by Ananth:
+1. My form computes over distinct fixture-picks (same fixture + same scoreline = one sample);
+   per-league counting only under a named league lens.
+2. Consensus exists only with a strict majority of that GW's entrants; consensus-dependent
+   receipts/labels silently skip weeks without one.
+3. Analytics recompute is a separate idempotent per-(user, competition) full rebuild after
+   settlement — never inside settlement code. Corrections/voids handled by rebuild + note.
+4. Cache keyed by last settled GW; analytics never reads live state (spec freeze).
+5. NO share buttons at launch — share-image flow is a future improvement alongside FotMob
+   enablement. Cards are designed to be screenshotted.
