@@ -11,6 +11,34 @@ export const GW_BADGE_COPY = {
   recalculating: "RECALCULATING",
 } as const;
 
+export const FEEDBACK_COPY = {
+  title: "Report a bug",
+  hint: "A little context helps us fix it.",
+  placeholder: "What broke? What did you expect?",
+  close: "Close bug report",
+  sent: "Sent — thanks",
+  button: "Bug?",
+  cancel: "Cancel",
+  send: "Send",
+  sending: "Sending…",
+  required: "Tell us what went wrong.",
+  tooLong: "Feedback must be 2,000 characters or fewer.",
+  signInAgain: "Please sign in again.",
+  tooMany: "Too many reports. Please try again later.",
+  sendError: "Couldn’t send the report. Please try again.",
+  devTitle: "Bug reports",
+  devSubtitle: "Unresolved reports, newest first.",
+  created: "Created (IST)",
+  user: "User",
+  path: "Path",
+  league: "League",
+  message: "Message",
+  version: "Version",
+  action: "Action",
+  resolve: "Resolve",
+  empty: "No unresolved reports.",
+} as const;
+
 export const C1 = (number: number) => `${gameweekName(number)} is open`;
 export const C2 = (deadline: string) => `Deadline ${deadline}`;
 export const C3 = (stakeInr: number) => `Enter for ₹${stakeInr.toLocaleString("en-IN")}`;

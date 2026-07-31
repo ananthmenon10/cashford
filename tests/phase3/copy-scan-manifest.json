@@ -39,7 +39,12 @@
     { "path": "app/m/[fixtureId]/page.tsx", "mode": "jsx", "note": "Phase 4 match detail route" },
     { "path": "app/matches/page.tsx", "mode": "jsx", "note": "Phase 4 matches route" },
     { "path": "components/Phase4MatchDetailPage.tsx", "mode": "jsx", "note": "Phase 4 match detail page" },
-    { "path": "components/Phase4MatchesPage.tsx", "mode": "jsx", "note": "Phase 4 matches page" }
+    { "path": "components/Phase4MatchesPage.tsx", "mode": "jsx", "note": "Phase 4 matches page" },
+    { "path": "app/layout.tsx", "mode": "jsx", "note": "global signed-in feedback widget mount" },
+    { "path": "app/dev/feedback/actions.ts", "mode": "strings", "note": "feedback resolve action" },
+    { "path": "app/dev/feedback/page.tsx", "mode": "jsx", "note": "unresolved feedback debug view" },
+    { "path": "app/feedback/actions.ts", "mode": "strings", "note": "feedback submit action" },
+    { "path": "components/BugReportButton.tsx", "mode": "jsx", "note": "in-app feedback widget" }
   ],
   "excluded": [
     "app/leagues/[slug]/_cup/CupLeagueView.tsx",

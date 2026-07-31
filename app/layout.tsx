@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, Geist_Mono } from "next/font/google";
+import { BugReportButton } from "@/components/BugReportButton";
 import "./globals.css";
 
 // Run functions in Mumbai, next to Supabase (ap-south-1) — kills cross-region DB latency.
@@ -46,7 +47,10 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
-      <body className="min-h-screen">{children}</body>
+      <body className="min-h-screen">
+        {children}
+        <BugReportButton />
+      </body>
     </html>
   );
 }
