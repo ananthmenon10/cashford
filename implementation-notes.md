@@ -1074,3 +1074,36 @@ Backlog: phase4-persistence.sql re-seed is not idempotent in an unreset DB (fixe
 insert without on conflict) — harness-only, fix with the Phase 6 hardening pass.
 Suite: 646/646 · tsc clean · build + safety green. Migration 20260728000001 remains UNAPPLIED.
 Awaiting: RO contract review → Ananth: migration apply, commit/push, arming decisions (D7 FotMob, D6 mockups).
+
+## Phase 4 arming ceremony — EXECUTED (2026-07-31)
+
+Terra's 9-step checklist ran end-to-end in one window. Record:
+- Contract flipped to `Status: APPROVED` (commit 989c49e); merged to main; prod deploy v94,
+  commit 6df15d7a1bf9822a8c6cc3d0f6b5a72252df875e (verified via Vercel API; all reviewed
+  surfaces confirmed contained in that commit).
+- Migration 20260728000001_match_data_v2.sql APPLIED to prod. Nine keys born at infinity;
+  claim_insights_writer + replace_provider_fixture_id verified present.
+- Approval row in cashford.sync_issues: contract SHA
+  1de84d7f0a6675f57423ba613a23ade9865963e09d779ff160bb7acee783f2fa + deployed SHA above;
+  exactly one unresolved row confirmed.
+- Baseline observation: 8 keys PASS (prod provably dark pre-arming).
+- Armed + observed one-at-a-time, all PASS, every changed row owned, zero ownership failures:
+  espn_insights, espn_match_data, espn_commentary, espn_standings, derived_standings,
+  espn_reconcile, team_news, understat_xg.
+- fotmob_slow stays at infinity — deferred by Ananth (D7), logged as future improvement.
+- Evidence: scratchpad ceremony/ dir (baseline-*.json, observe-*.json, arm-*.log per key).
+
+### Deviations (ceremony)
+1. fotmob_slow baseline skipped: FOTMOB_ENABLED unset in prod makes its required
+   fotmobEnabled:true assertion unpassable; key stays dark, so nothing to prove. Run its
+   baseline + arm as part of the future FotMob enablement.
+2. Approval row initially included optional deployed_app_version=94; the logged-out page hides
+   the version pill so the automated check failed closed. Removed the optional field from the
+   row (both required hashes untouched) — the contract's attested source-SHA check remains the
+   build check.
+3. Observation needed a quiet window the checklist under-specified: prod pg_cron (cashford-tick,
+   every minute) raced the observer's tick for leases. Ananth paused cron.job id 1 for the
+   ceremony; re-enabled after. Also: the legacy knockout resolver runs on :00/:15/:30/:45
+   minutes, so observation ticks avoided those minutes to keep legacy writers quiet.
+4. Observer DB access: PHASE4_RO_DATABASE_URL added to .env.local (session pooler,
+   aws-1-ap-south-1, DB password reset by Ananth via dashboard; nothing else used the old one).
