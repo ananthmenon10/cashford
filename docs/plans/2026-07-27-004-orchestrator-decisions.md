@@ -81,3 +81,12 @@ reality). Data rules confirmed by Ananth:
 4. Cache keyed by last settled GW; analytics never reads live state (spec freeze).
 5. NO share buttons at launch — share-image flow is a future improvement alongside FotMob
    enablement. Cards are designed to be screenshotted.
+
+## 56 — Beta sequencing locked (2026-07-31)
+Ananth's calls: Phase 5 build GO (full #34 pipeline — money code). Analytics build GO,
+queued sequentially behind Phase 5 (overlapping league-shell surfaces; no parallel
+implementers in one worktree). After Phase 5: build a demo-data environment — demo leagues
++ data covering ALL cases and flows so Ananth can test every phase together; design this
+carefully (dedicated planning pass, not a quick seed script). Rehearsal evening moves to
+after his all-phases testing. PAT regeneration deferred to season start. Bug widget live
+in prod (v97) + feedback migration applied.
