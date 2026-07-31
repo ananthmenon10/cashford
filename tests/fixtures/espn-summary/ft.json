@@ -1,0 +1,226 @@
+{
+  "header": {
+    "id": "740975",
+    "competitions": [
+      {
+        "id": "740975",
+        "date": "2026-05-24T15:00Z",
+        "competitors": [
+          {
+            "id": "364",
+            "homeAway": "home",
+            "team": { "id": "364", "displayName": "Liverpool" },
+            "score": "1"
+          },
+          {
+            "id": "337",
+            "homeAway": "away",
+            "team": { "id": "337", "displayName": "Brentford" },
+            "score": "1"
+          }
+        ],
+        "status": {
+          "type": {
+            "state": "post",
+            "completed": true,
+            "detail": "FT"
+          }
+        }
+      }
+    ]
+  },
+  "boxscore": {
+    "teams": [
+      {
+        "team": { "id": "364", "displayName": "Liverpool" },
+        "homeAway": "home",
+        "statistics": [
+          { "name": "wonCorners", "displayValue": "14", "label": "Corner Kicks" },
+          { "name": "possessionPct", "displayValue": "60.2", "label": "Possession" },
+          { "name": "totalShots", "displayValue": "24", "label": "SHOTS" },
+          { "name": "shotsOnTarget", "displayValue": "8", "label": "ON GOAL" }
+        ]
+      },
+      {
+        "team": { "id": "337", "displayName": "Brentford" },
+        "homeAway": "away",
+        "statistics": [
+          { "name": "wonCorners", "displayValue": "2", "label": "Corner Kicks" },
+          { "name": "possessionPct", "displayValue": "39.8", "label": "Possession" },
+          { "name": "totalShots", "displayValue": "11", "label": "SHOTS" },
+          { "name": "shotsOnTarget", "displayValue": "2", "label": "ON GOAL" }
+        ]
+      }
+    ]
+  },
+  "rosters": [
+    {
+      "homeAway": "home",
+      "team": { "id": "364", "displayName": "Liverpool" },
+      "formation": "4-2-3-1",
+      "roster": [
+        {
+          "starter": true,
+          "jersey": "1",
+          "athlete": { "displayName": "Alisson Becker" },
+          "stats": [
+            { "name": "redCards", "displayName": "Red Cards", "shortDisplayName": "RC", "description": "The number of red cards that have been issued.", "abbreviation": "RC", "value": 0, "displayValue": "0" },
+            { "name": "yellowCards", "displayName": "Yellow Cards", "shortDisplayName": "YC", "description": "The number of yellow cards accumulated.", "abbreviation": "YC", "value": 0, "displayValue": "0" },
+            { "name": "goalsConceded", "displayName": "Goals Against", "shortDisplayName": "GA", "description": "The number of goals allowed by the goalkeeper.", "abbreviation": "GA", "value": 1, "displayValue": "1" },
+            { "name": "saves", "displayName": "Saves", "shortDisplayName": "SV", "description": "The number of times a goalkeeper makes a save.", "abbreviation": "SV", "value": 1, "displayValue": "1" },
+            { "name": "goalAssists", "displayName": "Assists", "shortDisplayName": "A", "description": "The number of assists.", "abbreviation": "A", "value": 0, "displayValue": "0" },
+            { "name": "shotsOnTarget", "displayName": "Shots On Goal", "shortDisplayName": "SOG", "description": "The number of shots that are on goal.", "abbreviation": "SOG", "value": 0, "displayValue": "0" },
+            { "name": "totalGoals", "displayName": "Total Goals", "shortDisplayName": "G", "description": "The number of goals scored against the opposing team.", "abbreviation": "G", "value": 0, "displayValue": "0" },
+            { "name": "totalShots", "displayName": "Shots", "shortDisplayName": "SHOT", "description": "The number of shots attempted.", "abbreviation": "SHOT", "value": 0, "displayValue": "0" }
+          ]
+        },
+        {
+          "starter": true,
+          "jersey": "5",
+          "athlete": { "displayName": "Ibrahima Konaté" },
+          "stats": [
+            { "name": "redCards", "displayName": "Red Cards", "shortDisplayName": "RC", "description": "The number of red cards that have been issued.", "abbreviation": "RC", "value": 0, "displayValue": "0" },
+            { "name": "yellowCards", "displayName": "Yellow Cards", "shortDisplayName": "YC", "description": "The number of yellow cards accumulated.", "abbreviation": "YC", "value": 1, "displayValue": "1" },
+            { "name": "goalsConceded", "displayName": "Goals Against", "shortDisplayName": "GA", "description": "The number of goals allowed by the goalkeeper.", "abbreviation": "GA", "value": 1, "displayValue": "1" },
+            { "name": "goalAssists", "displayName": "Assists", "shortDisplayName": "A", "description": "The number of assists.", "abbreviation": "A", "value": 0, "displayValue": "0" },
+            { "name": "shotsOnTarget", "displayName": "Shots On Goal", "shortDisplayName": "SOG", "description": "The number of shots that are on goal.", "abbreviation": "SOG", "value": 1, "displayValue": "1" },
+            { "name": "totalGoals", "displayName": "Total Goals", "shortDisplayName": "G", "description": "The number of goals scored against the opposing team.", "abbreviation": "G", "value": 0, "displayValue": "0" },
+            { "name": "totalShots", "displayName": "Shots", "shortDisplayName": "SHOT", "description": "The number of shots attempted.", "abbreviation": "SHOT", "value": 2, "displayValue": "2" }
+          ]
+        },
+        {
+          "starter": true,
+          "jersey": "17",
+          "athlete": { "displayName": "Curtis Jones" },
+          "stats": [
+            { "name": "redCards", "displayName": "Red Cards", "shortDisplayName": "RC", "description": "The number of red cards that have been issued.", "abbreviation": "RC", "value": 0, "displayValue": "0" },
+            { "name": "yellowCards", "displayName": "Yellow Cards", "shortDisplayName": "YC", "description": "The number of yellow cards accumulated.", "abbreviation": "YC", "value": 0, "displayValue": "0" },
+            { "name": "goalsConceded", "displayName": "Goals Against", "shortDisplayName": "GA", "description": "The number of goals allowed by the goalkeeper.", "abbreviation": "GA", "value": 1, "displayValue": "1" },
+            { "name": "goalAssists", "displayName": "Assists", "shortDisplayName": "A", "description": "The number of assists.", "abbreviation": "A", "value": 0, "displayValue": "0" },
+            { "name": "shotsOnTarget", "displayName": "Shots On Goal", "shortDisplayName": "SOG", "description": "The number of shots that are on goal.", "abbreviation": "SOG", "value": 1, "displayValue": "1" },
+            { "name": "totalGoals", "displayName": "Total Goals", "shortDisplayName": "G", "description": "The number of goals scored against the opposing team.", "abbreviation": "G", "value": 1, "displayValue": "1" },
+            { "name": "totalShots", "displayName": "Shots", "shortDisplayName": "SHOT", "description": "The number of shots attempted.", "abbreviation": "SHOT", "value": 1, "displayValue": "1" }
+          ]
+        },
+        {
+          "starter": true,
+          "jersey": "11",
+          "athlete": { "displayName": "Mohamed Salah" },
+          "stats": [
+            { "name": "redCards", "displayName": "Red Cards", "shortDisplayName": "RC", "description": "The number of red cards that have been issued.", "abbreviation": "RC", "value": 0, "displayValue": "0" },
+            { "name": "yellowCards", "displayName": "Yellow Cards", "shortDisplayName": "YC", "description": "The number of yellow cards accumulated.", "abbreviation": "YC", "value": 0, "displayValue": "0" },
+            { "name": "goalsConceded", "displayName": "Goals Against", "shortDisplayName": "GA", "description": "The number of goals allowed by the goalkeeper.", "abbreviation": "GA", "value": 1, "displayValue": "1" },
+            { "name": "goalAssists", "displayName": "Assists", "shortDisplayName": "A", "description": "The number of assists.", "abbreviation": "A", "value": 1, "displayValue": "1" },
+            { "name": "shotsOnTarget", "displayName": "Shots On Goal", "shortDisplayName": "SOG", "description": "The number of shots that are on goal.", "abbreviation": "SOG", "value": 2, "displayValue": "2" },
+            { "name": "totalGoals", "displayName": "Total Goals", "shortDisplayName": "G", "description": "The number of goals scored against the opposing team.", "abbreviation": "G", "value": 0, "displayValue": "0" },
+            { "name": "totalShots", "displayName": "Shots", "shortDisplayName": "SHOT", "description": "The number of shots attempted.", "abbreviation": "SHOT", "value": 4, "displayValue": "4" }
+          ]
+        }
+      ]
+    },
+    {
+      "homeAway": "away",
+      "team": { "id": "337", "displayName": "Brentford" },
+      "formation": "4-2-3-1",
+      "roster": [
+        {
+          "starter": true,
+          "jersey": "1",
+          "athlete": { "displayName": "Caoimhín Kelleher" },
+          "stats": [
+            { "name": "redCards", "displayName": "Red Cards", "shortDisplayName": "RC", "description": "The number of red cards that have been issued.", "abbreviation": "RC", "value": 0, "displayValue": "0" },
+            { "name": "yellowCards", "displayName": "Yellow Cards", "shortDisplayName": "YC", "description": "The number of yellow cards accumulated.", "abbreviation": "YC", "value": 0, "displayValue": "0" },
+            { "name": "goalsConceded", "displayName": "Goals Against", "shortDisplayName": "GA", "description": "The number of goals allowed by the goalkeeper.", "abbreviation": "GA", "value": 1, "displayValue": "1" },
+            { "name": "saves", "displayName": "Saves", "shortDisplayName": "SV", "description": "The number of times a goalkeeper makes a save.", "abbreviation": "SV", "value": 7, "displayValue": "7" },
+            { "name": "goalAssists", "displayName": "Assists", "shortDisplayName": "A", "description": "The number of assists.", "abbreviation": "A", "value": 0, "displayValue": "0" },
+            { "name": "shotsOnTarget", "displayName": "Shots On Goal", "shortDisplayName": "SOG", "description": "The number of shots that are on goal.", "abbreviation": "SOG", "value": 0, "displayValue": "0" },
+            { "name": "totalGoals", "displayName": "Total Goals", "shortDisplayName": "G", "description": "The number of goals scored against the opposing team.", "abbreviation": "G", "value": 0, "displayValue": "0" },
+            { "name": "totalShots", "displayName": "Shots", "shortDisplayName": "SHOT", "description": "The number of shots attempted.", "abbreviation": "SHOT", "value": 0, "displayValue": "0" }
+          ]
+        },
+        {
+          "starter": true,
+          "jersey": "22",
+          "athlete": { "displayName": "Nathan Collins" },
+          "stats": [
+            { "name": "redCards", "displayName": "Red Cards", "shortDisplayName": "RC", "description": "The number of red cards that have been issued.", "abbreviation": "RC", "value": 0, "displayValue": "0" },
+            { "name": "yellowCards", "displayName": "Yellow Cards", "shortDisplayName": "YC", "description": "The number of yellow cards accumulated.", "abbreviation": "YC", "value": 1, "displayValue": "1" },
+            { "name": "goalsConceded", "displayName": "Goals Against", "shortDisplayName": "GA", "description": "The number of goals allowed by the goalkeeper.", "abbreviation": "GA", "value": 1, "displayValue": "1" },
+            { "name": "goalAssists", "displayName": "Assists", "shortDisplayName": "A", "description": "The number of assists.", "abbreviation": "A", "value": 0, "displayValue": "0" },
+            { "name": "shotsOnTarget", "displayName": "Shots On Goal", "shortDisplayName": "SOG", "description": "The number of shots that are on goal.", "abbreviation": "SOG", "value": 0, "displayValue": "0" },
+            { "name": "totalGoals", "displayName": "Total Goals", "shortDisplayName": "G", "description": "The number of goals scored against the opposing team.", "abbreviation": "G", "value": 0, "displayValue": "0" },
+            { "name": "totalShots", "displayName": "Shots", "shortDisplayName": "SHOT", "description": "The number of shots attempted.", "abbreviation": "SHOT", "value": 0, "displayValue": "0" }
+          ]
+        },
+        {
+          "starter": true,
+          "jersey": "23",
+          "athlete": { "displayName": "Keane Lewis-Potter" },
+          "stats": [
+            { "name": "redCards", "displayName": "Red Cards", "shortDisplayName": "RC", "description": "The number of red cards that have been issued.", "abbreviation": "RC", "value": 0, "displayValue": "0" },
+            { "name": "yellowCards", "displayName": "Yellow Cards", "shortDisplayName": "YC", "description": "The number of yellow cards accumulated.", "abbreviation": "YC", "value": 0, "displayValue": "0" },
+            { "name": "goalsConceded", "displayName": "Goals Against", "shortDisplayName": "GA", "description": "The number of goals allowed by the goalkeeper.", "abbreviation": "GA", "value": 1, "displayValue": "1" },
+            { "name": "goalAssists", "displayName": "Assists", "shortDisplayName": "A", "description": "The number of assists.", "abbreviation": "A", "value": 0, "displayValue": "0" },
+            { "name": "shotsOnTarget", "displayName": "Shots On Goal", "shortDisplayName": "SOG", "description": "The number of shots that are on goal.", "abbreviation": "SOG", "value": 0, "displayValue": "0" },
+            { "name": "totalGoals", "displayName": "Total Goals", "shortDisplayName": "G", "description": "The number of goals scored against the opposing team.", "abbreviation": "G", "value": 0, "displayValue": "0" },
+            { "name": "totalShots", "displayName": "Shots", "shortDisplayName": "SHOT", "description": "The number of shots attempted.", "abbreviation": "SHOT", "value": 1, "displayValue": "1" }
+          ]
+        },
+        {
+          "starter": true,
+          "jersey": "7",
+          "athlete": { "displayName": "Kevin Schade" },
+          "stats": [
+            { "name": "redCards", "displayName": "Red Cards", "shortDisplayName": "RC", "description": "The number of red cards that have been issued.", "abbreviation": "RC", "value": 0, "displayValue": "0" },
+            { "name": "yellowCards", "displayName": "Yellow Cards", "shortDisplayName": "YC", "description": "The number of yellow cards accumulated.", "abbreviation": "YC", "value": 0, "displayValue": "0" },
+            { "name": "goalsConceded", "displayName": "Goals Against", "shortDisplayName": "GA", "description": "The number of goals allowed by the goalkeeper.", "abbreviation": "GA", "value": 1, "displayValue": "1" },
+            { "name": "goalAssists", "displayName": "Assists", "shortDisplayName": "A", "description": "The number of assists.", "abbreviation": "A", "value": 0, "displayValue": "0" },
+            { "name": "shotsOnTarget", "displayName": "Shots On Goal", "shortDisplayName": "SOG", "description": "The number of shots that are on goal.", "abbreviation": "SOG", "value": 2, "displayValue": "2" },
+            { "name": "totalGoals", "displayName": "Total Goals", "shortDisplayName": "G", "description": "The number of goals scored against the opposing team.", "abbreviation": "G", "value": 1, "displayValue": "1" },
+            { "name": "totalShots", "displayName": "Shots", "shortDisplayName": "SHOT", "description": "The number of shots attempted.", "abbreviation": "SHOT", "value": 4, "displayValue": "4" }
+          ]
+        }
+      ]
+    }
+  ],
+  "keyEvents": [
+    {
+      "id": "47764767",
+      "type": { "id": "70", "text": "Goal", "type": "goal" },
+      "clock": { "value": 3466, "displayValue": "58'" },
+      "team": { "id": "364", "displayName": "Liverpool" },
+      "participants": [
+        { "athlete": { "id": "190257", "displayName": "Curtis Jones" } },
+        { "athlete": { "id": "173896", "displayName": "Mohamed Salah" } }
+      ],
+      "text": "Goal! Liverpool 1, Brentford 0. Curtis Jones (Liverpool) right footed shot from the centre of the box to the bottom left corner. Assisted by Mohamed Salah following a fast break."
+    },
+    {
+      "id": "47764892",
+      "type": { "id": "137", "text": "Goal - Header", "type": "goal---header" },
+      "clock": { "value": 3812, "displayValue": "64'" },
+      "team": { "id": "337", "displayName": "Brentford" },
+      "participants": [
+        { "athlete": { "id": "310958", "displayName": "Kevin Schade" } }
+      ],
+      "text": "Goal! Liverpool 1, Brentford 1. Kevin Schade (Brentford) header from the centre of the box to the bottom left corner."
+    },
+    {
+      "id": "47765208",
+      "type": { "id": "94", "text": "Yellow Card", "type": "yellow-card" },
+      "clock": { "value": 4719, "displayValue": "79'" },
+      "team": { "id": "364", "displayName": "Liverpool" },
+      "participants": [
+        { "athlete": { "id": "251634", "displayName": "Ibrahima Konaté" } }
+      ],
+      "text": "Ibrahima Konaté (Liverpool) is shown the yellow card for a bad foul."
+    }
+  ],
+  "commentary": [
+    { "sequence": 0, "time": { "value": 0, "displayValue": "" }, "text": "Lineups are announced and players are warming up." },
+    { "sequence": 1, "time": { "value": 0, "displayValue": "" }, "text": "First Half begins." },
+    { "sequence": 2, "time": { "value": 28, "displayValue": "1'" }, "text": "Corner, Liverpool. Conceded by Michael Kayode." },
+    { "sequence": 3, "time": { "value": 73, "displayValue": "2'" }, "text": "Attempt blocked. Alexis Mac Allister (Liverpool) right footed shot from outside the box is blocked. Assisted by Rio Ngumoha." },
+    { "sequence": 4, "time": { "value": 199, "displayValue": "4'" }, "text": "Corner, Liverpool. Conceded by Keane Lewis-Potter." }
+  ]
+}

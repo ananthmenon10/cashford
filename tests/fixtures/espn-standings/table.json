@@ -1,0 +1,35 @@
+{
+  "children": [
+    {
+      "name": "Premier League",
+      "standings": {
+        "entries": [
+          {
+            "team": { "id": "359", "displayName": "Arsenal" },
+            "stats": [
+              { "name": "rank", "value": 1 },
+              { "name": "gamesPlayed", "value": 24 },
+              { "name": "wins", "value": 17 },
+              { "name": "ties", "value": 4 },
+              { "name": "losses", "value": 3 },
+              { "name": "points", "value": 55 },
+              { "name": "pointDifferential", "value": 30 }
+            ]
+          },
+          {
+            "team": { "id": "363", "displayName": "Chelsea" },
+            "stats": [
+              { "name": "rank", "value": 2 },
+              { "name": "gamesPlayed", "value": 24 },
+              { "name": "wins", "value": 15 },
+              { "name": "ties", "value": 5 },
+              { "name": "losses", "value": 4 },
+              { "name": "points", "value": 50 },
+              { "name": "pointDifferential", "value": 20 }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

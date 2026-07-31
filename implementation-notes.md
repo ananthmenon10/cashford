@@ -1063,3 +1063,14 @@ reconciliation; its description does not represent a normal FPL fixture add.
 Staging browser pass: 8/8 PASS on cashford-staging.vercel.app (deployment dpl_7RxFSAiSUvVKZJfSNvzALqDTK4sB, after migration 000003). Covered: login + open-redirect vectors (both dead on the live site), Test League home (pot line + IST deadline), entry write via real UI (steppers clamp 0–9, save, reload, persist), pick edit + persist, dues page, Solid Yenne Boys read-only render, bogus-slug 404. Screenshots: scratchpad/p3-browser/. Writes touched only ZZ-P1 Test League; its GW1 now holds one QA entry (₹500 pot, test data).
 
 Backlog notes from the pass: stepper increment drops same-tick rapid clicks (likely missing functional state updater) — non-blocking, revisit before/during Phase 4; ZZ-P1 Test League uses real PL teams, not Gamma/Delta as older docs said.
+
+## Phase 4 code + proofs closed (2026-07-31)
+Adversarial review rounds 1–5 all closed (decision #52). Disposable-Postgres proofs 5/5 PASS
+(migration chain + M11 stamp idempotency, lease concurrency 20-way, single insights writer across
+arm/revert, remap rollback atomicity, 9 dark keys) — report + privilege-audit addendum at
+scratchpad/p4-prover-report.md. Prover finding fixed: sync_state/sync_issues anon/authenticated
+grants revoked in the unapplied migration (line ~277), re-proven green.
+Backlog: phase4-persistence.sql re-seed is not idempotent in an unreset DB (fixed-slug competitions
+insert without on conflict) — harness-only, fix with the Phase 6 hardening pass.
+Suite: 646/646 · tsc clean · build + safety green. Migration 20260728000001 remains UNAPPLIED.
+Awaiting: RO contract review → Ananth: migration apply, commit/push, arming decisions (D7 FotMob, D6 mockups).

@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { loadMatchesView } from "@/lib/home-matches";
 import { loadAnalyticsView } from "@/lib/home-analytics";
 import { loadHomeLeagueCards } from "@/lib/gw-home";
 import { GW_UI_COPY } from "@/lib/gw-copy";
@@ -10,10 +9,10 @@ import { logout } from "./actions";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { HomeTabs } from "@/components/HomeTabs";
 import { KnockoutBanner } from "@/components/KnockoutBanner";
-import { MatchesTab } from "@/components/MatchesTab";
 import { AnalyticsTab } from "@/components/AnalyticsTab";
 import { LeagueCard } from "@/components/gw/LeagueCard";
 import { APP_VERSION } from "@/lib/version";
+import { MATCH_COPY } from "@/lib/match-copy";
 
 function initials(name: string) {
   const clean = name.replace(/[^A-Za-z]/g, "");
@@ -32,9 +31,8 @@ export default async function Home() {
     user?.email?.split("@")[0] ??
     "you";
 
-  const [leaguesQuery, matchesView, analyticsView] = await Promise.all([
+  const [leaguesQuery, analyticsView] = await Promise.all([
     supabase.from("leagues").select("id, name, slug, status").order("name"),
-    loadMatchesView(supabase, admin, user!.id),
     loadAnalyticsView(supabase, user!.id),
   ]);
   if (leaguesQuery.error) {
@@ -48,8 +46,6 @@ export default async function Home() {
     leagues ?? [],
     user!.id,
   );
-  const matchesAlert = matchesView.live.length > 0 || matchesView.picksDue != null;
-
   // ── Tab 1: Leagues ─────────────────────────────────────────────────────────────────
   const leaguesPanel = (
     <div className="px-5 py-5">
@@ -152,9 +148,18 @@ export default async function Home() {
 
       <HomeTabs
         leagues={leaguesPanel}
-        matches={<div className="px-4 py-4"><MatchesTab view={matchesView} /></div>}
+        matches={
+          <div className="px-4 py-4">
+            <Link
+              href="/matches"
+              className="block rounded-card border border-border bg-surface p-5 text-center font-bold text-primary-press shadow-[0_2px_8px_rgba(15,23,42,.04)]"
+            >
+              {MATCH_COPY.viewMatches}
+            </Link>
+          </div>
+        }
         analytics={analyticsPanel}
-        matchesAlert={matchesAlert}
+        matchesAlert={false}
         bracketHref="/bracket"
         bracketNew
       />

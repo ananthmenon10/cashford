@@ -33,7 +33,13 @@
     { "path": "components/gw/SyncIssueNote.tsx", "mode": "jsx", "note": "" },
     { "path": "components/ui.tsx", "mode": "jsx", "note": "gameweek StatusBadge branch ONLY (U36a) — scan bounded to that branch" },
     { "path": "lib/gw-copy.ts", "mode": "strings", "note": "the copy module itself" },
-    { "path": "lib/ist.ts", "mode": "strings", "note": "user-visible time strings" }
+    { "path": "lib/ist.ts", "mode": "strings", "note": "user-visible time strings" },
+    { "path": "app/api/cron/tick/route.ts", "mode": "strings", "note": "Phase 4 cron handler" },
+    { "path": "components/MatchesTab.tsx", "mode": "jsx", "note": "Phase 4 matches tab" },
+    { "path": "app/m/[fixtureId]/page.tsx", "mode": "jsx", "note": "Phase 4 match detail route" },
+    { "path": "app/matches/page.tsx", "mode": "jsx", "note": "Phase 4 matches route" },
+    { "path": "components/Phase4MatchDetailPage.tsx", "mode": "jsx", "note": "Phase 4 match detail page" },
+    { "path": "components/Phase4MatchesPage.tsx", "mode": "jsx", "note": "Phase 4 matches page" }
   ],
   "excluded": [
     "app/leagues/[slug]/_cup/CupLeagueView.tsx",

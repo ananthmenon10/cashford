@@ -1,0 +1,32 @@
+{
+  "teams": [
+    { "id": 1, "name": "Arsenal" },
+    { "id": 6, "name": "Chelsea" }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "web_name": "Saka",
+      "team": 1,
+      "status": "a",
+      "news": "",
+      "chance_of_playing_next_round": null
+    },
+    {
+      "id": 2,
+      "web_name": "Odegaard",
+      "team": 1,
+      "status": "d",
+      "news": "Being assessed",
+      "chance_of_playing_next_round": 75
+    },
+    {
+      "id": 3,
+      "web_name": "Jackson",
+      "team": 6,
+      "status": "i",
+      "news": "Ankle injury",
+      "chance_of_playing_next_round": 0
+    }
+  ]
+}

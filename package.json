@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:phase1": "vitest run tests/phase1",
-    "test:phase2": "vitest run tests/phase2"
+    "test:phase2": "vitest run tests/phase2",
+    "test:phase4": "vitest run tests/phase4",
+    "safety:phase4": "node scripts/verify-phase4-safety.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

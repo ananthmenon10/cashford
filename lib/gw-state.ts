@@ -37,11 +37,18 @@ export type LifecycleResult = {
 } | null;
 
 const fixtureState = (fixture: LifecycleFixture) => fixture.effectiveState ?? fixture.state;
-const isFinal = (fixture: LifecycleFixture) =>
-  fixture.final === true ||
-  (fixture.status === "finished" &&
+const isFinal = (fixture: LifecycleFixture) => {
+  const rawFixtureShape =
+    fixture.status != null ||
+    fixture.homeScore !== undefined ||
+    fixture.awayScore !== undefined;
+  if (!rawFixtureShape) return fixture.final === true;
+  return (
+    (fixture.final === true || fixture.status === "finished") &&
     fixture.homeScore != null &&
-    fixture.awayScore != null);
+    fixture.awayScore != null
+  );
+};
 
 export function resolveContestLifecycle(
   contest: LifecycleContest,

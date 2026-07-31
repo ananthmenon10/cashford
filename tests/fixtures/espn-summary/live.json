@@ -1,0 +1,73 @@
+{
+  "header": {
+    "id": "740975",
+    "competitions": [
+      {
+        "id": "740975",
+        "date": "2026-05-24T15:00Z",
+        "competitors": [
+          {
+            "id": "364",
+            "homeAway": "home",
+            "team": { "id": "364", "displayName": "Liverpool" },
+            "score": "0"
+          },
+          {
+            "id": "337",
+            "homeAway": "away",
+            "team": { "id": "337", "displayName": "Brentford" },
+            "score": "0"
+          }
+        ],
+        "status": {
+          "type": {
+            "id": "2",
+            "name": "STATUS_IN_PROGRESS",
+            "state": "in",
+            "completed": false,
+            "description": "In Progress",
+            "detail": "HT",
+            "shortDetail": "HT"
+          }
+        }
+      }
+    ]
+  },
+  "rosters": [
+    {
+      "homeAway": "home",
+      "team": { "id": "364", "displayName": "Liverpool" },
+      "formation": "4-2-3-1",
+      "roster": [
+        { "starter": true, "jersey": "1", "athlete": { "displayName": "Alisson Becker" } },
+        { "starter": true, "jersey": "5", "athlete": { "displayName": "Ibrahima Konaté" } },
+        { "starter": true, "jersey": "17", "athlete": { "displayName": "Curtis Jones" } },
+        { "starter": true, "jersey": "11", "athlete": { "displayName": "Mohamed Salah" } }
+      ]
+    },
+    {
+      "homeAway": "away",
+      "team": { "id": "337", "displayName": "Brentford" },
+      "formation": "4-2-3-1",
+      "roster": [
+        { "starter": true, "jersey": "1", "athlete": { "displayName": "Caoimhín Kelleher" } },
+        { "starter": true, "jersey": "22", "athlete": { "displayName": "Nathan Collins" } },
+        { "starter": true, "jersey": "23", "athlete": { "displayName": "Keane Lewis-Potter" } },
+        { "starter": true, "jersey": "7", "athlete": { "displayName": "Kevin Schade" } }
+      ]
+    }
+  ],
+  "keyEvents": [
+    {
+      "id": "47763606",
+      "type": { "id": "80", "text": "Kickoff", "type": "kickoff" },
+      "clock": { "value": 0, "displayValue": "" }
+    },
+    {
+      "id": "47764458",
+      "type": { "id": "81", "text": "Halftime", "type": "halftime" },
+      "clock": { "value": 2700, "displayValue": "45'+4'" },
+      "text": "First Half ends, Liverpool 0, Brentford 0."
+    }
+  ]
+}
