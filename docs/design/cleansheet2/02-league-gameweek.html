@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cashford 2.0 — League → Gameweek tab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ffffff;
+    --canvas:#f4f5f3;
+    --ink:#14171a;
+    --ink-2:#4a5257;
+    --ink-3:#868f95;
+    --line:#e5e8e4;
+    --line-2:#eff1ee;
+    --green:#12805c;
+    --green-soft:#e8f4ee;
+    --green-line:#bfe0cf;
+    --amber:#a86b12;
+    --amber-soft:#fdf3e3;
+    --amber-line:#f0dfc0;
+    --red:#a6382f;
+    --red-soft:#fbecea;
+    --red-line:#eccdc8;
+    --r-lg:20px; --r-md:14px; --r-sm:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  i{font-style:normal}
+  body{
+    font-family:'Hanken Grotesk',system-ui,sans-serif;
+    background:var(--canvas);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    padding:40px 24px 100px;
+  }
+  .num{font-family:'Geist Mono',monospace;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";white-space:nowrap}
+  a{color:inherit}
+
+  /* ---------- page chrome ---------- */
+  .doc-head{max-width:940px;margin:0 auto 40px}
+  .doc-kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+  .doc-title{font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:8px}
+  .doc-thesis{font-size:15px;color:var(--ink-2);margin-top:8px;max-width:62ch;line-height:1.55}
+  .doc-nav{max-width:940px;margin:16px auto 0;display:flex;flex-wrap:wrap;gap:8px}
+  .doc-nav a{
+    font-size:12px;font-weight:700;text-decoration:none;color:var(--ink-2);
+    background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:6px 12px;
+  }
+  .doc-nav a.here{background:var(--ink);border-color:var(--ink);color:#fff}
+
+  .stage{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .frame-wrap{width:390px}
+  .frame-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px;padding-left:2px}
+  .frame{
+    width:390px;background:var(--canvas);
+    border-radius:34px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(20,23,26,.06),0 18px 40px -12px rgba(20,23,26,.18);
+    border:1px solid var(--line);
+  }
+  .frame-cap{margin-top:14px;padding-left:2px}
+  .frame-cap b{display:block;font-size:13.5px;font-weight:800;letter-spacing:-.01em}
+  .frame-cap p{margin-top:5px;font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+  .scroll{padding-bottom:24px}
+  .status{height:34px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 22px 2px;font-size:11px;font-weight:600;color:var(--ink-3)}
+
+  /* ---------- app header ---------- */
+  .appbar{background:var(--paper);padding:6px 16px 14px;border-bottom:1px solid var(--line-2)}
+  .abrow{display:flex;align-items:center;gap:12px}
+  .icobtn{
+    width:34px;height:34px;flex:0 0 34px;border-radius:11px;border:1px solid var(--line);
+    background:var(--paper);display:grid;place-items:center;color:var(--ink-2);font-size:15px;
+  }
+  .abtitle{flex:1;min-width:0}
+  .abtitle h1{font-size:18px;font-weight:700;letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .abtitle .sub{font-size:11.5px;font-weight:600;color:var(--ink-3);margin-top:2px}
+  .balance{
+    display:inline-flex;align-items:baseline;padding:5px 10px;border-radius:9px;
+    background:var(--green-soft);color:var(--green);font-weight:700;font-size:14px;
+    border:1px solid var(--green-line);
+  }
+  .balance.neg{background:var(--red-soft);color:var(--red);border-color:var(--red-line)}
+  .comp{display:flex;align-items:center;gap:6px;margin-top:12px;color:var(--ink-2);font-size:13px;font-weight:600}
+  .comp .chip{display:inline-flex;align-items:center;gap:6px;background:var(--canvas);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+  .comp .chev{color:var(--ink-3);font-size:10px}
+  .comp .chip.archived{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+
+  .tabs{display:flex;gap:24px;margin-top:16px;padding:0 2px}
+  .tab{font-size:14px;font-weight:600;color:var(--ink-3);padding-bottom:11px;position:relative}
+  .tab.on{color:var(--ink);font-weight:700}
+  .tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;border-radius:2px;background:var(--green)}
+
+  /* bottom app tab bar */
+  .tabbar{
+    display:flex;background:var(--paper);border-top:1px solid var(--line);
+    padding:9px 8px 16px;position:sticky;bottom:0;
+  }
+  .tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-3)}
+  .tb .ic{font-size:17px;line-height:1}
+  .tb .lb{font-size:10.5px;font-weight:700;letter-spacing:.02em}
+  .tb.on{color:var(--green)}
+
+  /* ---------- gw navigator ---------- */
+  .gwnav{display:flex;align-items:center;justify-content:center;gap:14px;padding:18px 16px 6px}
+  .gwarrow{width:30px;height:30px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-2);font-size:13px}
+  .gwlabel{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .dot{width:4px;height:4px;border-radius:50%;background:var(--line);display:inline-block}
+  .open{font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--green);background:var(--green-soft);border:1px solid var(--green-line);padding:3px 8px;border-radius:6px}
+  .open.grey{color:var(--ink-3);background:var(--canvas);border-color:var(--line)}
+  .open.amber{color:var(--amber);background:var(--amber-soft);border-color:var(--amber-line)}
+
+  /* ---------- generic bits ---------- */
+  .body{padding:12px 16px 0;display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px}
+  .card.hero{padding:22px 20px}
+  .card.tight{padding:16px}
+  .card.flat{border-radius:var(--r-md)}
+
+  .state{display:flex;align-items:center;gap:9px}
+  .state .ring{width:9px;height:9px;border-radius:50%;border:2.5px solid var(--amber)}
+  .state .ring.g{border-color:var(--green)}
+  .state .ring.grey{border-color:var(--ink-3)}
+  .state h2{font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .state h2.sm{font-size:17px}
+
+  .dl{margin-top:14px;padding:12px 14px;border-radius:var(--r-md);background:var(--canvas);border:1px solid var(--line-2)}
+  .dl-k{font-size:10.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+  .dl-v{margin-top:5px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .dl-v .abs{color:var(--ink)}
+  .dl-v .cd{color:var(--amber);background:var(--amber-soft);border-radius:6px;padding:2px 7px;font-size:13px;font-weight:700}
+  .dl-v .cd.g{color:var(--green);background:var(--green-soft)}
+  .dl-v .cd.grey{color:var(--ink-3);background:var(--paper);border:1px solid var(--line)}
+
+  .facts{display:flex;align-items:stretch;margin-top:16px;border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden}
+  .fact{flex:1;padding:11px 12px;background:var(--paper)}
+  .fact+.fact{border-left:1px solid var(--line-2)}
+  .fact-k{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .fact-v{margin-top:4px;font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .fact-v.pot{color:var(--green)}
+  .fact-v.neg{color:var(--red)}
+  .fact-v.sm{font-size:14px}
+
+  .cta{
+    margin-top:18px;width:100%;border:none;border-radius:var(--r-md);
+    background:var(--green);color:#fff;font-family:inherit;font-size:15.5px;font-weight:700;
+    padding:15px;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:-.01em;
+    box-shadow:0 1px 0 rgba(0,0,0,.05),0 6px 14px -6px rgba(18,128,92,.5);
+  }
+  .cta-off{
+    width:100%;border:1px solid var(--line);border-radius:var(--r-md);background:var(--canvas);
+    color:var(--ink-3);font-family:inherit;font-size:15px;font-weight:700;padding:15px;
+    display:flex;align-items:center;justify-content:center;gap:8px;cursor:not-allowed;
+  }
+  .ghost{
+    margin-top:16px;width:100%;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .ghost.tightop{margin-top:12px}
+  .duo{display:flex;gap:10px;margin-top:16px}
+  .duo button{
+    flex:1;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px 10px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:7px;
+  }
+  .duo button.warn{color:var(--red);border-color:var(--red-line);background:var(--paper)}
+  .why{margin-top:9px;text-align:center;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+
+  .sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .sec-head h3{font-size:13px;font-weight:700;letter-spacing:-.005em}
+  .sec-head span{font-size:12px;font-weight:600;color:var(--ink-3)}
+  .people{display:flex;flex-wrap:wrap;gap:8px}
+  .person{display:flex;align-items:center;gap:7px;padding:6px 11px 6px 6px;border-radius:999px;background:var(--canvas);border:1px solid var(--line-2);font-size:13px;font-weight:600}
+  .person.out{color:var(--ink-3)}
+  .av{width:22px;height:22px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center;font-size:10.5px;font-weight:800;border:1px solid var(--green-line)}
+  .av.grey{background:var(--canvas);color:var(--ink-3);border-color:var(--line)}
+  .av.amber{background:var(--amber-soft);color:var(--amber);border-color:var(--amber-line)}
+
+  .recap{display:flex;gap:14px;align-items:flex-start}
+  .medal{width:36px;height:36px;flex:0 0 36px;border-radius:12px;background:var(--amber-soft);border:1px solid var(--amber-line);display:grid;place-items:center;font-size:16px}
+  .medal.g{background:var(--green-soft);border-color:var(--green-line)}
+  .recap-k{font-size:10.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+  .recap-v{margin-top:5px;font-size:14px;font-weight:600;line-height:1.45;color:var(--ink)}
+  .recap-v b{font-weight:800}
+  .note{margin-top:12px;font-size:12px;font-weight:600;color:var(--ink-3);line-height:1.5}
+
+  /* badges & strips */
+  .bdg{
+    display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;padding:4px 8px;border-radius:7px;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink-3);
+  }
+  .bdg.amber{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .bdg.green{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .bdg.red{background:var(--red-soft);border-color:var(--red-line);color:var(--red)}
+  .bdg.ink{background:var(--ink);border-color:var(--ink);color:#fff}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-soft);animation:pl 1.4s infinite}
+  @keyframes pl{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .strip{
+    display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--r-md);
+    background:var(--paper);border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink-2);
+  }
+  .strip.amber{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .strip.green{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .strip.grey{background:var(--canvas);border-color:var(--line);color:var(--ink-3)}
+  .strip .go{margin-left:auto;font-weight:800;font-size:11.5px;white-space:nowrap}
+  .strip b{font-weight:800}
+
+  /* fixture rows */
+  .daygrp{padding:0 16px}
+  .dayhead{
+    display:flex;align-items:center;gap:10px;padding:20px 2px 10px;
+    font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  }
+  .dayhead::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .fx{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);padding:13px 14px;margin-bottom:9px}
+  .fx.on{border-color:var(--green-line);background:linear-gradient(0deg,var(--green-soft) 0%,var(--paper) 62%)}
+  .fx.void{background:var(--canvas);border-style:dashed;color:var(--ink-3)}
+  .fx.open-panel{border-radius:var(--r-md) var(--r-md) 0 0;margin-bottom:0;border-bottom-color:transparent}
+  .fxrow{display:flex;align-items:center;gap:10px}
+  .team{flex:1;min-width:0;font-size:14.5px;font-weight:650;letter-spacing:-.01em;display:flex;align-items:center;gap:7px}
+  .team.away{justify-content:flex-end;text-align:right}
+  .crest{width:18px;height:18px;flex:0 0 18px;border-radius:5px;background:var(--canvas);border:1px solid var(--line);display:grid;place-items:center;font-size:8.5px;font-weight:800;color:var(--ink-3)}
+  .scorebox{display:flex;align-items:center;gap:5px}
+  .sq{
+    width:38px;height:40px;border-radius:10px;display:grid;place-items:center;
+    font-family:'Geist Mono',monospace;font-size:17px;font-weight:600;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink);
+  }
+  .sq.filled{background:var(--green);border-color:var(--green);color:#fff}
+  .sq.empty{color:var(--ink-3);border-style:dashed}
+  .sq.sm{width:30px;height:32px;font-size:15px}
+  .sep{color:var(--ink-3);font-size:12px}
+  .fxmeta{display:flex;align-items:center;justify-content:space-between;margin-top:9px;gap:10px}
+  .kick{font-size:11.5px;font-weight:600;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+  .kick .live{color:var(--green);font-weight:800}
+  .insights-toggle{font-size:11.5px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:5px}
+  .mypick{
+    margin-top:10px;padding-top:9px;border-top:1px solid var(--line-2);
+    display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-2);flex-wrap:wrap;
+  }
+  .mypick b{font-weight:800;color:var(--ink)}
+  .mypick .none{color:var(--ink-3)}
+  .pts{
+    font-family:'Geist Mono',monospace;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:6px;
+    background:var(--canvas);border:1px solid var(--line);color:var(--ink-3);
+  }
+  .pts.p1{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .pts.p3{background:var(--green);border-color:var(--green);color:#fff}
+  .vary{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--green)}
+  .prov{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+
+  /* insights panel */
+  .panel{
+    background:var(--paper);border:1px solid var(--green-line);border-top:1px dashed var(--green-line);
+    border-radius:0 0 var(--r-md) var(--r-md);padding:14px;margin-bottom:9px;
+  }
+  .panel.solo{border:1px solid var(--line);border-radius:var(--r-md);border-top:1px solid var(--line)}
+  .prow{display:flex;gap:10px;padding:8px 0}
+  .prow+.prow{border-top:1px solid var(--line-2)}
+  .pk{flex:0 0 62px;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+  .pv{flex:1;font-size:13px;font-weight:600;color:var(--ink)}
+  .odds{display:flex;gap:6px}
+  .oc{flex:1;text-align:center;background:var(--canvas);border:1px solid var(--line-2);border-radius:8px;padding:6px 2px}
+  .oc small{display:block;font-size:9.5px;font-weight:800;color:var(--ink-3);letter-spacing:.08em}
+  .oc b{font-family:'Geist Mono',monospace;font-size:13px;font-weight:600}
+  .form{display:flex;gap:3px;align-items:center}
+  .fp{width:17px;height:17px;border-radius:5px;display:grid;place-items:center;font-size:9.5px;font-weight:800;color:#fff}
+  .fp.W{background:var(--green)}.fp.D{background:#b8bfc4}.fp.L{background:#c9584f}
+  .vs{font-size:10.5px;color:var(--ink-3);font-weight:700;margin:0 5px}
+  .ts{display:flex;gap:7px;flex-wrap:wrap}
+  .tsi{background:var(--green-soft);border:1px solid var(--green-line);border-radius:7px;padding:4px 8px;font-size:12px;font-weight:700;color:var(--green)}
+  .tsi span{font-family:'Geist Mono',monospace;font-weight:500;opacity:.75}
+  .stale{margin-top:10px;font-size:10.5px;font-weight:600;color:var(--ink-3);text-align:right}
+  .mini-tbl{width:100%;border-collapse:collapse}
+  .mini-tbl td,.mini-tbl th{padding:4px 0;font-size:12px;font-weight:600;text-align:right}
+  .mini-tbl th{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .mini-tbl td:first-child,.mini-tbl th:first-child{text-align:left}
+  .mini-tbl tr.me td{color:var(--green)}
+
+  .more{
+    padding:13px;text-align:center;font-size:13px;font-weight:600;color:var(--ink-3);
+    background:var(--paper);border:1px dashed var(--line);border-radius:var(--r-md);
+  }
+  .util{margin:16px 16px 0}
+  .util button{
+    width:100%;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .util .cnt{font-family:'Geist Mono',monospace;font-weight:600;color:var(--ink-3)}
+
+  .footbar{
+    position:sticky;bottom:0;margin-top:20px;background:rgba(255,255,255,.94);
+    backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:14px 16px 20px;
+  }
+  .footbar .cta{margin-top:0}
+  .entered-bar{
+    position:sticky;bottom:0;margin-top:20px;background:rgba(255,255,255,.94);
+    backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:13px 16px 20px;
+  }
+
+  /* entry sheet bar */
+  .sheet-bar{background:var(--paper);border-bottom:1px solid var(--line-2);padding:6px 16px 16px}
+  .sb-row{display:flex;align-items:center;gap:12px}
+  .sb-title{flex:1}
+  .sb-title h1{font-size:18px;font-weight:700;letter-spacing:-.015em}
+  .prog{display:flex;align-items:center;gap:9px;margin-top:14px}
+  .prog-track{flex:1;height:6px;border-radius:99px;background:var(--line-2);overflow:hidden}
+  .prog-fill{height:100%;background:var(--green);border-radius:99px}
+  .prog-n{font-size:13px;font-weight:700}
+  .prog-n span{color:var(--ink-3)}
+  .stamp{
+    font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--amber);
+    background:var(--amber-soft);border:1px solid var(--amber-line);padding:3px 7px;border-radius:6px;
+  }
+  .stamp.g{color:var(--green);background:var(--green-soft);border-color:var(--green-line)}
+  .pinned{margin-top:12px;font-size:12.5px;font-weight:600;color:var(--ink-2);display:flex;align-items:center;gap:7px}
+  .pinned .cd{color:var(--amber);font-weight:700}
+
+  /* league cards (home) */
+  .lgcard{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}
+  .lg-top{display:flex;align-items:flex-start;gap:12px}
+  .lg-name{flex:1;min-width:0}
+  .lg-name h3{font-size:16.5px;font-weight:800;letter-spacing:-.015em}
+  .lg-name .cmp{margin-top:4px;font-size:12px;font-weight:600;color:var(--ink-3)}
+  .lg-badge{margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .lg-foot{
+    margin-top:13px;padding-top:12px;border-top:1px solid var(--line-2);
+    display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:600;color:var(--ink-2);
+  }
+  .lg-foot .pot{color:var(--green);font-weight:800}
+
+  /* tables / leaderboards */
+  .tbl{width:100%;border-collapse:collapse}
+  .tbl th{
+    font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
+    text-align:right;padding:0 0 9px;border-bottom:1px solid var(--line);
+  }
+  .tbl th:first-child,.tbl td:first-child{text-align:left}
+  .tbl td{padding:10px 0;font-size:13px;font-weight:600;text-align:right;border-bottom:1px solid var(--line-2)}
+  .tbl tr:last-child td{border-bottom:none}
+  .tbl tr.me td{background:var(--green-soft)}
+  .tbl tr.me td:first-child{border-radius:8px 0 0 8px;padding-left:8px}
+  .tbl tr.me td:last-child{border-radius:0 8px 8px 0;padding-right:8px}
+  .tbl .who{display:flex;align-items:center;gap:8px}
+  .tbl .rk{font-family:'Geist Mono',monospace;font-size:11.5px;color:var(--ink-3);width:14px;display:inline-block}
+  .pos{color:var(--green)}
+  .neg{color:var(--red)}
+  .zero{color:var(--ink-3)}
+
+  /* feed / payments */
+  .rowlist{display:flex;flex-direction:column}
+  .rl{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line-2)}
+  .rl:last-child{border-bottom:none}
+  .rl-ic{width:30px;height:30px;flex:0 0 30px;border-radius:9px;background:var(--canvas);border:1px solid var(--line);display:grid;place-items:center;font-size:13px;color:var(--ink-2)}
+  .rl-ic.g{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .rl-ic.r{background:var(--red-soft);border-color:var(--red-line);color:var(--red)}
+  .rl-ic.a{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .rl-txt{flex:1;min-width:0}
+  .rl-txt .t{font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+  .rl-txt .s{margin-top:3px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+  .rl-amt{font-family:'Geist Mono',monospace;font-size:14px;font-weight:600;white-space:nowrap}
+  .rl.dim .rl-txt .t{color:var(--ink-3);text-decoration:line-through}
+
+  .pay{
+    display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--line);
+    border-radius:var(--r-md);background:var(--paper);margin-bottom:9px;
+  }
+  .pay:last-child{margin-bottom:0}
+  .pay-txt{flex:1;font-size:13.5px;font-weight:600}
+  .pay-txt b{font-weight:800}
+  .pay-log{font-size:12px;font-weight:800;color:var(--green);white-space:nowrap}
+
+  /* form fields */
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+  .inp{
+    width:100%;background:var(--canvas);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:12px 13px;font-family:inherit;font-size:14.5px;font-weight:600;color:var(--ink);
+  }
+  .inp.num{font-family:'Geist Mono',monospace}
+  .inp.sel{display:flex;align-items:center;justify-content:space-between}
+  .inp.sel .chev{color:var(--ink-3);font-size:10px}
+  .field-row{display:flex;gap:10px}
+  .field-row .field{flex:1}
+
+  /* modal */
+  .modal-frame{position:relative}
+  .dim-layer{position:absolute;inset:0;background:rgba(20,23,26,.42);backdrop-filter:blur(1.5px);z-index:2}
+  .modal{
+    position:absolute;left:12px;right:12px;bottom:12px;z-index:3;
+    background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:20px;
+    box-shadow:0 24px 50px -12px rgba(20,23,26,.45);
+  }
+  .modal h3{font-size:18px;font-weight:800;letter-spacing:-.02em}
+  .modal p{margin-top:8px;font-size:13px;font-weight:600;color:var(--ink-2);line-height:1.5}
+  .modal .grabber{width:38px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 14px}
+  .mlist{margin-top:14px;border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden}
+  .mrow{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;font-size:13px;font-weight:600}
+  .mrow+.mrow{border-top:1px solid var(--line-2)}
+  .mrow .k{color:var(--ink-3);font-weight:700;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase}
+  .mrow .v{font-weight:800}
+  .mrow .v.g{color:var(--green)}
+
+  /* opt-in list (mirror) */
+  .optin{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-2)}
+  .optin:last-child{border-bottom:none}
+  .optin .txt{flex:1;font-size:13.5px;font-weight:700}
+  .optin .txt small{display:block;margin-top:3px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+  .sw{width:40px;height:23px;border-radius:99px;background:var(--line);position:relative;flex:0 0 40px}
+  .sw::after{content:"";position:absolute;top:2.5px;left:2.5px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .sw.on{background:var(--green)}
+  .sw.on::after{left:auto;right:2.5px}
+
+  /* analytics */
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-2);border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden;margin-top:16px}
+  .met{background:var(--paper);padding:13px 14px}
+  .met-k{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .met-v{margin-top:5px;font-size:20px;font-weight:700;letter-spacing:-.02em}
+  .met-v small{font-size:12px;font-weight:600;color:var(--ink-3);margin-left:3px}
+  .met.muted .met-v{color:var(--ink-3)}
+  .spark{margin-top:16px;padding:14px;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--canvas)}
+  .spark-k{display:flex;align-items:baseline;justify-content:space-between;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .lens{display:flex;align-items:center;gap:8px;overflow:hidden}
+  .lens .pill{font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+  .lens .pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .delta{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-2)}
+  .delta:last-child{border-bottom:none}
+  .delta .dk{flex:1;font-size:13px;font-weight:600}
+  .delta .dv{font-family:'Geist Mono',monospace;font-size:13px;font-weight:600;width:52px;text-align:right}
+  .delta .dd{font-family:'Geist Mono',monospace;font-size:12px;font-weight:600;width:60px;text-align:right}
+  .blur{filter:blur(3px);opacity:.5;pointer-events:none}
+
+  /* cases block */
+  .cases{max-width:940px;margin:56px auto 0;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px 28px}
+  .cases h4{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+  .cases h5{margin-top:20px;font-size:14px;font-weight:800;letter-spacing:-.01em}
+  .cases ul{margin-top:10px;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+  .cases li{font-size:13.5px;line-height:1.55;color:var(--ink-2);padding-left:16px;position:relative}
+  .cases li::before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--green-line)}
+  .cases li b{font-weight:800;color:var(--ink)}
+
+  /* index flows */
+  .flows{max-width:940px;margin:0 auto}
+  .flow{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px 22px;margin-bottom:14px}
+  .flow-h{display:flex;align-items:center;gap:10px}
+  .flow-n{width:24px;height:24px;flex:0 0 24px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:'Geist Mono',monospace;font-size:12px;font-weight:600}
+  .flow-h h3{font-size:15.5px;font-weight:800;letter-spacing:-.015em}
+  .steps{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .step{
+    display:inline-flex;align-items:center;gap:7px;text-decoration:none;
+    background:var(--canvas);border:1px solid var(--line);border-radius:999px;
+    padding:7px 13px;font-size:12.5px;font-weight:700;color:var(--ink);
+  }
+  .step small{font-family:'Geist Mono',monospace;font-size:10.5px;font-weight:600;color:var(--ink-3)}
+  .step.g{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .step.a{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .arw{color:var(--ink-3);font-size:12px;font-weight:700}
+  .pages{max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .plink{
+    display:block;text-decoration:none;background:var(--paper);border:1px solid var(--line);
+    border-radius:var(--r-lg);padding:18px 20px;
+  }
+  .plink .f{font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:var(--ink-3)}
+  .plink h3{margin-top:7px;font-size:16px;font-weight:800;letter-spacing:-.015em}
+  .plink p{margin-top:6px;font-size:13px;font-weight:600;color:var(--ink-2);line-height:1.5}
+  /* pass 2 · league table tab (same component as the Matches tab table) */
+  .ltbl{width:100%;border-collapse:collapse}
+  .ltbl th{
+    font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+    text-align:right;padding:0 0 8px;border-bottom:1px solid var(--line);
+  }
+  .ltbl th:nth-child(2),.ltbl td:nth-child(2){text-align:left}
+  .ltbl td{padding:7px 0;font-size:12.5px;font-weight:600;text-align:right;border-bottom:1px solid var(--line-2)}
+  .ltbl td.rk{font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:var(--ink-3);width:20px;text-align:left;padding-right:6px}
+  .ltbl td.cl{font-weight:650;letter-spacing:-.01em}
+  .ltbl td.n,.ltbl td.p{font-family:'Geist Mono',monospace;font-weight:600}
+  .ltbl td.fm{width:74px;text-align:right}
+  .ltbl td.fm .form{justify-content:flex-end}
+  .ltbl tr.ucl td{background:var(--green-soft)}
+  .ltbl tr.ucl td:nth-child(1){border-radius:6px 0 0 6px;padding-left:5px}
+  .ltbl tr.ucl td:last-child{border-radius:0 6px 6px 0;padding-right:5px}
+  .ltbl tr.gap td{
+    text-align:center;color:var(--ink-3);font-size:9.5px;font-weight:800;
+    letter-spacing:.1em;text-transform:uppercase;padding:9px 0;
+  }
+  .fp.xs{width:12px;height:12px;border-radius:4px;font-size:0}
+  .form.xs{gap:2.5px}
+  .zonekey{margin-top:12px;display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:var(--ink-3)}
+  .zonekey i{width:10px;height:10px;border-radius:3px;background:var(--green-soft);border:1px solid var(--green-line)}
+
+  .sect{max-width:940px;margin:48px auto 18px}
+  .sect h2{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+</style>
+</head>
+<body>
+
+<nav class="doc-nav">
+  <a href="00-index.html">Overview</a>
+  <a href="01-home.html">Home</a>
+  <a href="02-league-gameweek.html" class="here">Gameweek</a>
+  <a href="03-entry-sheet.html">Entry</a>
+  <a href="04-season.html">Season</a>
+  <a href="05-dues.html">Dues</a>
+  <a href="06-match-detail.html">Match</a>
+  <a href="07-archive.html">Archive</a>
+  <a href="08-matches-tab.html">Matches tab</a>
+  <a href="09-join-create.html">Join</a>
+</nav>
+
+<div class="doc-head">
+  <div class="doc-kicker">Clean Sheet 2.0 · 02</div>
+  <div class="doc-title">League → Gameweek</div>
+  <p class="doc-thesis">Purpose: one stateful screen that carries a league through the whole weekly cycle — enter it, sweat it, win it, pay for it. The state changes in place; the user is never moved to another tab. <span class="num">‹ GW3 ›</span> browses past and published-future gameweeks.</p>
+</div>
+
+<div class="stage">
+
+  <!-- ============ 1 · PRE-DEADLINE, NOT ENTERED ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">1 · Pre-deadline · not entered</div>
+    <div class="frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>Solid Yenne Boys</h1></div>
+          <div class="balance num">+₹340</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip">Premier League 2026-27 <span class="chev">▾</span></span></div>
+        <div class="tabs">
+          <div class="tab on">Gameweek</div><div class="tab">Season</div><div class="tab">Table</div><div class="tab">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="gwnav">
+          <div class="gwarrow">‹</div>
+          <div class="gwlabel">GW3 <i class="dot"></i> <span class="open">OPEN</span></div>
+          <div class="gwarrow">›</div>
+        </div>
+
+        <div class="body">
+          <div class="card hero">
+            <div class="state"><i class="ring"></i><h2>You&rsquo;re not in GW3 yet</h2></div>
+            <div class="dl">
+              <div class="dl-k">Deadline</div>
+              <div class="dl-v"><span class="abs num">Fri 5 Sep, 23:00 IST</span><span class="cd num">in 1d 4h</span></div>
+            </div>
+            <div class="facts">
+              <div class="fact"><div class="fact-k">Ante</div><div class="fact-v num">₹100</div></div>
+              <div class="fact"><div class="fact-k">Entered</div><div class="fact-v num">6/9</div></div>
+              <div class="fact"><div class="fact-k">Pot</div><div class="fact-v num pot">₹600</div></div>
+            </div>
+            <button class="cta">Make your picks <span>→</span></button>
+            <div class="why">All 10 fixtures, or you&rsquo;re not in. Sitting out costs nothing.</div>
+          </div>
+
+          <div class="card">
+            <div class="sec-head"><h3>Entered</h3><span class="num">6 of 9</span></div>
+            <div class="people">
+              <span class="person"><i class="av">H</i>Harsh</span>
+              <span class="person"><i class="av">U</i>Utki</span>
+              <span class="person"><i class="av">D</i>Devang</span>
+              <span class="person"><i class="av">A</i>Ash</span>
+              <span class="person"><i class="av">R</i>Ronak</span>
+              <span class="person"><i class="av">S</i>Sam</span>
+              <span class="person out"><i class="av grey">N</i>Nikhil</span>
+              <span class="person out"><i class="av grey">K</i>Kunal</span>
+            </div>
+            <button class="ghost">Nudge Nikhil and Kunal</button>
+          </div>
+
+          <div class="card">
+            <div class="recap">
+              <div class="medal">🏆</div>
+              <div>
+                <div class="recap-k">Last week</div>
+                <div class="recap-v"><b>Utki</b> won GW2 · <span class="num">11 pts</span> · took <span class="num">₹800</span></div>
+              </div>
+            </div>
+            <button class="ghost tightop">See GW2 recap</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>Open gameweek, no entry yet</b>
+      <p>Deadline as absolute time plus countdown. Ante, entrant count and pot sit together because the pot is what the ante buys. Entrant names are visible pre-lock on purpose — it is the social nudge — and the two who haven’t entered are named on the button, so nudging them takes one tap.</p>
+    </div>
+  </div>
+
+  <!-- ============ 2 · PRE-DEADLINE, ENTERED ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">2 · Pre-deadline · entered</div>
+    <div class="frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>Solid Yenne Boys</h1></div>
+          <div class="balance num">+₹340</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip">Premier League 2026-27 <span class="chev">▾</span></span></div>
+        <div class="tabs">
+          <div class="tab on">Gameweek</div><div class="tab">Season</div><div class="tab">Table</div><div class="tab">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="gwnav">
+          <div class="gwarrow">‹</div>
+          <div class="gwlabel">GW3 <i class="dot"></i> <span class="open">OPEN</span></div>
+          <div class="gwarrow">›</div>
+        </div>
+
+        <div class="body">
+          <div class="card hero">
+            <div class="state"><i class="ring g"></i><h2>You&rsquo;re in ✓</h2></div>
+            <div class="dl">
+              <div class="dl-k">Deadline</div>
+              <div class="dl-v"><span class="abs num">Fri 5 Sep, 23:00 IST</span><span class="cd num">in 1d 4h</span></div>
+            </div>
+            <div class="facts">
+              <div class="fact"><div class="fact-k">Your ante</div><div class="fact-v num">₹100</div></div>
+              <div class="fact"><div class="fact-k">Entered</div><div class="fact-v num">7/9</div></div>
+              <div class="fact"><div class="fact-k">Pot</div><div class="fact-v num pot">₹700</div></div>
+            </div>
+            <button class="ghost">✎ Edit picks</button>
+            <div class="why">Entry is final. Your picks stay editable until the deadline.</div>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Your picks</h3><span class="num">10 of 10</span></div>
+            <div class="rowlist">
+              <div class="rl">
+                <div class="rl-txt"><div class="t">Arsenal — Coventry</div><div class="s">Sat <span class="num">17:30 IST</span></div></div>
+                <div class="rl-amt">2–0</div>
+              </div>
+              <div class="rl">
+                <div class="rl-txt"><div class="t">Leeds — Chelsea</div><div class="s">Sat <span class="num">20:00 IST</span></div></div>
+                <div class="rl-amt">2–1</div>
+              </div>
+              <div class="rl">
+                <div class="rl-txt"><div class="t">Everton — Hull</div><div class="s">Sat <span class="num">22:15 IST</span></div></div>
+                <div class="rl-amt">1–0</div>
+              </div>
+              <div class="rl">
+                <div class="rl-txt"><div class="t">Liverpool — Man Utd</div><div class="s">Sun <span class="num">18:30 IST</span></div></div>
+                <div class="rl-amt">3–1</div>
+              </div>
+            </div>
+            <button class="ghost">Show all 10</button>
+            <div class="note">Nobody else sees these until the deadline. Then everyone's whole gameweek reveals at once.</div>
+          </div>
+
+          <div class="card">
+            <div class="sec-head"><h3>Waiting on</h3><span class="num">2 of 9</span></div>
+            <div class="people">
+              <span class="person out"><i class="av grey">N</i>Nikhil</span>
+              <span class="person out"><i class="av grey">K</i>Kunal</span>
+            </div>
+            <button class="ghost">Nudge Nikhil and Kunal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>Entered, still open</b>
+      <p>Two states only — not in, or in. Entering is final: the ₹100 is committed the moment you enter, and there is no withdraw anywhere. What stays open is the picks themselves, editable right up to the deadline. Your own picks are visible to you, hidden from the room until then.</p>
+    </div>
+  </div>
+
+  <!-- ============ 3 · LIVE ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">3 · Live</div>
+    <div class="frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>Solid Yenne Boys</h1></div>
+          <div class="balance num">+₹340</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip">Premier League 2026-27 <span class="chev">▾</span></span></div>
+        <div class="tabs">
+          <div class="tab on">Gameweek</div><div class="tab">Season</div><div class="tab">Table</div><div class="tab">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="gwnav">
+          <div class="gwarrow">‹</div>
+          <div class="gwlabel">GW3 <i class="dot"></i> <span class="open"><i class="pulse" style="margin-right:4px"></i>LIVE</span></div>
+          <div class="gwarrow">›</div>
+        </div>
+
+        <div class="body">
+          <div class="card hero">
+            <div class="state"><i class="ring g"></i><h2 class="sm"><span class="num">1st of 7</span> on <span class="num">8 pts</span></h2></div>
+            <div class="facts">
+              <div class="fact"><div class="fact-k">Pot</div><div class="fact-v num pot">₹700</div></div>
+              <div class="fact"><div class="fact-k">Fixtures left</div><div class="fact-v num">4 of 9</div></div>
+              <div class="fact"><div class="fact-k">As it stands</div><div class="fact-v num pot">+₹600</div></div>
+            </div>
+            <div class="strip green" style="margin-top:16px">
+              <span><i class="pulse"></i></span>
+              <span>Provisional — nothing settles until the last counted fixture is final.</span>
+            </div>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Gameweek race</h3><span class="num">7 entrants</span></div>
+            <table class="tbl">
+              <tr><th>Entrant</th><th>Pts</th><th>Exact</th><th>Miss</th></tr>
+              <tr class="me"><td><span class="who"><i class="rk num">1</i><b>You</b></span></td><td class="num">8</td><td class="num">2</td><td class="num">4</td></tr>
+              <tr><td><span class="who"><i class="rk num">2</i>Utki</span></td><td class="num">8</td><td class="num">1</td><td class="num">3</td></tr>
+              <tr><td><span class="who"><i class="rk num">3</i>Harsh</span></td><td class="num">6</td><td class="num">1</td><td class="num">6</td></tr>
+              <tr><td><span class="who"><i class="rk num">4</i>Devang</span></td><td class="num">5</td><td class="num">1</td><td class="num">7</td></tr>
+              <tr><td><span class="who"><i class="rk num">5</i>Ash</span></td><td class="num">3</td><td class="num">0</td><td class="num">9</td></tr>
+            </table>
+            <div class="note">Tied on points → most exacts wins, then lowest total goal miss (Σ|Δhome| + |Δaway|), then the pot splits in whole rupees. You are ahead of Utki on exacts right now.</div>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Your fixtures</h3><span>0 / 1 / 3 pts</span></div>
+            <div class="rowlist">
+              <div class="rl">
+                <div class="rl-ic g">✓</div>
+                <div class="rl-txt"><div class="t">Arsenal 2–0 Coventry</div><div class="s">FT · you said <span class="num">2–0</span></div></div>
+                <div class="rl-amt"><span class="pts p3 num">3</span></div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic g">✓</div>
+                <div class="rl-txt"><div class="t">Wolves 1–2 Palace</div><div class="s">FT · you said <span class="num">0–2</span> · result only</div></div>
+                <div class="rl-amt"><span class="pts p1 num">1</span></div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic"><i class="pulse"></i></div>
+                <div class="rl-txt"><div class="t">Leeds 1–1 Chelsea</div><div class="s"><span class="num">67'</span> · you said <span class="num">2–1</span></div></div>
+                <div class="rl-amt"><span class="pts num">0</span></div>
+              </div>
+              <div class="rl dim">
+                <div class="rl-ic a">⊘</div>
+                <div class="rl-txt"><div class="t">Everton — Hull</div><div class="s">Postponed after lock · void in GW3, ante unaffected</div></div>
+                <div class="rl-amt"><span class="pts num">—</span></div>
+              </div>
+              <div class="rl">
+                <div class="rl-ic">◷</div>
+                <div class="rl-txt"><div class="t">Liverpool — Man Utd</div><div class="s">Sun <span class="num">18:30 IST</span> · you said <span class="num">3–1</span></div></div>
+                <div class="rl-amt"><span class="pts num">—</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>Locked, fixtures running</b>
+      <p>The race table carries the tiebreak columns that will actually decide it, explained in place. Per-fixture 0/1/3 chips; a fixture postponed after lock shows struck through with the rule inline — the gameweek settles when its remaining fixtures finish.</p>
+    </div>
+  </div>
+
+  <!-- ============ 4 · SETTLED ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">4 · Settled</div>
+    <div class="frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>Solid Yenne Boys</h1></div>
+          <div class="balance num">+₹940</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip">Premier League 2026-27 <span class="chev">▾</span></span></div>
+        <div class="tabs">
+          <div class="tab on">Gameweek</div><div class="tab">Season</div><div class="tab">Table</div><div class="tab">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="gwnav">
+          <div class="gwarrow">‹</div>
+          <div class="gwlabel">GW3 <i class="dot"></i> <span class="open grey">SETTLED</span></div>
+          <div class="gwarrow">›</div>
+        </div>
+
+        <div class="body">
+          <div class="card hero">
+            <div class="recap">
+              <div class="medal g">🏆</div>
+              <div>
+                <div class="recap-k">GW3 winner</div>
+                <div class="recap-v"><b>You</b> · <span class="num">11 pts</span> · took the pot</div>
+              </div>
+            </div>
+            <div class="facts">
+              <div class="fact"><div class="fact-k">Pot</div><div class="fact-v num pot">₹700</div></div>
+              <div class="fact"><div class="fact-k">Entrants</div><div class="fact-v num">7</div></div>
+              <div class="fact"><div class="fact-k">Your net</div><div class="fact-v num pot">+₹600</div></div>
+            </div>
+            <div class="strip amber" style="margin-top:16px">
+              <span>⚖</span>
+              <span>Tied with Utki on <b class="num">11 pts</b> — you took it on exacts, <b class="num">2 vs 1</b>.</span>
+            </div>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Final table</h3><span class="num">7 entrants</span></div>
+            <table class="tbl">
+              <tr><th>Entrant</th><th>Pts</th><th>Exact</th><th>Miss</th><th>Net</th></tr>
+              <tr class="me"><td><span class="who"><i class="rk num">1</i><b>You</b></span></td><td class="num">11</td><td class="num">2</td><td class="num">5</td><td class="num pos">+600</td></tr>
+              <tr><td><span class="who"><i class="rk num">2</i>Utki</span></td><td class="num">11</td><td class="num">1</td><td class="num">6</td><td class="num neg">−100</td></tr>
+              <tr><td><span class="who"><i class="rk num">3</i>Harsh</span></td><td class="num">8</td><td class="num">1</td><td class="num">8</td><td class="num neg">−100</td></tr>
+              <tr><td><span class="who"><i class="rk num">4</i>Devang</span></td><td class="num">7</td><td class="num">2</td><td class="num">9</td><td class="num neg">−100</td></tr>
+              <tr><td><span class="who"><i class="rk num">5</i>Ash</span></td><td class="num">5</td><td class="num">0</td><td class="num">12</td><td class="num neg">−100</td></tr>
+              <tr><td><span class="who"><i class="rk num">6</i>Ronak</span></td><td class="num">4</td><td class="num">0</td><td class="num">13</td><td class="num neg">−100</td></tr>
+              <tr><td><span class="who"><i class="rk num">7</i>Sam</span></td><td class="num">3</td><td class="num">0</td><td class="num">15</td><td class="num neg">−100</td></tr>
+            </table>
+            <div class="note">Everton — Hull was void in GW3, so it counted for nobody. Nine fixtures scored.</div>
+          </div>
+
+          <div class="card tight">
+            <div class="strip">
+              <span>₹</span>
+              <span><b>+₹600</b> landed in Dues — your league balance is now <b class="num">+₹940</b>.</span>
+              <span class="go">Dues ›</span>
+            </div>
+            <button class="cta">Go to GW4 <span>→</span></button>
+            <div class="why">GW4 opens now · deadline Fri 12 Sep, 23:00 IST</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>Settled, pot paid</b>
+      <p>Winner, pot and the tiebreak that decided it, stated in words. The net column shows each entrant's movement, and the money lands in Dues rather than a separate wallet. Once settled, focus flips to the next open gameweek.</p>
+    </div>
+  </div>
+
+  <!-- ============ 5 · EDGE STATES ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">5 · Edge · void GW &amp; blank GW</div>
+    <div class="frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>PES Bois</h1></div>
+          <div class="balance num">+₹150</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip">La Liga 2026-27 <span class="chev">▾</span></span></div>
+        <div class="tabs">
+          <div class="tab on">Gameweek</div><div class="tab">Season</div><div class="tab">Table</div><div class="tab">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="gwnav">
+          <div class="gwarrow">‹</div>
+          <div class="gwlabel">GW3 <i class="dot"></i> <span class="open amber">VOID</span></div>
+          <div class="gwarrow">›</div>
+        </div>
+
+        <div class="body">
+          <div class="card hero">
+            <div class="state"><i class="ring"></i><h2 class="sm">GW3 was void — only you entered</h2></div>
+            <p class="note">Only you entered, so there was nobody to win the pot from. Your <span class="num">₹100</span> ante was returned in full and GW3 scores nothing towards the season table. Your picks are kept for the record.</p>
+            <div class="facts">
+              <div class="fact"><div class="fact-k">Entrants</div><div class="fact-v num">1</div></div>
+              <div class="fact"><div class="fact-k">Ante returned</div><div class="fact-v num pot">₹100</div></div>
+              <div class="fact"><div class="fact-k">Your net</div><div class="fact-v num zero">₹0</div></div>
+            </div>
+            <button class="ghost">See your GW3 picks</button>
+          </div>
+
+          <div class="card tight">
+            <div class="sec-head"><h3>Next up · GW4</h3><span class="bdg amber">blank gameweek</span></div>
+            <div class="strip amber">
+              <span>ⓘ</span>
+              <span><b>Blank gameweek</b> — <b class="num">4</b> fixtures. Cup clashes. The pot runs as normal.</span>
+            </div>
+            <div class="dl">
+              <div class="dl-k">Deadline</div>
+              <div class="dl-v"><span class="abs num">Fri 12 Sep, 23:00 IST</span><span class="cd num">in 6d 4h</span></div>
+            </div>
+            <div class="facts">
+              <div class="fact"><div class="fact-k">Ante</div><div class="fact-v num">₹100</div></div>
+              <div class="fact"><div class="fact-k">Fixtures</div><div class="fact-v num">4</div></div>
+              <div class="fact"><div class="fact-k">Pot so far</div><div class="fact-v num pot">₹200</div></div>
+            </div>
+            <button class="cta">Make your 4 picks <span>→</span></button>
+            <div class="why">Fewer fixtures, same ante — a blank gameweek still pays out.</div>
+          </div>
+
+          <div class="card tight">
+            <div class="strip grey">
+              <span>↩</span>
+              <span><b>GW1 re-settled</b> on 24 Aug — an official score correction moved the pot from Ash to Ronak.</span>
+              <span class="go">See ›</span>
+            </div>
+            <div class="note">Corrections always appear as a reversal plus new payouts. Nothing is edited silently.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>Degenerate weeks, explained in place</b>
+      <p>One entrant → void, ante returned, nothing scored. Blank gameweek → fewer fixtures, unchanged ante, pot runs. A later score correction → visible re-settlement. All three explain themselves on the screen instead of sending anyone to a rules page.</p>
+    </div>
+  </div>
+
+  <!-- ============ 6 · TABLE TAB ============ -->
+  <div class="frame-wrap">
+    <div class="frame-label">6 · Table tab</div>
+    <div class="frame">
+      <div class="status"><span class="num">9:41</span><span>▮▮▮ ⌁ ▰</span></div>
+
+      <div class="appbar">
+        <div class="abrow">
+          <div class="icobtn">‹</div>
+          <div class="abtitle"><h1>Solid Yenne Boys</h1></div>
+          <div class="balance num">+₹340</div>
+          <div class="icobtn">⚙</div>
+        </div>
+        <div class="comp"><span class="chip">Premier League 2026-27 <span class="chev">▾</span></span></div>
+        <div class="tabs">
+          <div class="tab">Gameweek</div><div class="tab">Season</div><div class="tab on">Table</div><div class="tab">Dues</div>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="body">
+          <div class="strip grey">
+            <span>◇</span>
+            <span>Same component as the Table view in the Matches tab. Nothing about it is league-specific — a table is a table.</span>
+          </div>
+
+          <div class="card tight">
+            <table class="ltbl">
+              <thead>
+                <tr><th></th><th>Club</th><th>P</th><th>GD</th><th>Pts</th><th>Form</th></tr>
+              </thead>
+              <tbody>
+                <tr class="ucl"><td class="rk">1</td><td class="cl">Arsenal</td><td class="n">3</td><td class="n">+8</td><td class="p">9</td><td class="fm"><span class="form xs"><i class="fp xs W"></i><i class="fp xs W"></i><i class="fp xs W"></i></span></td></tr>
+                <tr class="ucl"><td class="rk">2</td><td class="cl">Man City</td><td class="n">3</td><td class="n">+6</td><td class="p">7</td><td class="fm"><span class="form xs"><i class="fp xs W"></i><i class="fp xs D"></i><i class="fp xs W"></i></span></td></tr>
+                <tr class="ucl"><td class="rk">3</td><td class="cl">Aston Villa</td><td class="n">3</td><td class="n">+4</td><td class="p">7</td><td class="fm"><span class="form xs"><i class="fp xs W"></i><i class="fp xs W"></i><i class="fp xs D"></i></span></td></tr>
+                <tr class="ucl"><td class="rk">4</td><td class="cl">Leeds</td><td class="n">3</td><td class="n">+3</td><td class="p">7</td><td class="fm"><span class="form xs"><i class="fp xs L"></i><i class="fp xs W"></i><i class="fp xs W"></i></span></td></tr>
+                <tr><td class="rk">5</td><td class="cl">Liverpool</td><td class="n">2</td><td class="n">+4</td><td class="p">6</td><td class="fm"><span class="form xs"><i class="fp xs W"></i><i class="fp xs W"></i></span></td></tr>
+                <tr><td class="rk">6</td><td class="cl">Chelsea</td><td class="n">3</td><td class="n">+2</td><td class="p">4</td><td class="fm"><span class="form xs"><i class="fp xs W"></i><i class="fp xs D"></i><i class="fp xs L"></i></span></td></tr>
+                <tr><td class="rk">7</td><td class="cl">Brighton</td><td class="n">3</td><td class="n">+1</td><td class="p">4</td><td class="fm"><span class="form xs"><i class="fp xs D"></i><i class="fp xs D"></i><i class="fp xs W"></i></span></td></tr>
+                <tr><td class="rk">8</td><td class="cl">Newcastle</td><td class="n">3</td><td class="n">0</td><td class="p">4</td><td class="fm"><span class="form xs"><i class="fp xs D"></i><i class="fp xs W"></i><i class="fp xs L"></i></span></td></tr>
+                <tr class="gap"><td colspan="6">12 more clubs</td></tr>
+              </tbody>
+            </table>
+            <div class="zonekey"><i></i><span>Champions League places</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap">
+      <b>The competition table, inside the league</b>
+      <p>Added as a fourth tab because people check the table while they are already looking at their league, and sending them out to the Matches tab to do it is a detour. It is literally the same component — no Cashford numbers, no ranks of your own, just the competition as it stands.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="cases">
+  <h4>Cases &amp; flows</h4>
+
+  <h5>Which gameweek shows</h5>
+  <ul>
+    <li><b>Current-GW rule:</b> a locked-but-unsettled gameweek stays current until it settles. On settlement the screen flips to the next open gameweek and keeps a compact "GW3 settled" recap strip that links back.</li>
+    <li><b>No live gameweek</b> → the next one with a future deadline. <b>Nothing published ahead</b> → the latest settled gameweek. <b>Two locked gameweeks overlapping</b> (a postponement edge) → the newer is current and the older carries an alert.</li>
+    <li>The <span class="num">‹ GW3 ›</span> navigator reaches past and published-future gameweeks; future fixture lists are marked "subject to change" because they follow the source until lock.</li>
+  </ul>
+
+  <h5>Entry and edits</h5>
+  <ul>
+    <li><b>Two states only:</b> not entered / entered. Predicting every fixture and pressing Enter is the single staking action; there is no saved draft to lose.</li>
+    <li><b>Deadline passes mid-edit</b> → the last saved entry stands. Unsaved changes never count, and the screen says so when it locks.</li>
+    <li><b>There is no withdraw.</b> Entering commits the ante — that is what makes the pot real to everyone else in it. The picks stay editable until the deadline, which is the flexibility people actually want.</li>
+    <li><b>Late joiner</b> enters from the next open gameweek at a zero balance; past gameweeks show as not entered, not as losses.</li>
+  </ul>
+
+  <h5>Scoring and money</h5>
+  <ul>
+    <li><b>3 points</b> for an exact scoreline, <b>1 point</b> for the right result only — exact replaces the result point, it does not stack. Summed over the gameweek's counted fixtures.</li>
+    <li><b>Ties:</b> most exacts → lowest total goal miss → split the pot in whole rupees. The live table shows those columns before they matter.</li>
+    <li><b>Void fixture</b> (postponed out, before or after its kickoff time) counts for nobody and becomes predictable again in its new gameweek. An abandoned match counts only the competition's official final result; a full replay voids the original.</li>
+    <li><b>Payouts land in Dues</b> as ordinary two-party movements; the league balance is one continuous number across competitions.</li>
+    <li><b>Stake changes apply to future gameweeks only</b>, so an open pot can never change size under the people already in it.</li>
+  </ul>
+</div>
+
+</body>
+</html>

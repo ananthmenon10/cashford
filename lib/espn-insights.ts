@@ -12,7 +12,8 @@ import { modelFromOdds, type ScoreProb } from "./odds-model";
 
 type Admin = ReturnType<typeof import("./supabase/service").createServiceRoleClient>;
 
-const SUMMARY = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary";
+const SUMMARY = (slug: string) =>
+  `https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/summary`;
 export const INSIGHTS_TTL_MS = 3 * 3600e3; // odds move on hours — 3h refresh is ample
 export const INSIGHTS_WINDOW_MS = 5 * 24 * 3600e3; // odds appear ≲ ~5 days before kickoff
 const POLL_GRACE_MS = 30 * 60e3; // also warm fixtures that just kicked off but are still scheduled
@@ -204,10 +205,11 @@ export function parseStandings(summary: any): StandingsGroup | null {
   return rows.length ? { rows } : null;
 }
 
-async function fetchSummary(externalId: number, signal?: AbortSignal): Promise<any | null> {
+async function fetchSummary(slug: string, externalId: number, signal?: AbortSignal): Promise<any | null> {
+  if (!slug) return null;
   if (!Number.isInteger(externalId) || externalId <= 0) return null;
   try {
-    const res = await fetch(`${SUMMARY}?event=${externalId}`, { cache: "no-store", signal });
+    const res = await fetch(`${SUMMARY(slug)}?event=${externalId}`, { cache: "no-store", signal });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -246,6 +248,10 @@ export function buildInsightsRow(fixtureId: string, summary: any) {
   };
 }
 
+// A fixture can only have insights if ESPN can see it: an event id AND the competition's
+// ESPN slug. Never guess the slug — a PL fixture must never be fetched from fifa.world.
+export type InsightsFixture = { id: string; external_id: number; espn_slug: string | null };
+
 type RefreshResult = {
   skipped?: boolean;
   updated?: boolean;
@@ -255,8 +261,9 @@ type RefreshResult = {
 };
 
 // Fetch ESPN + upsert (no TTL read — callers decide staleness). Bounded by an abort signal.
-async function fetchAndUpsert(admin: Admin, fx: { id: string; external_id: number }, signal?: AbortSignal): Promise<RefreshResult> {
-  const summary = await fetchSummary(fx.external_id, signal ?? AbortSignal.timeout(FETCH_TIMEOUT_MS));
+async function fetchAndUpsert(admin: Admin, fx: InsightsFixture, signal?: AbortSignal): Promise<RefreshResult> {
+  if (!fx.espn_slug) return { skipped: true };
+  const summary = await fetchSummary(fx.espn_slug, fx.external_id, signal ?? AbortSignal.timeout(FETCH_TIMEOUT_MS));
   if (!summary) return { error: "espn summary fetch failed" };
   const row = buildInsightsRow(fx.id, summary);
   const { error } = await admin.from("fixture_insights").upsert(row, { onConflict: "fixture_id" });
@@ -268,7 +275,7 @@ async function fetchAndUpsert(admin: Admin, fx: { id: string; external_id: numbe
 // the cold-miss page path can render without a second read.
 export async function refreshInsights(
   admin: Admin,
-  fx: { id: string; external_id: number },
+  fx: InsightsFixture,
   opts?: { ttlMs?: number; signal?: AbortSignal },
 ): Promise<RefreshResult> {
   const ttl = opts?.ttlMs ?? INSIGHTS_TTL_MS;
@@ -291,13 +298,20 @@ export async function pollInsights(admin: Admin): Promise<{ checked: number; upd
   const untilIso = new Date(now + INSIGHTS_WINDOW_MS).toISOString();
   const { data: fxs } = await admin
     .from("fixtures")
-    .select("id, external_id, kickoff_at")
+    .select("id, external_id, kickoff_at, competitions!inner(espn_slug)")
     .eq("status", "scheduled")
+    .not("external_id", "is", null)
     .not("home_team_id", "is", null)
     .not("away_team_id", "is", null)
     .gte("kickoff_at", fromIso)
     .lte("kickoff_at", untilIso);
-  const list = (fxs ?? []) as { id: string; external_id: number }[];
+  const list: InsightsFixture[] = (fxs ?? [])
+    .map((f: any) => ({
+      id: f.id,
+      external_id: Number(f.external_id),
+      espn_slug: f.competitions?.espn_slug ?? null,
+    }))
+    .filter((f: InsightsFixture) => !!f.espn_slug);
   if (!list.length) return { checked: 0, updated: 0 };
 
   // Single upfront staleness lookup — avoids a per-fixture SELECT.

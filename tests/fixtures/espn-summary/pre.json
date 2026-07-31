@@ -1,0 +1,86 @@
+{
+  "header": {
+    "id": "401879301",
+    "competitions": [
+      {
+        "id": "401879301",
+        "date": "2026-08-21T19:00Z",
+        "competitors": [
+          {
+            "id": "359",
+            "homeAway": "home",
+            "team": { "id": "359", "displayName": "Arsenal" }
+          },
+          {
+            "id": "388",
+            "homeAway": "away",
+            "team": { "id": "388", "displayName": "Coventry City" }
+          }
+        ],
+        "status": {
+          "type": {
+            "id": "1",
+            "name": "STATUS_SCHEDULED",
+            "state": "pre",
+            "completed": false,
+            "description": "Scheduled",
+            "detail": "Fri, August 21st at 3:00 PM EDT",
+            "shortDetail": "8/21 - 3:00 PM EDT"
+          }
+        }
+      }
+    ]
+  },
+  "odds": [
+    {
+      "provider": { "id": "100", "name": "DraftKings", "priority": 1 },
+      "details": "ARS -575",
+      "overUnder": 2.5,
+      "spread": -2.5,
+      "overOdds": -185,
+      "underOdds": 135,
+      "homeTeamOdds": {
+        "favorite": true,
+        "moneyLine": -575,
+        "spreadOdds": 125,
+        "team": { "id": "359", "displayName": "Arsenal" }
+      },
+      "awayTeamOdds": {
+        "favorite": false,
+        "moneyLine": 1300,
+        "spreadOdds": -195,
+        "team": { "id": "388", "displayName": "Coventry City" }
+      },
+      "drawOdds": 600
+    },
+    {
+      "provider": { "id": "2000", "name": "Bet 365", "priority": 0 },
+      "homeTeamOdds": { "team": { "id": "359", "displayName": "Arsenal" } },
+      "awayTeamOdds": { "team": { "id": "388", "displayName": "Coventry City" } }
+    }
+  ],
+  "rosters": [
+    {
+      "homeAway": "home",
+      "winner": false,
+      "team": {
+        "id": "359",
+        "abbreviation": "ARS",
+        "displayName": "Arsenal",
+        "color": "e20520",
+        "alternateColor": "003399"
+      }
+    },
+    {
+      "homeAway": "away",
+      "winner": false,
+      "team": {
+        "id": "388",
+        "abbreviation": "COV",
+        "displayName": "Coventry City",
+        "color": "87cced",
+        "alternateColor": "ffffff"
+      }
+    }
+  ]
+}

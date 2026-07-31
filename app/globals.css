@@ -34,6 +34,28 @@
 
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist), ui-monospace, monospace;
+
+  /* Clean Sheet 2.0 — additive so the World Cup theme stays unchanged. */
+  --color-cs2-paper: #ffffff;
+  --color-cs2-canvas: #f4f5f3;
+  --color-cs2-ink: #14171a;
+  --color-cs2-ink-2: #4a5257;
+  --color-cs2-ink-3: #868f95;
+  --color-cs2-line: #e5e8e4;
+  --color-cs2-line-2: #eff1ee;
+  --color-cs2-green: #12805c;
+  --color-cs2-green-soft: #e8f4ee;
+  --color-cs2-green-line: #bfe0cf;
+  --color-cs2-amber: #a86b12;
+  --color-cs2-amber-soft: #fdf3e3;
+  --color-cs2-amber-line: #f0dfc0;
+  --color-cs2-red: #a6382f;
+  --color-cs2-red-soft: #fbecea;
+  --color-cs2-red-line: #eccdc8;
+
+  --radius-cs2-lg: 20px;
+  --radius-cs2-md: 14px;
+  --radius-cs2-sm: 10px;
 }
 
 /*
@@ -72,6 +94,23 @@ html.dark {
   --kc-label-faint: #9fb0bd;
   --kc-muted: #7a8794;
   --kc-track: rgba(255, 255, 255, 0.05);
+
+  --color-cs2-paper: #131922;
+  --color-cs2-canvas: #0b0f14;
+  --color-cs2-ink: #e6eaf0;
+  --color-cs2-ink-2: #cbd5e1;
+  --color-cs2-ink-3: #8b98a9;
+  --color-cs2-line: #2b3542;
+  --color-cs2-line-2: #232b36;
+  --color-cs2-green: #34d399;
+  --color-cs2-green-soft: rgba(18, 128, 92, 0.22);
+  --color-cs2-green-line: rgba(52, 211, 153, 0.34);
+  --color-cs2-amber: #e8b864;
+  --color-cs2-amber-soft: rgba(168, 107, 18, 0.22);
+  --color-cs2-amber-line: rgba(232, 184, 100, 0.34);
+  --color-cs2-red: #f28b82;
+  --color-cs2-red-soft: rgba(166, 56, 47, 0.22);
+  --color-cs2-red-line: rgba(242, 139, 130, 0.34);
 }
 
 /* Knockout Circle SVG palette (light) — the bracket page now follows the app theme. */

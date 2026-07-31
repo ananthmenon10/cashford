@@ -1,62 +1,196 @@
-"use client";
-
 import Link from "next/link";
-import { useActionState } from "react";
-import { submitCode, type CodeState } from "./actions";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import {
+  C69,
+  C70,
+  GW_ACTION_COPY,
+  GW_JOIN_COPY,
+  GW_UI_COPY,
+  anteSummaryCopy,
+  captainCopy,
+  competitionSummaryCopy,
+  joinAnteCopy,
+  memberCountCopy,
+} from "@/lib/gw-copy";
+import {
+  joinLeague,
+  resolveInvite,
+  stashInviteAndGo,
+  submitCode,
+} from "./actions";
 
-const initial: CodeState = { error: null };
-
-export default function JoinPage() {
-  const [state, formAction, pending] = useActionState(submitCode, initial);
-
+function CodeForm({ error }: { error: string | null }) {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-bg px-7">
-      <div className="w-full max-w-[360px]">
-        <div className="mb-6">
+    <form action={submitCode} className="flex flex-col">
+      <label className="mb-1.5 text-xs font-semibold text-cs2-ink-2" htmlFor="code">
+        {GW_JOIN_COPY.inviteCode}
+      </label>
+      <input
+        id="code"
+        name="code"
+        required
+        autoCapitalize="characters"
+        autoCorrect="off"
+        autoComplete="off"
+        maxLength={8}
+        placeholder={GW_JOIN_COPY.codePlaceholder}
+        className={`w-full rounded-cs2-md border bg-cs2-paper px-3.5 py-3 text-center font-mono text-[22px] font-bold uppercase tracking-[0.15em] outline-none ${
+          error ? "border-cs2-red" : "border-cs2-line focus:border-cs2-green"
+        }`}
+      />
+      {error ? (
+        <p className="mt-2 text-xs font-semibold text-cs2-red">{error}</p>
+      ) : null}
+      <button
+        type="submit"
+        className="mt-[18px] w-full rounded-cs2-md bg-cs2-green py-3.5 text-[15px] font-bold text-white"
+      >
+        {GW_JOIN_COPY.findLeague}
+      </button>
+    </form>
+  );
+}
+
+export default async function JoinPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    invalid?: string;
+    token?: string;
+    joinError?: string;
+  }>;
+}) {
+  const query = await searchParams;
+  const dto = query.token ? await resolveInvite(query.token) : null;
+  const invalid =
+    query.invalid === "1" ||
+    dto?.status === "notfound" ||
+    dto?.status === "revoked";
+
+  if (!dto || dto.status !== "active") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-cs2-canvas px-7">
+        <div className="w-full max-w-[360px]">
           <Link
             href="/"
-            className="mb-5 inline-flex items-center gap-1 text-sm font-semibold text-muted"
+            className="mb-5 inline-flex text-sm font-semibold text-cs2-ink-3"
           >
-            ← Back
+            ← {GW_UI_COPY.back}
           </Link>
-          <div className="text-2xl font-extrabold tracking-tight">Join a league</div>
-          <div className="mt-1 text-sm text-muted">Enter the 8-character code from your captain.</div>
+          <h1 className="text-2xl font-extrabold">{GW_JOIN_COPY.title}</h1>
+          <p className="mb-6 mt-1 text-sm text-cs2-ink-3">
+            {GW_JOIN_COPY.subtitle}
+          </p>
+          <CodeForm error={invalid ? GW_ACTION_COPY.codeNotFound : null} />
+        </div>
+      </main>
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const participationOpen =
+    dto.leagueStatus !== "archived" && dto.participation !== "archived";
+  const joinLabel =
+    dto.participation === "active"
+      ? joinAnteCopy(dto.stakeInr)
+      : GW_JOIN_COPY.join;
+  const inviteToken = dto.token;
+  async function joinAction() {
+    "use server";
+    const result = await joinLeague(inviteToken);
+    if (result) {
+      redirect(
+        `/leagues/join?token=${encodeURIComponent(inviteToken)}&joinError=1`,
+      );
+    }
+  }
+  const stashAndSignup = stashInviteAndGo.bind(null, inviteToken, "/signup");
+  const stashAndLogin = stashInviteAndGo.bind(null, inviteToken, "/login");
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-cs2-canvas px-7">
+      <div className="w-full max-w-[360px]">
+        <Link
+          href="/leagues/join"
+          className="mb-5 inline-flex text-sm font-semibold text-cs2-ink-3"
+        >
+          ← {GW_UI_COPY.back}
+        </Link>
+        <div className="mb-4 rounded-cs2-lg border border-cs2-line bg-cs2-paper p-5">
+          <h1 className="text-xl font-extrabold">{dto.leagueName}</h1>
+          <p className="mt-1 text-sm text-cs2-ink-3">
+            {captainCopy(dto.captainName)}
+          </p>
+          <p className="mt-1 text-sm text-cs2-ink-3">
+            {memberCountCopy(dto.memberCount)}
+          </p>
+          {dto.participation === "none" ? (
+            <p className="mt-3 rounded-cs2-md bg-cs2-amber-soft p-3 text-sm font-semibold text-cs2-amber">
+              {C70}
+            </p>
+          ) : (
+            <>
+              <p className="mt-3 text-sm font-bold">
+                {competitionSummaryCopy(
+                  dto.competitionName,
+                  dto.competitionFormat,
+                )}
+              </p>
+              {dto.participation === "active" ? (
+                <p className="mt-1 text-sm text-cs2-ink-3">
+                  {anteSummaryCopy(dto.stakeInr)}
+                </p>
+              ) : (
+                <p className="mt-2 text-sm font-semibold text-cs2-amber">
+                  {C69}
+                </p>
+              )}
+            </>
+          )}
         </div>
 
-        <form action={formAction} className="flex flex-col">
-          <label className="mb-1.5 text-xs font-semibold text-label" htmlFor="code">
-            Invite code
-          </label>
-          <input
-            id="code"
-            name="code"
-            autoCapitalize="characters"
-            autoCorrect="off"
-            autoComplete="off"
-            maxLength={8}
-            placeholder="e.g. A1B2C3D4"
-            className={`mb-1 w-full rounded-control border bg-surface px-3.5 py-3 text-center font-mono text-[22px] font-bold tracking-[0.15em] uppercase outline-none focus:shadow-[0_0_0_3px_rgba(21,166,106,.12)] placeholder:text-muted placeholder:text-[15px] placeholder:tracking-normal placeholder:font-normal ${
-              state.error ? "border-loss" : "border-border focus:border-primary"
-            }`}
-          />
-
-          {state.error && (
-            <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-loss">
-              <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-loss text-[10px] font-extrabold text-white">
-                !
-              </span>
-              {state.error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={pending}
-            className="mt-[18px] w-full rounded-control bg-primary py-3.5 text-[15px] font-bold text-white shadow-[0_4px_12px_rgba(21,166,106,.3)] disabled:opacity-50"
-          >
-            {pending ? "Looking up…" : "Find league"}
-          </button>
-        </form>
+        {query.joinError === "1" ? (
+          <p className="mb-3 text-xs font-semibold text-cs2-red">
+            {GW_ACTION_COPY.inactiveInvite}
+          </p>
+        ) : null}
+        {!participationOpen ? (
+          <p className="rounded-cs2-md border border-cs2-amber-line bg-cs2-amber-soft p-3 text-sm font-semibold text-cs2-amber">
+            {C69}
+          </p>
+        ) : user ? (
+          <form action={joinAction}>
+            <button
+              type="submit"
+              className="w-full rounded-cs2-md bg-cs2-green py-3.5 text-[15px] font-bold text-white"
+            >
+              {joinLabel}
+            </button>
+          </form>
+        ) : (
+          <>
+            <form action={stashAndSignup} className="mb-3">
+              <button
+                type="submit"
+                className="w-full rounded-cs2-md bg-cs2-green py-3.5 text-[15px] font-bold text-white"
+              >
+                {GW_JOIN_COPY.createAccount}
+              </button>
+            </form>
+            <form action={stashAndLogin}>
+              <button
+                type="submit"
+                className="w-full rounded-cs2-md border border-cs2-line bg-cs2-paper py-3.5 text-[15px] font-semibold text-cs2-green"
+              >
+                {GW_JOIN_COPY.existingAccount}
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </main>
   );

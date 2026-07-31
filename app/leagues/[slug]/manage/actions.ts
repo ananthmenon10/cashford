@@ -115,12 +115,12 @@ export async function removeMember(
 
   const admin = createServiceRoleClient();
 
-  // Delete only the membership row — predictions and contest_results are preserved.
-  const { error } = await admin
-    .from("league_members")
-    .delete()
-    .eq("league_id", league.id)
-    .eq("user_id", targetUserId);
+  // Close the membership instead of deleting it: member_competitions references the row, and
+  // the routine takes the same locks as gameweek entry so a removal cannot race an entry.
+  const { error } = await admin.rpc("leave_league", {
+    p_league_id: league.id,
+    p_user_id: targetUserId,
+  });
 
   if (error) return { error: error.message };
 
@@ -131,10 +131,10 @@ export async function archiveLeague(slug: string): Promise<void> {
   const { league } = await requireCaptain(slug);
   const admin = createServiceRoleClient();
 
-  await admin
-    .from("leagues")
-    .update({ status: "archived" })
-    .eq("id", league.id);
+  // Archives the league AND its competition rows in one transaction: entry and mirror check the
+  // competition row, so leaving it active would let members keep entering an archived league.
+  const { error } = await admin.rpc("archive_league", { p_league_id: league.id });
+  if (error) throw error;
 
   redirect("/leagues/" + slug + "/manage");
 }

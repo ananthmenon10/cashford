@@ -1,0 +1,20 @@
+[
+  {
+    "id": "27653",
+    "isResult": true,
+    "h": { "title": "Arsenal", "short_title": "ARS" },
+    "a": { "title": "Chelsea", "short_title": "CHE" },
+    "goals": { "h": "2", "a": "1" },
+    "xG": { "h": "1.83291", "a": "0.94021" },
+    "datetime": "2026-02-03 15:00:00"
+  },
+  {
+    "id": "27654",
+    "isResult": false,
+    "h": { "title": "Liverpool", "short_title": "LIV" },
+    "a": { "title": "Manchester United", "short_title": "MUN" },
+    "goals": { "h": null, "a": null },
+    "xG": { "h": null, "a": null },
+    "datetime": "2026-02-04 17:30:00"
+  }
+]

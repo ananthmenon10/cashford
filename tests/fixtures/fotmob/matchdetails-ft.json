@@ -1,0 +1,80 @@
+{
+  "general": {
+    "matchId": "4813706",
+    "matchName": "Arsenal-vs-Newcastle United_Sat, Apr 25, 2026, 16:30 UTC",
+    "leagueName": "Premier League",
+    "homeTeam": { "name": "Arsenal", "id": 9825 },
+    "awayTeam": { "name": "Newcastle United", "id": 10261 },
+    "matchTimeUTCDate": "2026-04-25T16:30:00.000Z",
+    "started": true,
+    "finished": true
+  },
+  "content": {
+    "lineup": {
+      "homeTeam": {
+        "formation": "4-2-3-1",
+        "starters": [
+          { "id": 562727, "name": "David Raya", "performance": { "rating": 8, "fantasyScore": "7+3" }, "usualPlayingPositionId": 0, "positionId": 11, "shirtNumber": "1" },
+          { "id": 776151, "name": "Ben White", "performance": { "rating": 7.1, "fantasyScore": "6" }, "usualPlayingPositionId": 1, "positionId": 32, "shirtNumber": "4" },
+          { "id": 955406, "name": "William Saliba", "performance": { "rating": 7.4, "fantasyScore": "6" }, "usualPlayingPositionId": 1, "positionId": 34, "shirtNumber": "2" },
+          { "id": 795179, "name": "Gabriel", "performance": { "rating": 7.6, "fantasyScore": "6+2" }, "usualPlayingPositionId": 1, "positionId": 36, "shirtNumber": "6" }
+        ]
+      },
+      "awayTeam": {
+        "formation": "4-3-3",
+        "starters": [
+          { "id": 280484, "name": "Nick Pope", "performance": { "rating": 6.7, "events": [{ "type": "yellowCard" }], "fantasyScore": "2" }, "usualPlayingPositionId": 0, "positionId": 11, "shirtNumber": "1" },
+          { "id": 1296763, "name": "Lewis Miley", "performance": { "rating": 7, "fantasyScore": "2" }, "usualPlayingPositionId": 2, "positionId": 32, "shirtNumber": "67" },
+          { "id": 1137407, "name": "Malick Thiaw", "performance": { "rating": 7.2, "fantasyScore": "2" }, "usualPlayingPositionId": 1, "positionId": 34, "shirtNumber": "12" },
+          { "id": 956682, "name": "Sven Botman", "performance": { "rating": 7.4, "fantasyScore": "4" }, "usualPlayingPositionId": 1, "positionId": 36, "shirtNumber": "4" }
+        ]
+      }
+    },
+    "matchFacts": {
+      "playerOfTheMatch": {
+        "name": { "firstName": "Piero", "lastName": "Hincapié", "fullName": "Piero Hincapié" },
+        "rating": { "num": "8.0", "isTop": { "isTopRating": true, "isMatchFinished": true } },
+        "teamId": 9825,
+        "isHomeTeam": true
+      }
+    },
+    "shotmap": {
+      "shots": [
+        { "eventType": "Miss", "teamId": 10261, "playerName": "Bruno Guimarães", "x": 85.279411764, "y": 36.745000000000005, "min": 4, "isBlocked": false, "expectedGoals": 0.059495292603969574 },
+        { "eventType": "Miss", "teamId": 9825, "playerName": "Eberechi Eze", "x": 83.2733009712, "y": 21.8272611502, "min": 8, "isBlocked": false, "expectedGoals": 0.029577648267149925 },
+        { "eventType": "Goal", "teamId": 9825, "playerName": "Eberechi Eze", "x": 85.70882352880001, "y": 23.2985987305, "min": 9, "isBlocked": false, "expectedGoals": 0.029637373983860016 },
+        { "eventType": "AttemptSaved", "teamId": 10261, "playerName": "Daniel Burn", "x": 95.0614035074, "y": 30.244, "min": 16, "isBlocked": true, "expectedGoals": 0.04416581615805626 },
+        { "eventType": "AttemptSaved", "teamId": 10261, "playerName": "Joseph Willock", "x": 91.7, "y": 51.847898088099996, "min": 18, "isBlocked": false, "expectedGoals": 0.023056700825691223 }
+      ]
+    },
+    "momentum": {
+      "main": {
+        "data": [
+          { "minute": 0, "value": 0 },
+          { "minute": 1, "value": -5 },
+          { "minute": 2, "value": 0 },
+          { "minute": 3, "value": 0 },
+          { "minute": 4, "value": -5 }
+        ]
+      }
+    },
+    "stats": {
+      "Periods": {
+        "All": {
+          "stats": [
+            {
+              "title": "Top stats",
+              "key": "top_stats",
+              "stats": [
+                { "title": "Ball possession", "key": "BallPossesion", "stats": [45, 55] },
+                { "title": "Expected goals (xG)", "key": "expected_goals", "stats": ["0.49", "1.00"] },
+                { "title": "Big chances", "key": "big_chance", "stats": [0, 2] },
+                { "title": "Corners", "key": "corners", "stats": [7, 2] }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

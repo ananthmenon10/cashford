@@ -25,11 +25,13 @@ export default async function ManagePage({
     .is("revoked_at", null)
     .maybeSingle();
 
-  // Load members with profiles
+  // Load members with profiles. Removal closes the row rather than deleting it, so a departed
+  // member has left_at set and drops off this list.
   const { data: memberRows } = await admin
     .from("league_members")
     .select("user_id")
-    .eq("league_id", league.id);
+    .eq("league_id", league.id)
+    .is("left_at", null);
 
   const memberIds = (memberRows ?? []).map((m: { user_id: string }) => m.user_id);
 
