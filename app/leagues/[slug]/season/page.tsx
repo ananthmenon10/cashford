@@ -7,13 +7,17 @@ import { C29 } from "@/lib/gw-copy";
 import { LeagueShell } from "@/components/gw/LeagueShell";
 import { SeasonTable } from "@/components/gw/SeasonTable";
 import { EmptyState } from "@/components/gw/EmptyState";
+import { SeasonViewPills } from "@/components/gw/SeasonViewPills";
 
 export default async function SeasonPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ view?: string; gw?: string }>;
 }) {
   const { slug } = await params;
+  const query = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -47,8 +51,9 @@ export default async function SeasonPage({
 
   return (
     <LeagueShell view={current} active="season" viewerName={viewerName}>
+      <SeasonViewPills slug={slug} view={query.view === "gameweeks" ? "gameweeks" : "table"} gw={query.gw} />
       {season.rows.length || season.totals.length ? (
-        <SeasonTable slug={slug} view={season} />
+        <SeasonTable slug={slug} view={season} pane={query.view === "gameweeks" ? "gameweeks" : "table"} />
       ) : (
         <EmptyState copy={C29} />
       )}

@@ -31,7 +31,7 @@ export async function checkSlug(
   return { available: data === null };
 }
 
-export type CreatableCompetition = { slug: string; name: string; format: string };
+export type CreatableCompetition = { slug: string; name: string; format: string; nextGameweekNumber: number | null; nextDeadlineAt: string | null };
 
 // Only an ACTIVE competition can be created against — a competition still 'preparing' has no
 // open gameweek and no verified fixture data, so it must not appear in the picker.
@@ -48,10 +48,13 @@ export async function listCreatableCompetitions(): Promise<CreatableCompetition[
     .select("slug, name, format, status")
     .order("created_at", { ascending: false });
   if (error) throw new Error(`list-creatable-competitions: ${error.message}`);
-  return activeCompetitions(data ?? []).map(({ slug, name, format }) => ({
-    slug,
-    name,
-    format,
+  const active = activeCompetitions(data ?? []);
+  return Promise.all(active.map(async ({ slug, name, format }: any) => {
+    const competition = await admin.from("competitions").select("id").eq("slug", slug).single();
+    if (competition.error) throw new Error(`creatable-competition: ${competition.error.message}`);
+    const next = await admin.from("gameweeks").select("number, deadline_at").eq("competition_id", competition.data.id).eq("status", "open").gt("deadline_at", new Date().toISOString()).order("number", { ascending: true }).limit(1).maybeSingle();
+    if (next.error) throw new Error(`creatable-deadline: ${next.error.message}`);
+    return { slug, name, format, nextGameweekNumber: next.data?.number ?? null, nextDeadlineAt: next.data?.deadline_at ?? null };
   }));
 }
 

@@ -12,7 +12,7 @@ import { EntryCard } from "@/components/gw/EntryCard";
 import { NeedsUpdateNudge } from "@/components/gw/NeedsUpdateNudge";
 import { Standings } from "@/components/gw/Standings";
 import { FixtureRow } from "@/components/gw/FixtureRow";
-import CupLeagueView from "./_cup/CupLeagueView";
+import { redirect } from "next/navigation";
 
 export default async function LeaguePage({
   params,
@@ -31,9 +31,7 @@ export default async function LeaguePage({
 
   const identity = await loadLeagueIdentity(supabase, slug);
   if (!identity) notFound();
-  if (identity.participation.status !== "none" && identity.participation.format === "cup") {
-    return <CupLeagueView params={Promise.resolve({ slug })} />;
-  }
+  if (identity.participation.status === "archived" && identity.participation.competitionSlug === "wc2026") redirect(`/leagues/${slug}/archive/wc2026`);
   if (identity.participation.status === "none") {
     return (
       <main className="min-h-screen bg-cs2-canvas px-4 py-12 text-cs2-ink">

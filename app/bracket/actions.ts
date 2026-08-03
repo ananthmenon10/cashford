@@ -12,9 +12,18 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { loadKnockoutView } from "@/lib/knockout-data";
 import { autoPicks, completeBracket, score } from "@/lib/knockout";
+import { BRACKET_COPY } from "@/lib/bracket-copy";
+import { ARCHIVE_COPY } from "@/lib/payment-copy";
 
 const TID = "wc2026";
 const SLOT_RE = /^[1-5]:\d{1,2}$/;
+
+async function assertWorldCupWritable() {
+  const admin = createServiceRoleClient();
+  const { data, error } = await admin.from("competitions").select("status").eq("slug", TID).single();
+  if (error) throw new Error(error.message);
+  if (data.status === "archived") throw new Error(ARCHIVE_COPY.bracketReadOnly);
+}
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -24,17 +33,18 @@ export async function applyKnockoutPromote(input: {
   teamId: string;
   clearSlots: string[];
 }): Promise<ActionResult> {
-  if (!SLOT_RE.test(input.slotKey)) return { ok: false, error: "bad slot" };
+  if (!SLOT_RE.test(input.slotKey)) return { ok: false, error: BRACKET_COPY.badSlot };
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "not signed in" };
+  if (!user) return { ok: false, error: BRACKET_COPY.notSignedIn };
+  try { await assertWorldCupWritable(); } catch (error) { return { ok: false, error: error instanceof Error ? error.message : ARCHIVE_COPY.bracketReadOnly }; }
 
   // Authoritative slot→fixture binding (never trust the client's fixture id).
   const view = await loadKnockoutView(supabase, user.id);
   const fixtureId = view.slotFixtureId[input.slotKey];
-  if (!fixtureId) return { ok: false, error: "slot not yet playable" };
+  if (!fixtureId) return { ok: false, error: BRACKET_COPY.slotNotPlayable };
 
   const { error } = await supabase.from("knockout_predictions").upsert(
     {
@@ -63,7 +73,8 @@ export async function resetKnockoutBracket(): Promise<ActionResult> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "not signed in" };
+  if (!user) return { ok: false, error: BRACKET_COPY.notSignedIn };
+  try { await assertWorldCupWritable(); } catch (error) { return { ok: false, error: error instanceof Error ? error.message : ARCHIVE_COPY.bracketReadOnly }; }
   const { error } = await supabase.from("knockout_predictions").delete().eq("user_id", user.id).eq("tournament_id", TID);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/bracket");
@@ -76,13 +87,14 @@ export async function lockKnockoutBracket(): Promise<ActionResult> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "not signed in" };
+  if (!user) return { ok: false, error: BRACKET_COPY.notSignedIn };
+  try { await assertWorldCupWritable(); } catch (error) { return { ok: false, error: error instanceof Error ? error.message : ARCHIVE_COPY.bracketReadOnly }; }
 
   const view = await loadKnockoutView(supabase, user.id);
   // A bracket is complete when every circle slot has a team — either the viewer's pick
   // or a real (auto-locked) result. Merge, then require all 31.
   const merged = { ...autoPicks(view.results), ...view.myPicks };
-  if (!completeBracket(merged)) return { ok: false, error: "Complete your bracket first — pick a winner for every match." };
+  if (!completeBracket(merged)) return { ok: false, error: BRACKET_COPY.completeFirst };
 
   const sc = score(view.myPicks, view.results);
   const admin = createServiceRoleClient();
@@ -118,7 +130,8 @@ export async function unlockKnockoutBracket(): Promise<ActionResult> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "not signed in" };
+  if (!user) return { ok: false, error: BRACKET_COPY.notSignedIn };
+  try { await assertWorldCupWritable(); } catch (error) { return { ok: false, error: error instanceof Error ? error.message : ARCHIVE_COPY.bracketReadOnly }; }
   const admin = createServiceRoleClient();
   const { error } = await admin.from("knockout_brackets").update({ locked_at: null, updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("tournament_id", TID);
   if (error) return { ok: false, error: error.message };

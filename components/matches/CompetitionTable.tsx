@@ -1,0 +1,7 @@
+import type { StandingsView } from "@/lib/standings-view";
+import { ARCHIVE_COPY, PHASE5_UI_COPY } from "@/lib/payment-copy";
+
+export function CompetitionTable({ view }: { view: StandingsView | null }) {
+  if (!view) return <div className="rounded-card border border-border bg-surface p-5 text-center"><h2 className="font-extrabold">{ARCHIVE_COPY.tableUnavailable}</h2><p className="mt-1 text-[12px] text-muted">{ARCHIVE_COPY.tableUnavailableBody}</p></div>;
+  return <section className="rounded-card border border-border bg-surface p-4"><div className="mb-3 text-xs text-muted">{view.sourceLine}</div><div className="grid grid-cols-[2rem_1fr_repeat(3,2.5rem)] gap-2 border-b border-border pb-2 text-[10px] font-bold text-muted"><span>#</span><span>{PHASE5_UI_COPY.club}</span><span>{PHASE5_UI_COPY.played}</span><span>{PHASE5_UI_COPY.goalDifference}</span><span>{PHASE5_UI_COPY.points}</span></div>{view.rows.map((row, index) => row.kind === "gap" ? <div key={`gap-${index}`} className="py-3 text-center text-xs text-muted">{row.label}</div> : <div key={row.value.club_id} className="grid grid-cols-[2rem_1fr_repeat(3,2.5rem)] gap-2 border-b border-border py-2.5 text-[13px] last:border-0"><span>{row.value.rank}</span><span className="font-semibold">{row.value.club}</span><span>{row.value.played}</span><span>{row.value.gd}</span><span className="font-bold">{row.value.points}</span></div>)}{view.note ? <div className="mt-3 text-xs text-muted">{view.note}</div> : null}</section>;
+}

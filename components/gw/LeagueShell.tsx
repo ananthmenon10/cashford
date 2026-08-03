@@ -4,24 +4,31 @@ import { BackLink } from "@/components/BackLink";
 import { GW_TABS } from "@/lib/gw-copy";
 import type { GameweekViewDTO } from "@/lib/gw-view";
 import { GameweekStrip } from "./GameweekStrip";
+import { CompetitionSheet } from "./CompetitionSheet";
+import { loadCompetitionSheet } from "@/lib/competition-sheet";
+import { createClient } from "@/lib/supabase/server";
 
 const TABS = [
   { key: "gameweek", label: GW_TABS.gameweek, suffix: "" },
   { key: "season", label: GW_TABS.season, suffix: "/season" },
   { key: "dues", label: GW_TABS.dues, suffix: "/dues" },
+  { key: "table", label: GW_TABS.table, suffix: "/table" },
 ] as const;
 
-export function LeagueShell({
+export async function LeagueShell({
   view,
   active,
   viewerName,
+  showCompetitionSheet = true,
   children,
 }: {
   view: Pick<GameweekViewDTO, "league" | "participation" | "gameweek" | "adjacentGameweeks">;
   active: (typeof TABS)[number]["key"];
   viewerName: string;
+  showCompetitionSheet?: boolean;
   children: React.ReactNode;
 }) {
+  const sheet = showCompetitionSheet === false ? null : await loadCompetitionSheet(await createClient(), view.league.id, view.league.slug);
   return (
     <main className="min-h-screen bg-cs2-canvas text-cs2-ink">
       <header className="border-b border-cs2-line-2 bg-cs2-paper">
@@ -35,9 +42,8 @@ export function LeagueShell({
                 : null}
             </div>
           </div>
-          <span className="ml-auto">
-            <Avatar label={viewerName} size={30} />
-          </span>
+          {sheet ? <CompetitionSheet dto={sheet} /> : null}
+          <span><Avatar label={viewerName} size={30} /></span>
         </div>
         <nav className="mx-auto grid max-w-[520px] grid-cols-4 px-4" aria-label={view.league.name}>
           {TABS.map((tab) => (
@@ -54,7 +60,6 @@ export function LeagueShell({
               {tab.label}
             </Link>
           ))}
-          <span aria-hidden className="border-b-2 border-transparent" />
         </nav>
       </header>
 

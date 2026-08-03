@@ -271,6 +271,11 @@ export const GW_ACTION_COPY = {
   codeNotFound: "No active league found for that code.",
 } as const;
 
+export const LEAGUE_MANAGE_COPY = {
+  inviteGenerationFailed: "Could not generate a unique invite after 3 attempts.",
+  cannotRemoveCaptain: "Cannot remove the league captain.",
+} as const;
+
 export const createLiveCopy = (league: string) => `${league} is live`;
 export const shareInviteCopy = (league: string, link: string, code: string) =>
   `Join ${league} on Cashford.\n${link}\n\nCode: ${code}`;

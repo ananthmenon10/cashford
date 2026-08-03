@@ -2,12 +2,14 @@ export type InviteParticipation =
   | {
       participation: "active";
       competitionId: string;
+      competitionSlug: string;
       competitionName: string;
       competitionFormat: "gameweek" | "cup";
     }
   | {
       participation: "archived";
       competitionId: string;
+      competitionSlug: string;
       competitionName: string;
       competitionFormat: "gameweek" | "cup";
     }
@@ -26,6 +28,11 @@ export type InviteDTO =
       stakeInr: number;
       token: string;
       leagueStatus: string;
+      competitionSlug: string | null;
+      anteInr: number;
+      nextGameweekNumber: number | null;
+      nextDeadlineAt: string | null;
+      eligibleFromGameweekNumber: number | null;
     } & InviteParticipation);
 
 export type InviteSource =
@@ -41,9 +48,15 @@ export type InviteSource =
       stakeInr: number;
       token: string;
       leagueStatus: string;
+      competitionSlug?: string | null;
+      anteInr?: number;
+      nextGameweekNumber?: number | null;
+      nextDeadlineAt?: string | null;
+      eligibleFromGameweekNumber?: number | null;
       competitions?: {
         status: "active" | "archived";
         id: string;
+        slug: string;
         name: string;
         format: "league" | "gameweek" | "cup";
         updatedAt?: string;
@@ -77,14 +90,24 @@ export function resolveInvite(source: InviteSource): InviteDTO {
     stakeInr: source.stakeInr,
     token: source.token,
     leagueStatus: source.leagueStatus,
+    competitionSlug: null,
+    anteInr: source.stakeInr,
+    nextGameweekNumber: null,
+    nextDeadlineAt: null,
+    eligibleFromGameweekNumber: null,
   } as const;
   if (!participation) return { ...base, participation: "none" };
   return {
     ...base,
     participation: participation.status,
     competitionId: participation.id,
+    competitionSlug: participation.slug ?? null,
     competitionName: participation.name,
     competitionFormat:
       participation.format === "league" ? "gameweek" : participation.format,
+    anteInr: source.anteInr ?? source.stakeInr,
+    nextGameweekNumber: source.nextGameweekNumber ?? null,
+    nextDeadlineAt: source.nextDeadlineAt ?? null,
+    eligibleFromGameweekNumber: source.eligibleFromGameweekNumber ?? null,
   };
 }

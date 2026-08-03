@@ -31,6 +31,7 @@ export type HomeLeagueCard = {
   subline: string;
   netInr: number | "suppressed";
   action?: { href: string; label: string };
+  pendingPaymentCount: number;
 };
 
 export async function loadHomeLeagueCards(
@@ -45,6 +46,11 @@ export async function loadHomeLeagueCards(
         loadLeagueIdentity(supabase, league.slug),
         leagueNetByUser(supabase, league.id, [userId]),
       ]);
+      const pendingQuery = await admin.from("payments").select("id, payer_user_id, receiver_user_id, required_payer_confirmation, required_receiver_confirmation, status").eq("league_id", league.id).in("status", ["pending", "disputed"]);
+      const pendingPaymentCount = (pendingQuery.data ?? []).filter((payment: any) =>
+        (payment.payer_user_id === userId && payment.required_payer_confirmation) ||
+        (payment.receiver_user_id === userId && payment.required_receiver_confirmation),
+      ).length;
       const netInr =
         leagueNet === "suppressed" ? "suppressed" : leagueNet[userId] ?? 0;
       if (!identity || identity.participation.status === "none") {
@@ -57,6 +63,7 @@ export async function loadHomeLeagueCards(
           archived: league.status === "archived",
           subline: C29,
           netInr,
+          pendingPaymentCount,
         };
       }
       if (identity.participation.format === "cup") {
@@ -69,6 +76,7 @@ export async function loadHomeLeagueCards(
           archived: identity.participation.status === "archived",
           subline: identity.participation.competitionName ?? "",
           netInr,
+          pendingPaymentCount,
         };
       }
 
@@ -116,6 +124,7 @@ export async function loadHomeLeagueCards(
         badge: homeBadgeState(view.lifecycle, view.viewerParticipation),
         subline,
         netInr,
+        pendingPaymentCount,
         action: needsEntry
           ? {
               href: `/leagues/${league.slug}/enter?gw=${view.gameweek!.number}`,

@@ -27,13 +27,14 @@ import {
   type Picks,
 } from "@/lib/knockout";
 import type { KnockoutView } from "@/lib/knockout-data";
+import { BRACKET_COPY } from "@/lib/bracket-copy";
 import { applyKnockoutPromote, resetKnockoutBracket, lockKnockoutBracket, unlockKnockoutBracket } from "@/app/bracket/actions";
 import { KnockoutShare } from "./KnockoutShare";
 
-export function KnockoutCircle({ view }: { view: KnockoutView }) {
+export function KnockoutCircle({ view, readOnly = false }: { view: KnockoutView; readOnly?: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [mode, setMode] = useState<BracketMode>(view.locked ? "picks" : "live");
+  const [mode, setMode] = useState<BracketMode>(readOnly ? "picks" : view.locked ? "picks" : "live");
   const [selected, setSelected] = useState<SlotKey | null>(null);
   const [userPicks, setUserPicks] = useState<Picks>(view.myPicks);
   const [hint, setHint] = useState<SlotKey | null>(null);
@@ -67,6 +68,7 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
   const noPicksYet = mode === "picks" && !view.locked && Object.keys(userPicks).length === 0;
 
   const onPromote = (ring: number, idx: number) => {
+    if (readOnly) return;
     if (view.locked) return;
     const team = at(effective, view.field, ring, idx);
     if (!team) return;
@@ -135,28 +137,28 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
   const summary = selected
     ? { label: RING_LABEL[parseKey(selected)[0]], value: selectedName(view, mode, effective, selected), ready: false }
     : mode === "live"
-      ? { label: "Official results", value: `${view.decided}/${view.total} decided`, ready: false }
+      ? { label: BRACKET_COPY.officialResults, value: `${view.decided}/${view.total} decided`, ready: false }
       : view.locked
-        ? { label: "Bracket locked", value: champ?.name ?? "—", ready: false }
-        : { label: "Your bracket", value: `${made}/${view.total} built`, ready: complete };
+        ? { label: BRACKET_COPY.bracketLocked, value: champ?.name ?? "—", ready: false }
+        : { label: BRACKET_COPY.yourBracket, value: `${made}/${view.total} built`, ready: complete };
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative mx-3 flex gap-1 rounded-[11px] p-1" style={{ background: "var(--kc-track)" }}>
+      {!readOnly ? <div className="relative mx-3 flex gap-1 rounded-[11px] p-1" style={{ background: "var(--kc-track)" }}>
         <div
           className="pointer-events-none absolute bottom-1 top-1 rounded-[9px]"
           style={{ left: 4, width: "calc(50% - 6px)", background: "#15A66A", transform: `translateX(${modeIdx * 100}%)`, transition: "transform .2s var(--cf-ease)" }}
         />
-        {seg("live", "Live Bracket", 0)}
-        {seg("picks", "My Picks", 1)}
-      </div>
+        {seg("live", BRACKET_COPY.liveBracket, 0)}
+        {seg("picks", BRACKET_COPY.myPicks, 1)}
+      </div> : null}
 
-      {noPicksYet && (
+      {!readOnly && noPicksYet && (
         <div
           className="mx-3 flex items-center justify-center gap-1.5 rounded-[10px] px-3 py-2 text-center text-[12px] font-semibold"
           style={{ background: "rgba(21,166,106,.12)", color: "#15A66A" }}
         >
-          <span aria-hidden>👆</span> Tap any flag to send that team through to the next round.
+          <span aria-hidden>👆</span> {BRACKET_COPY.firstPickHint}
         </div>
       )}
 
@@ -176,7 +178,7 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
           <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold text-fg">{summary.value}</span>
           {summary.ready && !open && (
             <span className="shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-extrabold" style={{ background: "rgba(21,166,106,.18)", color: "#22C55E" }}>
-              READY
+              {BRACKET_COPY.ready}
             </span>
           )}
           <Chevron open={open} />
@@ -188,6 +190,8 @@ export function KnockoutCircle({ view }: { view: KnockoutView }) {
               <SelectedDetail view={view} mode={mode} slot={selected} effective={effective} userPicks={userPicks} />
             ) : mode === "live" ? (
               <LivePanel view={view} />
+            ) : readOnly ? (
+              <div className="text-[11px] text-muted">{view.decided}/{view.total}</div>
             ) : view.locked ? (
               <LockedPanel view={view} score={sc} effective={effective} pending={pending} onEdit={() => doAction(unlockKnockoutBracket)} />
             ) : (
@@ -220,10 +224,10 @@ function LivePanel({ view }: { view: KnockoutView }) {
     <div>
       <div className="flex items-baseline gap-2">
         <span className="font-mono text-[26px] font-extrabold text-fg">{view.decided} / {view.total}</span>
-        <span className="text-[12px] font-bold text-muted">matches decided</span>
+        <span className="text-[12px] font-bold text-muted">{BRACKET_COPY.matchesDecided}</span>
       </div>
       <div className="mt-2 text-[11px] leading-[1.45] text-muted">
-        The board fills in only when a match is final — no live scores, no clutter. Tap any team to trace its road to the final.
+        {BRACKET_COPY.livePanelNote}
       </div>
     </div>
   );
@@ -234,30 +238,30 @@ function BuildPanel({ made, total, hint, complete, pending, err, onReset, onLock
   return (
     <div>
       <div className="flex items-baseline justify-between">
-        <div className="font-mono text-[11px] font-bold tracking-[.08em] text-muted">BUILD YOUR BRACKET</div>
+        <div className="font-mono text-[11px] font-bold tracking-[.08em] text-muted">{BRACKET_COPY.buildYourBracket}</div>
         <span className="font-mono text-[12px] font-extrabold text-fg">{made}/{total}</span>
       </div>
       <div className="my-2 h-1.5 overflow-hidden rounded-full" style={{ background: "var(--kc-track)" }}>
         <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#15A66A,#22C55E)", transition: "width .3s" }} />
       </div>
       <div className="mb-2 text-[11px] leading-[1.4]" style={{ color: hint ? "#F2C94C" : "var(--color-muted)", minHeight: 30 }}>
-        {hint ? "Decide the other match first — that empty slot needs a winner before this round opens." : "Tap a team to send it through. Each tap promotes it one round. Finished games are locked in for you."}
+        {hint ? BRACKET_COPY.otherMatchFirst : BRACKET_COPY.promoteTeam}
       </div>
       <div className="mb-2.5 flex flex-wrap gap-3 text-[10px] text-muted">
-        <Legend color="#F2C94C" label="Your pick" />
-        <Legend color="var(--kc-result-stroke)" label="Result locked in" />
-        <Legend color="#F2C94C" dashed label="Pick next" />
+        <Legend color="#F2C94C" label={BRACKET_COPY.yourPick} />
+        <Legend color="var(--kc-result-stroke)" label={BRACKET_COPY.resultLockedIn} />
+        <Legend color="#F2C94C" dashed label={BRACKET_COPY.pickNext} />
       </div>
       {err && <div className="mb-2 text-[11px] font-semibold" style={{ color: "#EF4444" }}>{err}</div>}
       <div className="flex gap-2">
-        <button onClick={onReset} disabled={pending} className="rounded-[9px] border px-3.5 py-2.5 text-[12px] font-bold text-muted" style={{ borderColor: "var(--color-border)" }}>Reset</button>
+        <button onClick={onReset} disabled={pending} className="rounded-[9px] border px-3.5 py-2.5 text-[12px] font-bold text-muted" style={{ borderColor: "var(--color-border)" }}>{BRACKET_COPY.reset}</button>
         <button
           onClick={onLock}
           disabled={pending || !complete}
           className="flex-1 rounded-[9px] py-2.5 text-[13px] font-extrabold"
           style={{ background: complete ? "#15A66A" : "var(--kc-track)", color: complete ? "#fff" : "var(--color-muted)", boxShadow: complete ? "0 4px 14px rgba(21,166,106,.4)" : "none" }}
         >
-          {complete ? "Lock in bracket →" : "Complete the bracket to lock"}
+          {complete ? BRACKET_COPY.lockIn : BRACKET_COPY.completeToLock}
         </button>
       </div>
     </div>
@@ -269,19 +273,19 @@ function LockedPanel({ view, score, effective, pending, onEdit }: { view: Knocko
   const champ = champId ? view.teams[champId] : null;
   return (
     <div>
-      <div className="font-mono text-[11px] font-bold tracking-[.08em] text-muted">BRACKET LOCKED</div>
+      <div className="font-mono text-[11px] font-bold tracking-[.08em] text-muted">{BRACKET_COPY.bracketLockedHeading}</div>
       <div className="my-2.5 flex items-center gap-2.5">
         <span className="grid h-9 w-9 place-items-center rounded-full font-mono text-[12px] font-extrabold text-white" style={{ background: champ ? "#15A66A" : "var(--kc-track)", boxShadow: "0 0 0 2px rgba(242,201,76,.5)" }}>{champ?.code ?? "?"}</span>
         <div>
-          <div className="font-mono text-[9px] font-bold tracking-[.14em]" style={{ color: "#F2C94C" }}>YOUR CHAMPION</div>
+          <div className="font-mono text-[9px] font-bold tracking-[.14em]" style={{ color: "#F2C94C" }}>{BRACKET_COPY.yourChampion}</div>
           <div className="text-[16px] font-extrabold text-fg">{champ?.name ?? "—"}</div>
         </div>
         <span className="ml-auto text-[20px]">🏆</span>
       </div>
       <div className="mb-3 text-[10.5px] leading-[1.4] text-muted">
-        {score.decided > 0 ? `${score.correct}/${score.decided} correct so far` : "No predicted matches decided yet"} · we'll score them live as each match finishes.
+        {score.decided > 0 ? BRACKET_COPY.scoreSoFar(score.correct, score.decided) : BRACKET_COPY.noPredictedMatches} · {BRACKET_COPY.scoreLive}
       </div>
-      <button onClick={onEdit} disabled={pending} className="rounded-[9px] border px-3.5 py-2.5 text-[12px] font-bold text-muted" style={{ borderColor: "var(--color-border)" }}>Edit</button>
+      <button onClick={onEdit} disabled={pending} className="rounded-[9px] border px-3.5 py-2.5 text-[12px] font-bold text-muted" style={{ borderColor: "var(--color-border)" }}>{BRACKET_COPY.edit}</button>
       {view.shareToken && <KnockoutShare shareToken={view.shareToken} championName={champ?.name ?? ""} accuracy={score.decided > 0 ? `${score.correct}/${score.decided} correct` : ""} />}
     </div>
   );
@@ -303,17 +307,17 @@ function SelectedDetail({ view, mode, slot, effective, userPicks }: { view: Knoc
   const teamId = mode === "picks" ? effective[slot] : sv?.team?.id ?? null;
   const team = teamId ? view.teams[teamId] : null;
 
-  let status = "Awaiting result";
+  let status: string = BRACKET_COPY.awaitingResult;
   let scol = "var(--color-muted)";
-  if (ring === 0) status = "In the draw";
+  if (ring === 0) status = BRACKET_COPY.inTheDraw;
   else if (mode === "picks") {
     if (resultId) {
       const ok = userPicks[slot] ? userPicks[slot] === resultId : null;
-      status = ok == null ? "Result in" : ok ? "Your pick advanced ✓" : "Knocked out ✗";
+      status = ok == null ? BRACKET_COPY.resultIn : ok ? BRACKET_COPY.pickAdvanced : BRACKET_COPY.knockedOut;
       scol = ok == null ? "var(--color-muted)" : ok ? "#16A34A" : "#EF4444";
-    } else if (userPicks[slot]) status = "Pick still alive";
-    else status = "Pick this next";
-  } else status = sv?.finished ? "Advanced" : "Awaiting result";
+    } else if (userPicks[slot]) status = BRACKET_COPY.pickStillAlive;
+    else status = BRACKET_COPY.pickThisNext;
+  } else status = sv?.finished ? BRACKET_COPY.advanced : BRACKET_COPY.awaitingResult;
 
   return (
     <div>
@@ -321,11 +325,11 @@ function SelectedDetail({ view, mode, slot, effective, userPicks }: { view: Knoc
       <div className="mt-2 flex items-center gap-2.5">
         <span className="grid h-8 w-8 place-items-center rounded-full font-mono text-[11px] font-extrabold text-white" style={{ background: team ? "#15A66A" : "var(--kc-track)" }}>{team?.code ?? "?"}</span>
         <div>
-          <div className="text-[15px] font-extrabold text-fg">{team?.name ?? "To be decided"}</div>
+        <div className="text-[15px] font-extrabold text-fg">{team?.name ?? BRACKET_COPY.toBeDecided}</div>
           <div className="mt-0.5 text-[11.5px] font-bold" style={{ color: scol }}>{status}</div>
         </div>
       </div>
-      <div className="mt-2.5 text-[10.5px] text-muted">{ring < 5 ? "Highlighted: this team's road to the final." : "The champion lifts the cup here."}</div>
+      <div className="mt-2.5 text-[10.5px] text-muted">{ring < 5 ? BRACKET_COPY.highlightedRoad : BRACKET_COPY.championCup}</div>
     </div>
   );
 }

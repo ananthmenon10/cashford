@@ -1,0 +1,6 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+const schema = z.object({ leagueId: z.string().uuid(), anteInr: z.number().int().min(50).max(1000000), clientRequestId: z.string().uuid() });
+export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) { const { slug } = await context.params; const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) return NextResponse.json({ error: "not authenticated" }, { status: 401 }); const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: "invalid adoption" }, { status: 400 }); const league = await supabase.from("leagues").select("id").eq("id", parsed.data.leagueId).eq("slug", slug).maybeSingle(); if (league.error || !league.data) return NextResponse.json({ error: "league not found" }, { status: 404 }); const { data, error } = await supabase.rpc("adopt_league_competition", { p_league_id: parsed.data.leagueId, p_competition_slug: "pl-2026-27", p_ante_inr: parsed.data.anteInr, p_client_request_id: parsed.data.clientRequestId }); if (error) return NextResponse.json({ error: error.message }, { status: 400 }); return NextResponse.json({ adoption: data }); }
+

@@ -1107,3 +1107,62 @@ Terra's 9-step checklist ran end-to-end in one window. Record:
    minutes, so observation ticks avoided those minutes to keep legacy writers quiet.
 4. Observer DB access: PHASE4_RO_DATABASE_URL added to .env.local (session pooler,
    aws-1-ap-south-1, DB password reset by Ananth via dashboard; nothing else used the old one).
+
+## Phase 5 implementation notes (2026-07-31)
+
+The Phase 5 surface is implemented in the new Dues, archive, table, adoption, competition-sheet,
+payment, and transition modules. The migration is written but was not applied, as required by the
+Phase 5 handoff.
+
+## Deviations
+
+**Migration filename follows the hard fence.** The plan names
+`20260729000001_dues_archive_transition.sql`; the task requires Phase 5 migration files to be
+`2026073100000N_*.sql` with N at least 2. The implementation uses
+`supabase/migrations/20260731000002_dues_archive_transition.sql`.
+
+**The fixed Phase 3 copy manifest could not be updated.** The plan requires new Phase 5 routes and
+components, while the task forbids edits under `tests/phase1..phase4`. The existing copy-governance
+test therefore reports the new Phase 5 files as uncovered. Its direct copy checks still pass; the
+candidate-set assertion is the two-test gate failure reported for this handoff.
+
+**Database and network verification were deferred by instruction.** No migration, SQL query,
+shared-database smoke, disposable database run, staging browser pass, or external request was made.
+The SQL was checked by review and the application was checked by typecheck and build.
+
+**Archive data reads are staged around the current schema boundary.** The archive routes use the
+existing WC contest, fixture, and prediction rows and mark members with unfinished results as
+unavailable. Captain adoption reads the league stake and next open PL gameweek when those rows
+exist; the UI keeps a 500 INR fallback only for a missing stake row.
+
+**Payment matching cards are wired to the direct payment route.** The database routine returns the
+matching row and the API exposes its ID, but the main Dues card still needs the final inline
+matching-payment presentation and logger name copy from PC19.
+
+## PAUSED (2026-07-31, Ananth's instruction) — Phase 5 state at pause
+Code review APPROVED (Terra rounds 1-4). Blind tests 30/30. Full suite 718/718, tsc + build green.
+DB proofs: 80 assertions PASS, 2 FAIL — one open migration bug: adopt_league_competition's
+ON CONFLICT (league_id, gameweek_id) target is ambiguous against the function's OUT parameter
+(fires on ordinary first-time adoption with an open gameweek; deterministic, single connection).
+Same class as the fix-4 bug, one line later. Full evidence: scratchpad p5-prover-report.md.
+
+## RESUMED (2026-08-03, "proceed with the fix and finish phase 5") — Phase 5 closed out
+Decision-57 routing ran as ordered: Luna (xhigh) coded, Opus reviewed, Sonnet proved.
+- Bug 1 (the pause blocker): ON CONFLICT target ambiguity in adopt_league_competition. Fix:
+  `on conflict on constraint gameweek_contests_league_id_gameweek_id_key` (arbiter verified in
+  source AND live pg_constraint by the Opus seat; no later migration touches the name). Luna
+  audited every ON CONFLICT / ORDER BY / GROUP BY / USING / RETURNING site in all 14 routines.
+- Bug 2 (NEW, found by Opus re-deriving the audit): `v_gw := null` at the gameweek-lock handoff
+  DE-ASSIGNS the plpgsql record, so an adoption that blocked on lock_gameweeks and woke to a
+  closed gameweek crashed with `record "v_gw" is not assigned yet` instead of degrading to the
+  null-eligibility path. Fix: v_gw_id/v_gw_deadline plain vars; record never assigned null; pot
+  keeps the re-read deadline. Opus re-review: APPROVE on all checks.
+- Proof coverage gap closed: T-P29 (no-open-GW adoption + maintenance backfill) and T-P40
+  (multi-connection adoption races incl. a deterministic advisory-lock handoff proof for Bug 2)
+  were named in db-proofs-needed.md but never implemented by the first prover. Now implemented.
+- Final proofs: 90/90 assertions PASS on a fresh disposable container. Full suite 718/718,
+  tsc clean, next build green. Two harness-only edits (date drift in log_payment calls; a stale
+  cleanup delete that hit a now-real FK) — proof scripts only, no product code.
+Deviations: none beyond the two fixes above; both went through the full pipeline.
+Lesson (again): four review rounds missed Bug 1; a live-DB seat found Bug 1 and an Opus seat
+with a distrust-the-audit brief found Bug 2. Keep both seats for money code.

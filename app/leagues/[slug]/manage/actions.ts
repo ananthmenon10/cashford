@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { generateToken, generateShortCode } from "@/lib/invite";
+import { LEAGUE_MANAGE_COPY } from "@/lib/gw-copy";
 
 // ── Guard ───────────────────────────────────────────────────────────────────
 
@@ -95,7 +96,7 @@ export async function regenerateInvite(slug: string): Promise<void> {
   }
 
   if (!inserted) {
-    throw new Error("Could not generate a unique invite after 3 attempts.");
+    throw new Error(LEAGUE_MANAGE_COPY.inviteGenerationFailed);
   }
 
   redirect("/leagues/" + slug + "/manage");
@@ -110,14 +111,14 @@ export async function removeMember(
   const { league } = await requireCaptain(slug);
 
   if (targetUserId === league.created_by) {
-    return { error: "Cannot remove the league captain." };
+    return { error: LEAGUE_MANAGE_COPY.cannotRemoveCaptain };
   }
 
-  const admin = createServiceRoleClient();
+  const supabase = await createClient();
 
   // Close the membership instead of deleting it: member_competitions references the row, and
-  // the routine takes the same locks as gameweek entry so a removal cannot race an entry.
-  const { error } = await admin.rpc("leave_league", {
+  // the Phase 5 routine takes the same locks as gameweek entry so a removal cannot race an entry.
+  const { error } = await supabase.rpc("remove_league_member", {
     p_league_id: league.id,
     p_user_id: targetUserId,
   });

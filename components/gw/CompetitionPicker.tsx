@@ -49,6 +49,11 @@ export function CompetitionPicker({
     );
   }
 
+  if (competitions.length === 1) {
+    const competition = competitions[0];
+    return <div><div className="mb-1.5 block text-xs font-semibold text-cs2-ink-2">{C34}</div><input type="hidden" name="competition" value={competition.slug} /><div className="rounded-cs2-md border border-cs2-line bg-cs2-paper px-3.5 py-3 text-[15px] font-semibold">{competition.name}</div></div>;
+  }
+
   return (
     <div>
       <label

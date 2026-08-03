@@ -8,6 +8,7 @@ import {
   C69,
 } from "@/lib/gw-copy";
 import type { HomeLeagueCard } from "@/lib/gw-home";
+import { DUES_COPY } from "@/lib/payment-copy";
 
 function netCopy(netInr: number | "suppressed") {
   if (netInr === "suppressed") return C60;
@@ -35,6 +36,7 @@ export function LeagueCard({ card }: { card: HomeLeagueCard }) {
               {C69}
             </span>
           ) : null}
+          {card.pendingPaymentCount > 0 ? <span className="rounded-cs2-sm bg-cs2-red-soft px-2 py-1 text-[10px] font-bold text-cs2-red">{DUES_COPY.pendingAnswer(card.pendingPaymentCount)}</span> : null}
         </div>
         <p className="mt-3 text-[12px] font-semibold text-cs2-ink-2">{card.subline}</p>
         <p
@@ -59,6 +61,7 @@ export function LeagueCard({ card }: { card: HomeLeagueCard }) {
           {card.action.label}
         </Link>
       ) : null}
+      {card.pendingPaymentCount > 0 ? <Link href={`/leagues/${card.slug}/dues`} className="block border-t border-cs2-line-2 px-4 py-3 text-center text-[13px] font-bold text-cs2-green">{DUES_COPY.pendingAnswer(card.pendingPaymentCount)}</Link> : null}
     </article>
   );
 }

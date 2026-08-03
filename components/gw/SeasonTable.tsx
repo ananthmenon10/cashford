@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
   C26,
@@ -13,35 +12,15 @@ import type { SeasonView } from "@/lib/gw-season";
 export function SeasonTable({
   slug,
   view,
+  pane,
 }: {
   slug: string;
   view: SeasonView;
+  pane: "table" | "gameweeks";
 }) {
-  const [pane, setPane] = useState<"history" | "totals">("history");
   return (
     <section>
-      <div className="mb-4 grid grid-cols-2 rounded-cs2-sm bg-cs2-line-2 p-1">
-        <button
-          type="button"
-          onClick={() => setPane("history")}
-          className={`rounded-cs2-sm px-3 py-2 text-[12px] font-bold ${
-            pane === "history" ? "bg-cs2-paper text-cs2-ink" : "text-cs2-ink-3"
-          }`}
-        >
-          {GW_UI_COPY.seasonHistory}
-        </button>
-        <button
-          type="button"
-          onClick={() => setPane("totals")}
-          className={`rounded-cs2-sm px-3 py-2 text-[12px] font-bold ${
-            pane === "totals" ? "bg-cs2-paper text-cs2-ink" : "text-cs2-ink-3"
-          }`}
-        >
-          {GW_UI_COPY.seasonTotals}
-        </button>
-      </div>
-
-      {pane === "history" ? (
+      {pane === "gameweeks" ? (
         <div className="space-y-2">
           {view.rows.map((row) => (
             <Link

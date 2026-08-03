@@ -71,7 +71,8 @@ async function loadInvite(raw: string): Promise<InviteDTO> {
   const countQuery = await admin
     .from("league_members")
     .select("user_id", { count: "exact", head: true })
-    .eq("league_id", league.id);
+    .eq("league_id", league.id)
+    .is("left_at", null);
   if (countQuery.error) {
     throw new Error(`resolve-invite-members: ${countQuery.error.message}`);
   }
@@ -79,7 +80,7 @@ async function loadInvite(raw: string): Promise<InviteDTO> {
   const participationQuery = await admin
     .from("league_competitions")
     .select(
-      "status, joined_at, competitions!inner(id, name, format)",
+      "status, joined_at, eligible_from_gameweek_id, competitions!inner(id, name, slug, format)",
     )
     .eq("league_id", league.id)
     .order("joined_at", { ascending: false });
@@ -87,6 +88,22 @@ async function loadInvite(raw: string): Promise<InviteDTO> {
     throw new Error(`resolve-invite-participation: ${participationQuery.error.message}`);
   }
 
+  const active = (participationQuery.data ?? []).find((row: any) => row.status === "active") as any;
+  const activeCompetition = active ? (Array.isArray(active.competitions) ? active.competitions[0] : active.competitions) : null;
+  let nextGameweekNumber: number | null = null;
+  let nextDeadlineAt: string | null = null;
+  let eligibleFromGameweekNumber: number | null = null;
+  if (activeCompetition) {
+    const next = await admin.from("gameweeks").select("number, deadline_at").eq("competition_id", activeCompetition.id).eq("status", "open").gt("deadline_at", new Date().toISOString()).order("number", { ascending: true }).limit(1).maybeSingle();
+    if (next.error) throw new Error(`resolve-invite-gameweek: ${next.error.message}`);
+    nextGameweekNumber = next.data?.number ?? null;
+    nextDeadlineAt = next.data?.deadline_at ?? null;
+    if (active.eligible_from_gameweek_id) {
+      const eligible = await admin.from("gameweeks").select("number").eq("id", active.eligible_from_gameweek_id).maybeSingle();
+      if (eligible.error) throw new Error(`resolve-invite-eligibility: ${eligible.error.message}`);
+      eligibleFromGameweekNumber = eligible.data?.number ?? null;
+    }
+  }
   return resolveInviteSource({
     status: "active",
     leagueId: league.id,
@@ -97,6 +114,10 @@ async function loadInvite(raw: string): Promise<InviteDTO> {
     stakeInr: league.default_stake_inr,
     token: invite.token,
     leagueStatus: league.status,
+    anteInr: active?.adopted_stake_inr ?? league.default_stake_inr,
+    nextGameweekNumber,
+    nextDeadlineAt,
+    eligibleFromGameweekNumber,
     competitions: (participationQuery.data ?? []).map((row: any) => {
       const competition = Array.isArray(row.competitions)
         ? row.competitions[0]
@@ -106,6 +127,7 @@ async function loadInvite(raw: string): Promise<InviteDTO> {
         id: competition.id,
         name: competition.name,
         format: competition.format,
+        slug: competition.slug,
         joinedAt: row.joined_at,
       };
     }),
@@ -170,7 +192,7 @@ export async function joinLeagueForUser(
   const admin = createServiceRoleClient();
   const existingQuery = await admin
     .from("league_members")
-    .select("user_id")
+    .select("user_id, left_at")
     .eq("league_id", dto.leagueId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -185,7 +207,7 @@ export async function joinLeagueForUser(
   // waits. So only call the routine when there is a row missing — which happens when a
   // competition was added to the league after this member joined, since join_league is the only
   // place that backfills member_competitions.
-  if (existing && !(await hasUnprovisionedCompetition(dto.leagueId, userId))) {
+  if (existing && existing.left_at == null && !(await hasUnprovisionedCompetition(dto.leagueId, userId))) {
     return { ok: true, slug: dto.slug, already: true };
   }
 

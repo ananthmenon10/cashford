@@ -10,6 +10,7 @@ import {
   createLiveCopy,
   shareInviteCopy,
 } from "@/lib/gw-copy";
+import { createConsequenceCopy, firstDeadlineCopy } from "@/lib/payment-copy";
 import { slugify, validateSlug, validateStake } from "@/lib/validation";
 import {
   checkSlug,
@@ -212,6 +213,7 @@ export default function NewLeaguePage() {
             onChange={setCompetition}
             unavailable={competitionError}
           />
+          {competitions?.find((item) => item.slug === competition) ? <div className="-mt-2 rounded-cs2-md bg-cs2-paper-2 p-3 text-[12px] text-cs2-ink-2"><p className="font-bold">{competitions.find((item) => item.slug === competition)?.name}</p><p className="mt-1">{createConsequenceCopy(stakeResult.ok ? stakeResult.value : 0)}</p>{competitions.find((item) => item.slug === competition)?.nextGameweekNumber && competitions.find((item) => item.slug === competition)?.nextDeadlineAt ? <p className="mt-1">{firstDeadlineCopy(competitions.find((item) => item.slug === competition)!.nextGameweekNumber!, competitions.find((item) => item.slug === competition)!.nextDeadlineAt!)}</p> : null}</div> : null}
 
           <label className="text-xs font-semibold text-cs2-ink-2">
             {GW_UI_COPY.leagueName}
