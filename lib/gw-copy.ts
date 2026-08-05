@@ -203,6 +203,9 @@ export const GW_UI_COPY = {
   player: "player",
   players: "players",
   yourNet: "Your net",
+  gameweekNavigation: "Gameweek navigation",
+  allGameweeks: "All gameweeks",
+  chooseGameweek: "Choose a week to open its state and matches.",
   seasonHistory: "Gameweek history",
   seasonTotals: "Running totals",
   points: "Points",
@@ -251,7 +254,76 @@ export const GW_UI_COPY = {
   you: "you",
   duesEmpty: "Dues update as cup matches settle.",
   homeTabsAria: "Home",
+  leagueTabsAria: "League tabs",
   locked: "Locked",
+} as const;
+
+function ordinalCopy(value: number): string {
+  const suffix = value % 100 >= 11 && value % 100 <= 13
+    ? "th"
+    : value % 10 === 1
+      ? "st"
+      : value % 10 === 2
+        ? "nd"
+        : value % 10 === 3
+          ? "rd"
+          : "th";
+  return `${value}${suffix}`;
+}
+
+export const LEAGUE_SCREEN_COPY = {
+  deadline: "Deadline",
+  opens: "Opens",
+  upcoming: "Upcoming",
+  open: "Open",
+  live: "Live",
+  settled: "Settled",
+  locked: "Locked · matches in progress",
+  void: "Void",
+  selected: "selected",
+  matches: (number: number) => `Matches · GW${number}`,
+  fixtures: (count: number) => `${count} fixtures`,
+  openMatches: (number: number) => `Open Gameweek ${number} matches`,
+  seasonKicker: (competition: string) => `${competition} / season so far`,
+  seasonTitle: (name: string | null) => name?.trim() ? `${name}’s season` : "Your season",
+  rankOf: (rank: number | null, total: number) => `${rank == null ? "—" : `#${rank}`} of ${total}`,
+  seasonNet: "Season net",
+  points: (value: number | "suppressed") => value === "suppressed" ? C60 : `${value} pts`,
+  exacts: (value: number) => `${value} exacts`,
+  entries: (value: number) => `${value} entries`,
+  historyCount: (value: number) => `${value} gameweeks`,
+  gameweekName: (number: number) => `Gameweek ${number}`,
+  gameweek: (number: number, state: string) => `GW${number} · ${state}`,
+  statusWithMatches: (state: string, count: number) => `${state} · ${count} matches`,
+  openDeadline: "Entries open · deadline",
+  upcomingDeadline: "Upcoming · deadline",
+  sheetOpen: "open",
+  sheetSoon: "soon",
+  notEntered: "Not entered · no result to show",
+  settledResult: "Settled result",
+  historyWinner: (name: string) => `Winner ${name}`,
+  winnerMatches: (name: string, count: number) => `Winner ${name} · ${count} matches`,
+  historyResult: (rank: number) => ` · your result ${ordinalCopy(rank)}`,
+  clubs: (count: number) => `${count} clubs`,
+  players: (count: number) => `${count} players`,
+  playerTableTitle: "League standings",
+  playerTableAria: "League standings with sticky player column",
+  playerTableSource: "Player column stays in view",
+  playerStickyHint: "Player stays pinned while values move",
+  playerTableFoot: (count: number) => `${count} players shown · identity column pinned`,
+  clubTableTitle: "Club standings",
+  clubTableAria: "Complete club standings with sticky club column",
+  clubTableSource: (count: number) => `Pinned club identity · ${count} complete rows`,
+  clubStickyHint: "Club column stays pinned when table is wide",
+  clubTableFoot: (count: number) => `${count} of ${count} clubs shown · identity column pinned`,
+  player: "Player",
+  club: "Club",
+  played: "P",
+  record: "W–D–L",
+  goalDifference: "GD",
+  pointsShort: "Pts",
+  enteredShort: "In",
+  netShort: "Net",
 } as const;
 
 export const GW_CREATE_COPY = {

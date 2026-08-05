@@ -137,24 +137,18 @@ function Standings({ view }: { view: StandingsView | null }) {
       <div className="grid grid-cols-[2rem_1fr_repeat(3,2.5rem)] gap-2 border-b border-border pb-2 text-[10px] font-bold text-muted">
         <span>#</span><span>{MATCH_COPY.club}</span><span>{MATCH_COPY.played}</span><span>{MATCH_COPY.goalDifference}</span><span>{MATCH_COPY.points}</span>
       </div>
-      {view.rows.map((row, index) =>
-        row.kind === "gap" ? (
-          <div key={`gap-${index}`} className="py-3 text-center text-xs text-muted">
-            {row.label}
-          </div>
-        ) : (
-          <div
-            key={row.value.club_id}
-            className="grid grid-cols-[2rem_1fr_repeat(3,2.5rem)] gap-2 border-b border-border py-2.5 text-[13px] last:border-0"
-          >
-            <span>{row.value.rank}</span>
-            <span className="font-semibold">{row.value.club}</span>
-            <span>{row.value.played}</span>
-            <span>{row.value.gd}</span>
-            <span className="font-bold">{row.value.points}</span>
-          </div>
-        ),
-      )}
+      {view.rows.map((row) => (
+        <div
+          key={row.club_id}
+          className="grid grid-cols-[2rem_1fr_repeat(3,2.5rem)] gap-2 border-b border-border py-2.5 text-[13px] last:border-0"
+        >
+          <span>{row.rank}</span>
+          <span className="font-semibold">{row.club}</span>
+          <span>{row.played}</span>
+          <span>{row.gd}</span>
+          <span className="font-bold">{row.points}</span>
+        </div>
+      ))}
       {view.note && <div className="mt-3 text-xs text-muted">{view.note}</div>}
     </section>
   );

@@ -6,7 +6,7 @@ export function CompetitionSheet({ dto }: { dto: CompetitionSheetDTO }) {
   if (!dto.items.length) return null;
   return (
     <details className="relative ml-auto">
-      <summary className="cursor-pointer list-none rounded-cs2-pill border border-cs2-line bg-cs2-paper px-2.5 py-1 text-[10px] font-bold text-cs2-ink-3">
+      <summary className="cursor-pointer list-none rounded-pill border border-cs2-line bg-cs2-paper px-2.5 py-1 text-[10px] font-bold text-cs2-ink-3">
         {dto.items.find((item) => item.participationStatus === "active")?.name ?? ARCHIVE_COPY.plReturn}
       </summary>
       <div className="absolute right-0 top-9 z-20 w-64 rounded-cs2-md border border-cs2-line bg-cs2-paper p-2 shadow-lg">
@@ -24,4 +24,3 @@ export function CompetitionSheet({ dto }: { dto: CompetitionSheetDTO }) {
     </details>
   );
 }
-

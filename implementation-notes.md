@@ -1181,6 +1181,22 @@ with a distrust-the-audit brief found Bug 2. Keep both seats for money code.
 
 - **2026-08-05, feedback-r1 reference file**: Luna's sticky first column (League screen table standard, Option B) did not hold — two causes found by isolation testing: (1) sticky cells were grid items, and a grid item's containing block is its own grid area, so `position: sticky` never engages; (2) row-level horizontal padding shrinks the sticky cell's containing block and kills the pin. Fixed directly in `docs/design/2026-08-05-feedback-r1-reference.html` (rows switched to flex with fixed column bases; horizontal padding moved from rows to first/last cells) instead of a Luna re-dispatch — two-line CSS fix, verified holding on both tables (head + data rows). The same two rules must carry into the real implementation of the app-wide table standard.
 
+## Deviations (2026-08-05, League screen rebuild)
+
+**Gameweeks sub-tab diagnosis.** The Season loader's `entriesQuery` returns entries for the league, but its `rows` value is assembled only from `byUser.get(viewerId)`. Its `totals` value is assembled from every user. The page therefore sees a non-empty season result and renders the Gameweeks pane even when the viewer has no entry row; the pane maps `view.rows` and shows nothing. The fix makes the history contest/gameweek-driven, adding a viewer row for every league gameweek with a contest and keeping missing entries visible as unentered weeks.
+
+**Season history shape.** The locked Season frame makes history the main Season pane, so the old Table/Gameweeks link pair is no longer shown there. The legacy `?view=gameweeks` URL still resolves to the same complete history pane, which keeps the deep link useful while removing the empty branch.
+
+**Table composition.** The locked Table frame shows both participant standings and complete club standings. The Table pane now renders both lists with `TableStandard`; participant rows use the viewer/live tones, while club rows use live tones for clubs in an active fixture.
+
+## Deviations (2026-08-05, League screen round 2)
+
+**Navigation and loading.** The first pass mounted all four panes in a client shell. Round 2 replaces that with prefetched App Router links between the four sibling routes. Each route now loads only its active pane data, so redirects remain server-owned and a return to Dues reads fresh ledger data. The four league pages are explicitly dynamic so their server reads are not route-cache snapshots. The shared server shell is rendered by each route, and the existing league loading boundary remains the transition fallback.
+
+**Entry-less members.** The Table and Season summary include every league member, including members with no gameweek entry. Those members sort after members with at least one entry and count in the total, with zero points, entries, and net. This keeps the history, rank count, and participant table consistent.
+
+**All-gameweeks metadata.** Gameweek navigation now reads winner names and fixture counts for its sheet rows. Upcoming rows show the stored deadline rather than calling that deadline an opening time, because the schema has no separate opening timestamp.
+
 - **2026-08-05, step 1 (#12 route smoke pass) deviations**: (1) Pages now fail loud
   where they used to swallow query errors — both `payments/[paymentId]` routes 500
   instead of 404 on a query error, `requireCaptain` throws instead of redirecting on

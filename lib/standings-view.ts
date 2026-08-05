@@ -1,9 +1,7 @@
 import type { CompetitionStanding } from "./espn-standings";
 import { ageLabel } from "./view-format";
 
-export type StandingsViewRow =
-  | { kind: "club"; value: CompetitionStanding }
-  | { kind: "gap"; label: string };
+export type StandingsViewRow = CompetitionStanding;
 
 export type StandingsView = {
   sourceLine: string;
@@ -42,19 +40,7 @@ export function buildStandingsView(input: {
   note: string | null;
 }, now = new Date()): StandingsView {
   const ordered = [...input.rows].sort((a, b) => a.rank - b.rank);
-  let rows: StandingsViewRow[];
-  if (ordered.length <= 12) {
-    rows = ordered.map((value) => ({ kind: "club", value }));
-  } else {
-    const top = ordered.slice(0, 8);
-    const bottom = ordered.slice(-4);
-    const gap = ordered.length - top.length - bottom.length;
-    rows = [
-      ...top.map((value): StandingsViewRow => ({ kind: "club", value })),
-      { kind: "gap", label: `${gap} clubs between them` },
-      ...bottom.map((value): StandingsViewRow => ({ kind: "club", value })),
-    ];
-  }
+  const rows = ordered;
   return {
     sourceLine:
       input.source === "espn"

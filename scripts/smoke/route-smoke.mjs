@@ -341,10 +341,7 @@ function makeCases(loaders, context) {
       run: (pair) =>
         withIdentity(loaders, pair, context, async (identity) => {
           if (!isGameweek(identity)) return { skipped: "page redirects to archive/non-gameweek branch" };
-          await Promise.all([
-            loaders.loadGameweekView(pair.session, pair.admin, identity, context.viewerId, undefined, new Date(), false),
-            loaders.loadSeasonView(pair.session, pair.admin, identity, context.viewerId),
-          ]);
+          await loaders.loadSeasonView(pair.session, pair.admin, identity, context.viewerId);
         }),
     },
     {
@@ -352,7 +349,10 @@ function makeCases(loaders, context) {
       run: (pair) =>
         withIdentity(loaders, pair, context, async (identity) => {
           if (!isGameweek(identity)) return { skipped: "page redirects to archive/non-gameweek branch" };
-          return loaders.loadLeagueTablePage(pair.session, pair.admin, identity, context.viewerId);
+          await Promise.all([
+            loaders.loadLeagueTablePage(pair.session, pair.admin, identity, context.viewerId),
+            loaders.loadSeasonView(pair.session, pair.admin, identity, context.viewerId),
+          ]);
         }),
     },
     {
@@ -371,10 +371,8 @@ function makeCases(loaders, context) {
       name: "dues",
       run: (pair) =>
         withIdentity(loaders, pair, context, async (identity) => {
+          if (!isGameweek(identity)) return { skipped: "page redirects to archive/non-gameweek branch" };
           await loaders.loadDuesView(pair.session, pair.admin, identity, context.viewerId);
-          if (isGameweek(identity)) {
-            await loaders.loadGameweekView(pair.session, pair.admin, identity, context.viewerId, undefined, new Date(), true);
-          }
         }),
     },
     {

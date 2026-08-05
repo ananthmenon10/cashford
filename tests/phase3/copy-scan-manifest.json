@@ -6,12 +6,14 @@
     { "path": "app/leagues/[slug]/page.tsx", "mode": "jsx", "note": "Gameweek tab + participation branch" },
     { "path": "app/leagues/[slug]/season/page.tsx", "mode": "jsx", "note": "Season tab" },
     { "path": "app/leagues/[slug]/dues/page.tsx", "mode": "jsx", "note": "Dues tab chrome (WC component untouched)" },
+    { "path": "app/leagues/[slug]/loading.tsx", "mode": "jsx", "note": "shared league route transition shell" },
     { "path": "app/leagues/[slug]/enter/page.tsx", "mode": "jsx", "note": "entry sheet route" },
     { "path": "app/leagues/join/page.tsx", "mode": "jsx", "note": "U33 join UI" },
     { "path": "app/leagues/join/actions.ts", "mode": "strings", "note": "U33 InviteDTO + resolveInvite" },
     { "path": "app/leagues/new/page.tsx", "mode": "jsx", "note": "U31, U32 create flow" },
     { "path": "app/leagues/new/actions.ts", "mode": "strings", "note": "create-flow server actions" },
     { "path": "components/gw/LeagueShell.tsx", "mode": "jsx", "note": "" },
+    { "path": "components/gw/LeaguePanes.tsx", "mode": "jsx", "note": "shared league pane assembly" },
     { "path": "components/gw/GameweekStrip.tsx", "mode": "jsx", "note": "" },
     { "path": "components/gw/StateHeader.tsx", "mode": "jsx", "note": "" },
     { "path": "components/gw/EntryCta.tsx", "mode": "jsx", "note": "" },
@@ -83,7 +85,6 @@
     { "path": "components/dues/SettlePlan.tsx", "mode": "jsx", "note": "Phase 5 settle-up plan" },
     { "path": "components/gw/CaptainAdoptionSheet.tsx", "mode": "jsx", "note": "Phase 5 Premier League adoption sheet" },
     { "path": "components/gw/CompetitionSheet.tsx", "mode": "jsx", "note": "Phase 5 competition sheet" },
-    { "path": "components/gw/SeasonViewPills.tsx", "mode": "jsx", "note": "Phase 5 season view control" },
     { "path": "components/matches/CompetitionTable.tsx", "mode": "jsx", "note": "Phase 5 competition table" }
   ],
   "excluded": [

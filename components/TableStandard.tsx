@@ -127,10 +127,12 @@ export function TableStandard({
     >
       <div role="table" aria-label={ariaLabel}>
         <div
+          role="rowgroup"
           data-table-sticky-header
           className="sticky top-0 z-[4] bg-cs2-canvas"
         >
           <div
+            role="presentation"
             ref={headerScrollRef}
             className="overflow-x-hidden"
             data-table-header-scroll
@@ -158,6 +160,7 @@ export function TableStandard({
         </div>
 
         <div
+          role="rowgroup"
           className="overflow-x-auto"
           data-table-scroll
           onScroll={(event) => {
@@ -166,7 +169,7 @@ export function TableStandard({
             }
           }}
         >
-          <div className="min-w-max" style={{ minWidth }}>
+          <div role="presentation" className="min-w-max" style={{ minWidth }}>
             {rows.map((row, rowIndex) => {
               const paint = rowPaint(row.tone, rowIndex);
               return (

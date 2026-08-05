@@ -240,7 +240,7 @@ export default function NewLeaguePage() {
                   key={chip}
                   type="button"
                   onClick={() => setStake(String(chip))}
-                  className={`flex-1 rounded-cs2-pill border py-1.5 text-[13px] font-semibold ${
+                  className={`flex-1 rounded-pill border py-1.5 text-[13px] font-semibold ${
                     stake === String(chip)
                       ? "border-cs2-green bg-cs2-mint text-cs2-green"
                       : "border-cs2-line bg-cs2-paper"

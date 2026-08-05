@@ -1,5 +1,6 @@
 import { GW_UI_COPY } from "@/lib/gw-copy";
 import type { GameweekViewDTO } from "@/lib/gw-view";
+import { LocalTime } from "@/components/LocalTime";
 
 export function FixtureRow({
   fixture,
@@ -11,6 +12,15 @@ export function FixtureRow({
   const fixturePicks = picks.filter((pick) => pick.fixtureId === fixture.fixtureId);
   return (
     <div className="border-b border-cs2-line-2 py-3 last:border-b-0">
+      {fixture.kickoffAt ? (
+        <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-semibold text-cs2-ink-3">
+          <span>
+            <LocalTime iso={fixture.kickoffAt} variant="date" relative={false} includeYear={false} />
+            {" · "}
+            <LocalTime iso={fixture.kickoffAt} variant="time" relative={false} />
+          </span>
+        </div>
+      ) : null}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <span className="text-right text-[13px] font-bold">{fixture.homeName}</span>
         <span className="min-w-16 text-center font-mono text-[15px] font-extrabold tabular">

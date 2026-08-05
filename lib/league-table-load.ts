@@ -25,13 +25,15 @@ export async function loadLeagueTablePage(
   admin: CashfordClient,
   identity: LeagueIdentity,
   userId: string,
+  currentView?: LeagueTablePageLoad["current"],
+  requestedGameweek?: string | number | null,
 ): Promise<LeagueTablePageLoad> {
-  const current = await loadGameweekView(
+  const current = currentView ?? await loadGameweekView(
     session as any,
     admin as any,
     identity,
     userId,
-    undefined,
+    requestedGameweek,
     new Date(),
     false,
   );
