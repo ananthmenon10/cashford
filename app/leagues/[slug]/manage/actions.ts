@@ -5,17 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { generateToken, generateShortCode } from "@/lib/invite";
 import { LEAGUE_MANAGE_COPY } from "@/lib/gw-copy";
+import { loadCaptainAccess, type ManageLeague } from "@/lib/manage-access-load";
 
 // ── Guard ───────────────────────────────────────────────────────────────────
 
-type League = {
-  id: string;
-  name: string;
-  slug: string;
-  status: string;
-  created_by: string;
-  default_stake_inr: number;
-};
+type League = ManageLeague;
 
 export async function requireCaptain(
   slug: string,
@@ -28,25 +22,10 @@ export async function requireCaptain(
 
   const admin = createServiceRoleClient();
 
-  const { data: league } = await admin
-    .from("leagues")
-    .select("id, name, slug, status, created_by, default_stake_inr")
-    .eq("slug", slug)
-    .single();
-
-  if (!league) redirect("/");
-
-  // Allow captain or admin (profiles.is_admin)
-  if (league.created_by !== user.id) {
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (!profile?.is_admin) redirect("/leagues/" + slug);
-  }
-
-  return { league: league as League, userId: user.id };
+  const access = await loadCaptainAccess(admin, slug, user.id);
+  if (access.status === "missing") redirect("/");
+  if (access.status === "forbidden") redirect("/leagues/" + slug);
+  return { league: access.league as League, userId: user.id };
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────────

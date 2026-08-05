@@ -5,6 +5,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { loadDevGameweeksPage } from "@/lib/dev-gameweeks-load";
 
 export const dynamic = "force-dynamic";
 
@@ -24,60 +25,8 @@ export default async function DevGameweeksPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: competitions } = await supabase
-    .from("competitions")
-    .select("id, slug, name, format, season, status, fpl_source")
-    .order("slug");
-
-  const { data: gameweeks } = await supabase
-    .from("gameweeks")
-    .select("id, competition_id, number, name, status, deadline_at, locked_at")
-    .order("number");
-
-  // One read of every membership row; the per-gameweek counts are derived here rather than
-  // with 38 count queries.
-  const { data: memberships } = await supabase
-    .from("gameweek_fixtures")
-    .select("gameweek_id, state, is_current");
-
-  const counts = new Map<string, { active: number; excluded: number; void: number }>();
-  for (const m of memberships ?? []) {
-    if (!m.is_current) continue;
-    const c = counts.get(m.gameweek_id) ?? { active: 0, excluded: 0, void: 0 };
-    if (m.state === "active") c.active++;
-    else if (m.state === "excluded") c.excluded++;
-    else c.void++;
-    counts.set(m.gameweek_id, c);
-  }
-
-  // Fixtures ESPN can never poll (FPL is their only score source).
-  const { count: noEspnId } = await supabase
-    .from("fixtures")
-    .select("id", { count: "exact", head: true })
-    .is("external_id", null);
-
-  // fixture_moves and sync_issues are service-role-only diagnostics (no RLS policy at all),
-  // so they are read with the admin client. Neither holds user data.
   const admin = createServiceRoleClient();
-  const { data: moves } = await admin
-    .from("fixture_moves")
-    .select("new_membership_id");
-  const unassignedMoves = (moves ?? []).filter((m: any) => m.new_membership_id === null).length;
-
-  const { data: pots } = await supabase
-    .from("gameweek_contests")
-    .select("id, gameweek_id, status, stake_inr, deadline_at, leagues(name)");
-
-  const potsByGameweek = new Map<string, number>();
-  for (const p of pots ?? []) {
-    potsByGameweek.set(p.gameweek_id, (potsByGameweek.get(p.gameweek_id) ?? 0) + 1);
-  }
-
-  const { data: issues } = await admin
-    .from("sync_issues")
-    .select("source, kind, ref, created_at")
-    .order("created_at", { ascending: false })
-    .limit(25);
+  const { competitions, gameweeks, counts, noEspnId, moves, unassignedMoves, pots, potsByGameweek, issues } = await loadDevGameweeksPage(supabase, admin);
 
   return (
     <main className="mx-auto max-w-[900px] px-5 py-8 text-sm">

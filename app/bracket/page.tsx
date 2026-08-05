@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { loadKnockoutView, loadKnockoutLeaderboards } from "@/lib/knockout-data";
+import { loadBracketPage } from "@/lib/bracket-page-load";
 import { KnockoutCircle } from "@/components/KnockoutCircle";
 import { KnockoutLeaderboard } from "@/components/KnockoutLeaderboard";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -20,10 +20,11 @@ export default async function BracketPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const view = await loadKnockoutView(supabase, user.id);
-  const leaderboards = await loadKnockoutLeaderboards(supabase, user.id, view.results);
-  const competition = await createServiceRoleClient().from("competitions").select("status").eq("slug", "wc2026").maybeSingle();
-  const readOnly = competition.data?.status === "archived";
+  const { view, leaderboards, readOnly } = await loadBracketPage(
+    supabase,
+    createServiceRoleClient(),
+    user.id,
+  );
 
   return (
     <div className="min-h-screen bg-bg text-fg">

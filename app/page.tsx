@@ -2,8 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { loadAnalyticsView } from "@/lib/home-analytics";
-import { loadHomeLeagueCards } from "@/lib/gw-home";
+import { loadHomePage } from "@/lib/home-page-load";
 import { GW_UI_COPY } from "@/lib/gw-copy";
 import { logout } from "./actions";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -31,19 +30,9 @@ export default async function Home() {
     user?.email?.split("@")[0] ??
     "you";
 
-  const [leaguesQuery, analyticsView] = await Promise.all([
-    supabase.from("leagues").select("id, name, slug, status").order("name"),
-    loadAnalyticsView(supabase, user!.id),
-  ]);
-  if (leaguesQuery.error) {
-    throw new Error(`home-leagues: ${leaguesQuery.error.message}`);
-  }
-  const leagues = leaguesQuery.data;
-
-  const homeLeagueCards = await loadHomeLeagueCards(
+  const { leagues, analyticsView, homeLeagueCards } = await loadHomePage(
     supabase,
     admin,
-    leagues ?? [],
     user!.id,
   );
   // ── Tab 1: Leagues ─────────────────────────────────────────────────────────────────

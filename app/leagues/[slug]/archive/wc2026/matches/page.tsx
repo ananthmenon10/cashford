@@ -3,9 +3,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { loadLeagueIdentity } from "@/lib/gw-view";
-import { loadDuesView } from "@/lib/dues-view";
+import { loadWcArchiveMatchesPage } from "@/lib/wc-archive-load";
 import { isCorrect, isExact, type Entry } from "@/lib/analytics";
-import { combinedBalanceLabel } from "@/lib/wc-archive";
 import { ArchiveShell } from "@/components/archive/ArchiveShell";
 import { ARCHIVE_COPY, PHASE5_UI_COPY } from "@/lib/payment-copy";
 
@@ -31,25 +30,8 @@ export default async function WcArchiveMatchesPage({ params }: { params: Promise
   if (!user) notFound();
   const identity = await loadLeagueIdentity(supabase, slug);
   if (!identity) notFound();
-  const admin = createServiceRoleClient();
-  const dues = await loadDuesView(supabase, admin, identity, user.id);
-  const wc = await admin.from("competitions").select("id").eq("slug", "wc2026").single();
-  if (wc.error) throw new Error(`wc-matches-competition: ${wc.error.message}`);
-  const query = await admin.from("contests").select("id, status, stake_inr, fixtures!inner(id, round, kickoff_at, home_label, away_label, home_team_id, away_team_id, ft_home, ft_away, status, competition_id, is_knockout, advancer_team_id)").eq("league_id", identity.league.id).eq("fixtures.competition_id", wc.data.id);
-  if (query.error) throw new Error(`wc-matches: ${query.error.message}`);
-  const contestIds = (query.data ?? []).map((row: any) => row.id);
-  const [predictionsQ, resultsQ] = contestIds.length
-    ? await Promise.all([
-      admin.from("predictions").select("contest_id, outcome, pred_home, pred_away").eq("user_id", user.id).in("contest_id", contestIds),
-      admin.from("contest_results").select("contest_id, net_inr").eq("user_id", user.id).in("contest_id", contestIds),
-    ])
-    : [{ data: [], error: null }, { data: [], error: null }] as const;
-  if (predictionsQ.error) throw new Error(`wc-matches-predictions: ${predictionsQ.error.message}`);
-  if (resultsQ.error) throw new Error(`wc-matches-results: ${resultsQ.error.message}`);
-  const predictions = new Map((predictionsQ.data ?? []).map((row: any) => [row.contest_id, row]));
-  const results = new Map((resultsQ.data ?? []).map((row: any) => [row.contest_id, Number(row.net_inr)]));
-  const balance = dues.ledger.status === "clean" ? combinedBalanceLabel(dues.ledger.netByUser[user.id] ?? 0) : undefined;
-  const rows = [...(query.data ?? [])].sort((a: any, b: any) => new Date(one<any>(b.fixtures)?.kickoff_at).getTime() - new Date(one<any>(a.fixtures)?.kickoff_at).getTime());
+  const loaded = await loadWcArchiveMatchesPage(supabase, createServiceRoleClient(), identity, user.id);
+  const { dues, balance, rows, predictions, results } = loaded;
   return <ArchiveShell slug={slug} leagueName={identity.league.name} viewerName={dues.viewerName} balance={balance} active="matches"><p className="mt-4 text-[12px] text-muted">{ARCHIVE_COPY.matchesNotice}</p><div className="mt-4 flex flex-col gap-2">{rows.map((row: any) => {
     const fixture = one<any>(row.fixtures);
     const pick = predictions.get(row.id);

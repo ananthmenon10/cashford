@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { requireCaptain, revokeInvite, regenerateInvite, archiveLeague } from "./actions";
+import { loadManagePage } from "@/lib/manage-page-load";
 import { Avatar } from "@/components/ui";
 import { RemoveMemberButton } from "./RemoveMemberButton";
 import { CopyButton } from "./CopyButton";
@@ -16,38 +17,7 @@ export default async function ManagePage({
   const { league, userId } = await requireCaptain(slug);
 
   const admin = createServiceRoleClient();
-
-  // Load active invite (if any)
-  const { data: invite } = await admin
-    .from("league_invites")
-    .select("token, short_code")
-    .eq("league_id", league.id)
-    .is("revoked_at", null)
-    .maybeSingle();
-
-  // Load members with profiles. Removal closes the row rather than deleting it, so a departed
-  // member has left_at set and drops off this list.
-  const { data: memberRows } = await admin
-    .from("league_members")
-    .select("user_id")
-    .eq("league_id", league.id)
-    .is("left_at", null);
-
-  const memberIds = (memberRows ?? []).map((m: { user_id: string }) => m.user_id);
-
-  const { data: profiles } = memberIds.length
-    ? await admin
-        .from("profiles")
-        .select("id, display_name, username")
-        .in("id", memberIds)
-    : { data: [] as { id: string; display_name: string | null; username: string }[] };
-
-  const nameById = new Map(
-    (profiles ?? []).map((p: { id: string; display_name: string | null; username: string }) => [
-      p.id,
-      p.display_name || p.username,
-    ]),
-  );
+  const { invite, memberIds, nameById } = await loadManagePage(admin, league.id);
 
   const origin = await originFromHeaders();
   const inviteLink = invite ? `${origin}/j/${invite.token}` : null;

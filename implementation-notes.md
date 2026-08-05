@@ -1180,3 +1180,16 @@ Lesson (again): four review rounds missed Bug 1; a live-DB seat found Bug 1 and 
 with a distrust-the-audit brief found Bug 2. Keep both seats for money code.
 
 - **2026-08-05, feedback-r1 reference file**: Luna's sticky first column (League screen table standard, Option B) did not hold — two causes found by isolation testing: (1) sticky cells were grid items, and a grid item's containing block is its own grid area, so `position: sticky` never engages; (2) row-level horizontal padding shrinks the sticky cell's containing block and kills the pin. Fixed directly in `docs/design/2026-08-05-feedback-r1-reference.html` (rows switched to flex with fixed column bases; horizontal padding moved from rows to first/last cells) instead of a Luna re-dispatch — two-line CSS fix, verified holding on both tables (head + data rows). The same two rules must carry into the real implementation of the app-wide table standard.
+
+- **2026-08-05, step 1 (#12 route smoke pass) deviations**: (1) Pages now fail loud
+  where they used to swallow query errors — both `payments/[paymentId]` routes 500
+  instead of 404 on a query error, `requireCaptain` throws instead of redirecting on
+  a failed lookup, `/dev/gameweeks` no longer swallows errors. Deliberate: hiding
+  PostgREST errors is the exact behavior that masked v101/v102. (2) RLS coverage in
+  the smoke pass is scoped to ZZ-P1 (signs in as ananth@cashford.internal via
+  CASHFORD_ANANTH_PASSWORD); the three real leagues run service-role because no
+  member credentials exist for them. Policies are league-generic, so ZZ-P1 exercises
+  the same policies; a policy behaving differently per league is a residual blind
+  spot, noted in the harness header. (3) Payment-detail cases currently report
+  "not applicable" — no payment rows in the DB snapshot; the loader was exercised
+  in round 1 before the skip logic landed.

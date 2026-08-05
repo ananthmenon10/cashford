@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { loadDevFeedbackPage } from "@/lib/dev-feedback-load";
 import { FEEDBACK_COPY } from "@/lib/gw-copy";
 import { resolveFeedback } from "./actions";
 
@@ -14,22 +15,6 @@ const IST = new Intl.DateTimeFormat("en-IN", {
 
 const ist = (iso: string) => IST.format(new Date(iso));
 
-type FeedbackRow = {
-  id: string;
-  created_at: string;
-  user_id: string;
-  path: string;
-  league_slug: string | null;
-  message: string;
-  app_version: number | null;
-};
-
-type ProfileRow = {
-  id: string;
-  display_name: string | null;
-  username: string;
-};
-
 export default async function DevFeedbackPage() {
   const supabase = await createClient();
   const {
@@ -37,37 +22,7 @@ export default async function DevFeedbackPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const admin = createServiceRoleClient();
-  const feedbackQuery = await admin
-    .from("feedback")
-    .select("id, created_at, user_id, path, league_slug, message, app_version")
-    .is("resolved_at", null)
-    .order("created_at", { ascending: false });
-  if (feedbackQuery.error) {
-    throw new Error(`dev-feedback-list: ${feedbackQuery.error.message}`);
-  }
-
-  const feedback = (feedbackQuery.data ?? []) as FeedbackRow[];
-  const userIds = [...new Set(feedback.map((row) => row.user_id))];
-  const [profilesQuery, usersQuery] = await Promise.all([
-    userIds.length
-      ? admin.from("profiles").select("id, display_name, username").in("id", userIds)
-      : Promise.resolve({ data: [], error: null }),
-    admin.auth.admin.listUsers({ perPage: 1000 }),
-  ]);
-  if (profilesQuery.error) {
-    throw new Error(`dev-feedback-profiles: ${profilesQuery.error.message}`);
-  }
-  if (usersQuery.error) {
-    throw new Error(`dev-feedback-users: ${usersQuery.error.message}`);
-  }
-
-  const profiles = new Map(
-    (profilesQuery.data as ProfileRow[]).map((profile) => [profile.id, profile]),
-  );
-  const emails = new Map(
-    usersQuery.data.users.map((authUser) => [authUser.id, authUser.email ?? "—"]),
-  );
+  const { feedback, profiles, emails } = await loadDevFeedbackPage(createServiceRoleClient());
 
   return (
     <main className="mx-auto max-w-[1200px] px-5 py-8 text-sm">
