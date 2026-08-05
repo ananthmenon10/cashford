@@ -236,6 +236,18 @@ want and that cost nothing.
 should not see an error. The routine replaces the pick set and reports `created: false`; the edit
 routine still refuses when no entry exists, so the two are not interchangeable.
 
+**Demo-seed kit (2026-08-03, untracked scripts/demo-seed/).** Two live-run failures after four
+review rounds. (1) `one_open_gw_per_competition` partial index forbids more than one open gameweek —
+the kit seeded GW4/5/6 all open; Luna round 4 reseeded GW5/6 as `upcoming` (maintenance opens them
+live, a truer demo) and found `round='demo-history'` would break a fixtures check constraint
+(`'group'` now). (2) seed.mjs's post-seed audit expected `>= 4` payment_confirmation rows;
+`respond_to_payment` writes one row per response action, so the designed flows produce exactly 3.
+Orchestrator fixed that threshold directly (one token) instead of a Luna round — the wrapper agent
+was failing on API errors and the change is an audit expectation, not logic. Third seed ran clean:
+16/16 verify PASS, then torn down same evening (testing pushed to next morning). Lesson: replay
+status-write sequences against partial unique indexes; reviewers read the routines but nobody
+diffed the audit's expected counts against what the routines actually write.
+
 **Both `gameweek_picks` foreign keys to the entry cascade on delete.** Picks have no meaning without
 their entry, and the entry row itself is never deleted after the deadline.
 
@@ -1166,3 +1178,5 @@ Decision-57 routing ran as ordered: Luna (xhigh) coded, Opus reviewed, Sonnet pr
 Deviations: none beyond the two fixes above; both went through the full pipeline.
 Lesson (again): four review rounds missed Bug 1; a live-DB seat found Bug 1 and an Opus seat
 with a distrust-the-audit brief found Bug 2. Keep both seats for money code.
+
+- **2026-08-05, feedback-r1 reference file**: Luna's sticky first column (League screen table standard, Option B) did not hold — two causes found by isolation testing: (1) sticky cells were grid items, and a grid item's containing block is its own grid area, so `position: sticky` never engages; (2) row-level horizontal padding shrinks the sticky cell's containing block and kills the pin. Fixed directly in `docs/design/2026-08-05-feedback-r1-reference.html` (rows switched to flex with fixed column bases; horizontal padding moved from rows to first/last cells) instead of a Luna re-dispatch — two-line CSS fix, verified holding on both tables (head + data rows). The same two rules must carry into the real implementation of the app-wide table standard.
