@@ -72,11 +72,40 @@ rows and put the horizontal inset on the first/last cells. Details in
 | 8. Analytics | Luna | Opus | Ananth's Chrome; cross-competition sections need a league with WC history (read-only on real leagues) |
 | 9. #13 /rules + #16 match detail | /rules: Sonnet (content, per plain-writing rules), Ananth approves copy. Match detail: Luna, Opus review | Render check + Ananth's Chrome on a real fixture with insights |
 
+How QC runs, every step:
+- **Opus plans**: a written test plan per step — cases, exact click paths,
+  expected states, edge cases — before any browser work starts.
+- **Sonnet executes**: drives chrome-devtools-axi through Opus's plan
+  (clicking, form fills, navigation), logged in as a test account on ZZ-P1,
+  and reports pass/fail per case with screenshots.
+- **Ananth's Chrome (claude-in-chrome)** is only for what test accounts can't
+  reach: read-only checks on the real leagues (archive states, WC history)
+  and anything needing his own account context.
+
 Standing rules across all steps: orchestrator runs typecheck + build + vitest
 after every step; re-run the #12 smoke pass after each merge once it exists;
-nothing touches settlement/scoring without strong tests; all UI QC on authed
-pages happens in Ananth's logged-in Chrome (claude-in-chrome), never
-chrome-devtools-axi.
+nothing touches settlement/scoring without strong tests; test-account writes
+stay inside ZZ-P1 — never the three real leagues.
+
+## Test accounts and credentials
+
+No passwords in this file or in any commit. The mechanism:
+
+- **ZZ-P1 members**: `testa/b/c/d@cashford.internal` + `ananth@cashford.internal`.
+  Ananth's password is in `.env.local` as `CASHFORD_ANANTH_PASSWORD` (already
+  on this machine; remove after demo testing).
+- **The test accounts have no known password yet** (the ZZ-P1 seed used
+  service-role writes). First QC-setup task: write a small script that sets one
+  shared password for the four test accounts via
+  `admin.auth.admin.updateUserById` (service role, test accounts only), store
+  it in `.env.local` as `CASHFORD_TEST_PASSWORD`, and have Sonnet log in with
+  it. Never print it to logs or commit it.
+- **Test League dummies**: `qa1/2/3@cashford.internal`, password hard-coded in
+  `scripts/qa-seed.mjs` — usable but that league has placeholder teams with no
+  ESPN data, so prefer ZZ-P1.
+- App login is username + password at the root URL; axi can complete it — the
+  "QC needs Ananth's real browser" rule only applies to real-league contexts,
+  not test accounts.
 
 ## Machine and ops facts
 
