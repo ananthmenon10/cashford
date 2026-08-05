@@ -46,6 +46,7 @@
     { "path": "app/dev/feedback/actions.ts", "mode": "strings", "note": "feedback resolve action" },
     { "path": "app/dev/feedback/page.tsx", "mode": "jsx", "note": "unresolved feedback debug view" },
     { "path": "app/dev/foundations/page.tsx", "mode": "jsx", "note": "foundations QC harness" },
+    { "path": "app/dev/league-card/page.tsx", "mode": "jsx", "note": "League card Option B state harness" },
     { "path": "components/HomeTabs.tsx", "mode": "jsx", "note": "home tab shell" },
     { "path": "components/LocalTime.tsx", "mode": "jsx", "note": "browser-local datetime boundary" },
     { "path": "components/TableStandard.tsx", "mode": "jsx", "note": "shared sticky table" },

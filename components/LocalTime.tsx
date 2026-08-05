@@ -20,6 +20,7 @@ export function LocalTime({
   relative = true,
   includeTimeZone = false,
   includeYear = true,
+  includeWeekday = false,
   variant = "datetime",
 }: {
   iso: string;
@@ -28,6 +29,7 @@ export function LocalTime({
   relative?: boolean;
   includeTimeZone?: boolean;
   includeYear?: boolean;
+  includeWeekday?: boolean;
   variant?: LocalTimeVariant;
 }) {
   const [txt, setTxt] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function LocalTime({
     if (variant === "date") {
       setTxt(formatFriendlyDate(iso, { timeZone, includeTimeZone, includeYear }));
     } else if (variant === "time") {
-      setTxt(formatFriendlyTime(iso, { timeZone, includeTimeZone }));
+      setTxt(formatFriendlyTime(iso, { timeZone, includeTimeZone, includeWeekday }));
     } else {
       setTxt(
         formatFriendlyDateTime(iso, {
@@ -47,7 +49,7 @@ export function LocalTime({
         }),
       );
     }
-  }, [includeTimeZone, includeYear, iso, now, relative, variant]);
+  }, [includeTimeZone, includeWeekday, includeYear, iso, now, relative, variant]);
   return (
     <time dateTime={iso} className={className} suppressHydrationWarning>
       {txt ?? "…"}
@@ -56,15 +58,24 @@ export function LocalTime({
 }
 
 // Live MM:SS countdown to a target ISO; calls nothing once elapsed.
-export function Countdown({ iso, prefix = "Locks in" }: { iso: string; prefix?: string }) {
+export function Countdown({
+  iso,
+  prefix = "Locks in",
+  now,
+}: {
+  iso: string;
+  prefix?: string;
+  now?: string | number;
+}) {
   const [left, setLeft] = useState<number | null>(null);
   useEffect(() => {
     const target = new Date(iso).getTime();
-    const tick = () => setLeft(Math.max(0, target - Date.now()));
+    const clock = now == null ? () => Date.now() : () => new Date(now).getTime();
+    const tick = () => setLeft(Math.max(0, target - clock()));
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
-  }, [iso]);
+  }, [iso, now]);
   if (left === null) return <span suppressHydrationWarning>…</span>;
   if (left === 0) return <span>{GW_UI_COPY.locked}</span>;
   const m = Math.floor(left / 60000);

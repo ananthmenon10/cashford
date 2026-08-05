@@ -108,6 +108,13 @@ export type GameweekViewFixture = {
   awayShort: string;
 };
 
+export type HomeGameweekFact = {
+  kind: "live" | "settled";
+  viewerRank: number | null;
+  viewerNetInr: number | null;
+  liveMatchCount: number;
+};
+
 export type GameweekStanding = {
   userId: string;
   name: string;
@@ -138,6 +145,7 @@ export type GameweekViewDTO = {
     deadlineAt: string;
   } | null;
   hasSettledHistory: boolean;
+  viewerSeasonRank?: number | null;
   adjacentGameweeks: {
     number: number;
     name: string;
@@ -148,6 +156,7 @@ export type GameweekViewDTO = {
     deadlineAt: string | null;
     winnerName: string | null;
     matchCount: number;
+    homeFact: HomeGameweekFact | null;
   }[];
   contest: {
     id: string;
@@ -303,27 +312,60 @@ export async function loadGameweekView(
   const contestByGameweekId = new Map(contests.map((row) => [row.gameweek_id, row]));
   const gameweekIds = gameweeks.map((row) => row.id);
   const contestIds = contests.map((row) => row.id);
-  const [fixtureMetaQuery, winnerMetaQuery] = await Promise.all([
+  const [
+    fixtureMetaQuery,
+    winnerMetaQuery,
+    historyEntriesQuery,
+    historyPicksQuery,
+    memberCompetitionMetaQuery,
+  ] = await Promise.all([
     gameweekIds.length
       ? supabase
           .from("gameweek_fixtures")
-          .select("gameweek_id, fixture_id")
+          .select("gameweek_id, fixture_id, state, fixtures!gameweek_fixtures_fixture_id_competition_id_fkey(status, minute, ft_home, ft_away)")
           .in("gameweek_id", gameweekIds)
       : Promise.resolve({ data: [], error: null }),
     contestIds.length
       ? admin
           .from("gameweek_entry_results")
-          .select("gameweek_contest_id, is_winner, gameweek_entries!gameweek_entry_results_entry_id_fkey!inner(user_id, profiles(display_name, username))")
+          .select("gameweek_contest_id, entry_id, points, exacts, goal_error, net_inr, is_winner, gameweek_entries!gameweek_entry_results_entry_id_fkey!inner(user_id, status, profiles(display_name, username))")
           .in("gameweek_contest_id", contestIds)
       : Promise.resolve({ data: [], error: null }),
+    contestIds.length
+      ? admin
+          .from("gameweek_entries")
+          .select("id, gameweek_contest_id, user_id, status")
+          .in("gameweek_contest_id", contestIds)
+      : Promise.resolve({ data: [], error: null }),
+    contestIds.length
+      ? admin
+          .from("gameweek_picks")
+          .select("entry_id, fixture_id, pred_home, pred_away, gameweek_entries!gameweek_picks_entry_id_fkey!inner(gameweek_contest_id)")
+          .in("gameweek_entries.gameweek_contest_id", contestIds)
+      : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("member_competitions")
+      .select("user_id, left_at")
+      .eq("league_id", identity.league.id)
+      .eq("competition_id", participation.competitionId!),
   ]);
   fail(fixtureMetaQuery.error, "gameweek-fixture-metadata");
   fail(winnerMetaQuery.error, "gameweek-winner-metadata");
+  fail(historyEntriesQuery.error, "gameweek-history-entries");
+  fail(historyPicksQuery.error, "gameweek-history-picks");
+  fail(memberCompetitionMetaQuery.error, "gameweek-member-metadata");
+  const eligibleMemberCount = (memberCompetitionMetaQuery.data ?? [])
+    .filter((row: any) => row.left_at == null)
+    .length;
+  const fixtureRowsByGameweek = new Map<string, any[]>();
   const fixtureIdsByGameweek = new Map<string, Set<string>>();
   for (const row of fixtureMetaQuery.data ?? []) {
     const fixtureIds = fixtureIdsByGameweek.get(row.gameweek_id) ?? new Set<string>();
     fixtureIds.add(row.fixture_id ?? `fixture-${fixtureIds.size}`);
     fixtureIdsByGameweek.set(row.gameweek_id, fixtureIds);
+    const rows = fixtureRowsByGameweek.get(row.gameweek_id) ?? [];
+    rows.push(row);
+    fixtureRowsByGameweek.set(row.gameweek_id, rows);
   }
   const matchCounts = new Map(
     [...fixtureIdsByGameweek].map(([gameweekId, fixtureIds]) => [gameweekId, fixtureIds.size]),
@@ -355,6 +397,120 @@ export async function loadGameweekView(
     const name = winnerNames.get(userId);
     if (name) winnerByContestId.set(contestId, name);
   }
+
+  const resultRowsByContest = new Map<string, any[]>();
+  for (const row of winnerMetaQuery.data ?? []) {
+    const entry = one<any>(row.gameweek_entries);
+    if (!entry?.user_id) continue;
+    const rows = resultRowsByContest.get(row.gameweek_contest_id) ?? [];
+    rows.push({
+      userId: entry.user_id,
+      points: row.points == null ? null : Number(row.points),
+      exacts: row.exacts == null ? null : Number(row.exacts),
+      goalError: row.goal_error == null ? null : Number(row.goal_error),
+      netInr: row.net_inr == null ? null : Number(row.net_inr),
+    });
+    resultRowsByContest.set(row.gameweek_contest_id, rows);
+  }
+
+  const entriesByContest = new Map<string, any[]>();
+  for (const row of historyEntriesQuery.data ?? []) {
+    const rows = entriesByContest.get(row.gameweek_contest_id) ?? [];
+    rows.push(row);
+    entriesByContest.set(row.gameweek_contest_id, rows);
+  }
+  const picksByEntry = new Map<string, any[]>();
+  for (const row of historyPicksQuery.data ?? []) {
+    const picks = picksByEntry.get(row.entry_id) ?? [];
+    picks.push(row);
+    picksByEntry.set(row.entry_id, picks);
+  }
+
+  const homeFactByContest = new Map<string, HomeGameweekFact>();
+  for (const contest of contests) {
+    const result = one(contest.gameweek_results);
+    if (result?.outcome === "settled") {
+      const ranked = [...(resultRowsByContest.get(contest.id) ?? [])]
+        .filter((row) => row.points != null)
+        .sort(
+          (a, b) =>
+            (b.points ?? 0) - (a.points ?? 0) ||
+            (b.exacts ?? 0) - (a.exacts ?? 0) ||
+            (a.goalError ?? 0) - (b.goalError ?? 0) ||
+            a.userId.localeCompare(b.userId),
+        );
+      const viewer = ranked.find((row) => row.userId === userId);
+      homeFactByContest.set(contest.id, {
+        kind: "settled",
+        viewerRank: viewer ? ranked.indexOf(viewer) + 1 : null,
+        viewerNetInr: viewer?.netInr ?? null,
+        liveMatchCount: 0,
+      });
+      continue;
+    }
+
+    const gameweek = gameweekById.get(contest.gameweek_id);
+    if (!gameweek || !["locked", "settling"].includes(contest.status)) continue;
+    const fixtureRows = fixtureRowsByGameweek.get(gameweek.id) ?? [];
+    const liveMatchCount = fixtureRows.filter(
+      (row) => row.state === "active" && one<any>(row.fixtures)?.status === "live",
+    ).length;
+    if (liveMatchCount === 0) continue;
+
+    const live = provisionalGameweek({
+      entries: (entriesByContest.get(contest.id) ?? [])
+        .filter((entry) => entry.status === "locked_in")
+        .map((entry) => ({
+          userId: entry.user_id,
+          picks: (picksByEntry.get(entry.id) ?? []).map((pick) => ({
+            fixtureId: pick.fixture_id,
+            predHome: pick.pred_home,
+            predAway: pick.pred_away,
+          })),
+        })),
+      fixtures: fixtureRows
+        .filter((row) => row.state === "active" || row.state === "void")
+        .map((row) => {
+          const fixture = one<any>(row.fixtures);
+          return {
+            fixtureId: row.fixture_id,
+            state: row.state === "void" ? "void" as const : "active" as const,
+            status: fixture?.status ?? "scheduled",
+            homeScore: fixture?.ft_home ?? null,
+            awayScore: fixture?.ft_away ?? null,
+          };
+        }),
+      stakeInr: contest.stake_inr,
+    });
+    const viewer = live.state === "available"
+      ? live.standings.find((row) => row.userId === userId)
+      : null;
+    homeFactByContest.set(contest.id, {
+      kind: "live",
+      viewerRank: viewer?.rank ?? null,
+      viewerNetInr: null,
+      liveMatchCount,
+    });
+  }
+
+  const seasonTotals = new Map<string, { points: number; exacts: number }>();
+  for (const contest of contests) {
+    if (one(contest.gameweek_results)?.outcome !== "settled") continue;
+    for (const row of resultRowsByContest.get(contest.id) ?? []) {
+      const total = seasonTotals.get(row.userId) ?? { points: 0, exacts: 0 };
+      total.points += row.points ?? 0;
+      total.exacts += row.exacts ?? 0;
+      seasonTotals.set(row.userId, total);
+    }
+  }
+  const seasonRanked = [...seasonTotals.entries()]
+    .sort(
+      ([aId, a], [bId, b]) =>
+        b.points - a.points || b.exacts - a.exacts || aId.localeCompare(bId),
+    )
+    .map(([userId], index) => ({ userId, rank: index + 1 }));
+  const viewerSeasonRank = seasonRanked.find((row) => row.userId === userId)?.rank ?? null;
+
   const candidates = contests.flatMap((contest) => {
     const gameweek = gameweekById.get(contest.gameweek_id);
     return gameweek
@@ -380,6 +536,7 @@ export async function loadGameweekView(
       name: participation.competitionName!,
       format: "league" as const,
     },
+    viewerSeasonRank,
     adjacentGameweeks: gameweeks.map((row) => {
       const contest = contestByGameweekId.get(row.id);
       return {
@@ -392,6 +549,7 @@ export async function loadGameweekView(
         deadlineAt: contest?.deadline_at ?? row.deadline_at ?? null,
         winnerName: contest ? winnerByContestId.get(contest.id) ?? null : null,
         matchCount: matchCounts.get(row.id) ?? 0,
+        homeFact: contest ? homeFactByContest.get(contest.id) ?? null : null,
       };
     }),
   };
@@ -412,7 +570,7 @@ export async function loadGameweekView(
       standings: [],
       result: null,
       enteredCount: 0,
-      eligibleCount: 0,
+      eligibleCount: eligibleMemberCount,
       potInr: 0,
       isDoubleGameweek: false,
       viewerEligibleFromGameweekNumber: null,

@@ -111,6 +111,7 @@ export function GameweekStrip({
     deadlineAt: gameweek.deadlineAt,
     winnerName: null,
     matchCount: 0,
+    homeFact: null,
   };
   const previous = [...adjacent.slice(0, index)].reverse().find((row) => row.hasContest);
   const next = adjacent.slice(index + 1).find((row) => row.hasContest);

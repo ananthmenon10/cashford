@@ -1223,3 +1223,33 @@ with a distrust-the-audit brief found Bug 2. Keep both seats for money code.
   remains in the copy-scan manifest's excluded list because it is a pre-existing Phase 4 surface
   with a large in-place copy set outside the Phase 3 catalogue; the manifest `_excludedNote` records
   this ruling and Phase 6 owns routing that copy into a dedicated module.
+
+## Deviations (2026-08-05, League card Option B)
+
+**Lifecycle fallback.** The locked matrix covers S1–S10. The resolver keeps an `OTHER` branch for
+dirty, void, closed, and other lifecycle values so those existing states do not become an empty
+home card while the ten locked frames stay exact.
+
+**History facts.** Settled rank and net come from gameweek result rows. Live rank and match count
+come from the existing provisional points path. Archived World Cup rank keeps using the existing
+World Cup final standings builder. No settlement or scoring code changed.
+
+**Pinned time.** The harness passes its reference instant into the shared local-time and countdown
+components. Production cards keep the browser clock, so the countdown remains live for users.
+
+**State and additive urgency fixes (2026-08-06).** The home resolver now keeps payment dues as an
+overlay, so an entered viewer keeps the entered layout and position rail. CL2 and zero-live CL3
+use the locked copy, CL4 uses the all-final awaiting-settlement copy, and CL7/CL10 use their void
+copy. VP3, VP0, and VP5 have separate action-needed, ineligible, and invalid presentations with
+no false edit link. A null settled net is shown as "You sat this one out" and zero is shown as a
+break-even result. Secondary history is limited to S6/S7; settled amounts use structured detail
+so the amount can be bold in the card.
+
+**Adoption link decision (2026-08-06).** Premier League adoption already has a captain-only sheet
+on `/leagues/[slug]/archive/wc2026`, backed by `/api/leagues/[slug]/adopt`. The card's adoption
+button therefore targets that existing page at `#adopt-premier-league`, rather than opening the
+archive at its top or sending the viewer to league management. No new route was added.
+
+**Rail labels (2026-08-06).** S2 labels its open-card rail "Season rank" because the home loader
+uses the season standing there; settled and live cards label their current-gameweek standing
+"GW rank". This removes the old ambiguity while keeping the values in the same rail.

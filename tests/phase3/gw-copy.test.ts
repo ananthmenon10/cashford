@@ -83,7 +83,7 @@ const SAMPLE_CALLS: Record<string, unknown[]> = {
 
 const BANNED_WORDS = /\b(bet|wager|gamble|punt)\b/i;
 const STRAIGHT_APOSTROPHE = /[A-Za-z]'[A-Za-z]/; // a straight ' between letters (typographic is ’)
-const HYPHEN_SCORELINE = /\b\d+-\d+\b/; // e.g. "2-1" — must be an en dash "2–1"
+const HYPHEN_SCORELINE = /\b(?!\d{4}-)\d+-\d+\b/; // e.g. "2-1" — must be an en dash "2–1"; season labels such as "2026-27" are valid
 
 function collectStrings(value: unknown, depth = 0): string[] {
   if (depth > 3) return [];
