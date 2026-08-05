@@ -41,7 +41,7 @@ export async function loadDuesView(
   const [membersQ, memberCompetitionsQ, contestResultsQ, entriesQ, entryResultsQ, versionsQ, transfersQ, paymentsQ] = await Promise.all([
     admin.from("league_members").select("user_id, left_at").eq("league_id", leagueId),
     admin.from("member_competitions").select("user_id").eq("league_id", leagueId),
-    admin.from("contest_results").select("user_id, net_inr, contests!inner(id, league_id, competition_id, fixtures!inner(competition_id))").eq("contests.league_id", leagueId),
+    admin.from("contest_results").select("user_id, net_inr, contests!inner(id, league_id, fixtures!inner(competition_id))").eq("contests.league_id", leagueId),
     admin.from("gameweek_entries").select("user_id, gameweek_contest_id").eq("league_id", leagueId),
     admin.from("gameweek_entry_results").select("entry_id, gameweek_contest_id, net_inr, gameweek_entries!inner(user_id, league_id)").eq("gameweek_entries.league_id", leagueId),
     admin.from("gameweek_contests").select("id, input_version, gameweek_results(settled_version)").eq("league_id", leagueId),
