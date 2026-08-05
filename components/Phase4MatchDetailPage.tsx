@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MATCH_COPY } from "@/lib/match-copy";
 import type { MatchDetailView } from "@/lib/match-detail";
 import type { Sourced } from "@/lib/match-blocks";
+import { LocalTime } from "@/components/LocalTime";
 
 const card =
   "rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]";
@@ -131,11 +132,7 @@ export function Phase4MatchDetailPage({
         <header className={card}>
           <div className="mb-3 text-center text-xs font-bold text-muted">
             {view.header.kickoffAt
-              ? new Intl.DateTimeFormat("en-IN", {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                  timeZone: "Asia/Kolkata",
-                }).format(new Date(view.header.kickoffAt))
+              ? <LocalTime iso={view.header.kickoffAt} relative={false} />
               : MATCH_COPY.dateTbc}
           </div>
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
@@ -150,15 +147,8 @@ export function Phase4MatchDetailPage({
           </div>
           {view.room && (
             <div className="mt-3 border-t border-border pt-3 text-center text-xs text-muted">
-              {MATCH_COPY.roomLocks(
-                view.room.league.name,
-                new Intl.DateTimeFormat("en-IN", {
-                weekday: "short",
-                hour: "2-digit",
-                minute: "2-digit",
-                timeZone: "Asia/Kolkata",
-                }).format(new Date(view.room.deadlineAt)),
-              )}
+              {MATCH_COPY.roomLocksPrefix(view.room.league.name)}{" "}
+              <LocalTime iso={view.room.deadlineAt} variant="time" relative={false} />
             </div>
           )}
           {view.header.scorers && (
@@ -240,6 +230,11 @@ export function Phase4MatchDetailPage({
         {view.notes.map((note) => (
           <div key={note} className="text-xs text-muted">{note}</div>
         ))}
+        {view.correctedAt ? (
+          <div className="text-xs text-muted">
+            {MATCH_COPY.correctedResult} · <LocalTime iso={view.correctedAt} relative={false} />
+          </div>
+        ) : null}
       </div>
     </main>
   );

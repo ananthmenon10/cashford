@@ -3,6 +3,7 @@ import {
   type ContestLifecycle,
   type ViewerParticipation,
 } from "./gw-state";
+import { calendarDateKey } from "./datetime";
 
 export type LeagueRef = { id: string; slug: string; name: string };
 export type Cta = { label: string; href: string };
@@ -200,6 +201,8 @@ export type WinnersRecapView =
 export type FixtureRowView = {
   id: string;
   state: string;
+  scheduled: boolean;
+  kickoffAt: string | null;
   home: { name: string; crest?: string | null };
   away: { name: string; crest?: string | null };
   score: [number, number] | null;
@@ -222,8 +225,50 @@ export type FixtureRowView = {
           points: number;
           verdict?: "exact" | "result" | "miss";
         }>;
-      };
+  };
 };
+
+export type FixtureDay = {
+  dayKey: string;
+  dateAt: string | null;
+  fixtures: FixtureRowView[];
+};
+
+export function groupFixturesByLocalDay(
+  rows: readonly FixtureRowView[],
+  timeZone: string,
+): FixtureDay[] {
+  const groups = new Map<
+    string,
+    FixtureDay & { firstKickoffMs: number }
+  >();
+  for (const row of rows) {
+    const dayKey = row.kickoffAt
+      ? calendarDateKey(row.kickoffAt, timeZone)
+      : "date-tbc";
+    const kickoffMs = row.kickoffAt
+      ? new Date(row.kickoffAt).getTime()
+      : Number.POSITIVE_INFINITY;
+    const group = groups.get(dayKey);
+    if (group) {
+      group.fixtures.push(row);
+      if (kickoffMs < group.firstKickoffMs) {
+        group.firstKickoffMs = kickoffMs;
+        group.dateAt = row.kickoffAt;
+      }
+    } else {
+      groups.set(dayKey, {
+        dayKey,
+        dateAt: row.kickoffAt,
+        fixtures: [row],
+        firstKickoffMs: kickoffMs,
+      });
+    }
+  }
+  return [...groups.values()]
+    .sort((a, b) => a.firstKickoffMs - b.firstKickoffMs)
+    .map(({ firstKickoffMs: _firstKickoffMs, ...day }) => day);
+}
 
 export type MatchesTabView = {
   competition: {
@@ -256,8 +301,7 @@ export type MatchesTabView = {
     recap?: { gwNumber: number; href: string };
   } | null;
   winnersRecap: WinnersRecapView[] | null;
-  days: Array<{ label: string; fixtures: FixtureRowView[] }>;
-  overflow: { count: number; label: string } | null;
+  fixtures: FixtureRowView[];
 };
 
 export function sharedHeaderPoints(rows: readonly LeagueRowView[]): number | null {

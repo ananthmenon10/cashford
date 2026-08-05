@@ -362,19 +362,8 @@ export async function loadMatchDetail(
     .filter(Boolean)
     .sort()
     .at(-1);
-  const correctionNotes =
-    revisionCount > 0 && correctedStamp
-      ? [
-          MATCH_COPY.correctedResultAt(
-            new Intl.DateTimeFormat("en-IN", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-              timeZone: "Asia/Kolkata",
-            }).format(new Date(correctedStamp)),
-          ),
-        ]
-      : [];
+  const correctedAt =
+    revisionCount > 0 && correctedStamp ? String(correctedStamp) : undefined;
   const standings = selectStandingsRow(
     (standingRows ?? []) as StandingsCacheRow[],
     now,
@@ -431,6 +420,6 @@ export async function loadMatchDetail(
             awayGoal: { points: awayGoal.points, rank: awayGoal.rank },
           }
         : undefined,
-    notes: correctionNotes,
+    correctedAt,
   });
 }

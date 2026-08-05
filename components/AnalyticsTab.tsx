@@ -12,6 +12,8 @@ import Link from "next/link";
 import type { AnalyticsView, GlobalAnalytics, LeagueAnalytics } from "@/lib/analytics";
 import { Avatar, inr } from "@/components/ui";
 import { AccuracyRing, CountUp, Reveal } from "@/components/motion";
+import { LocalTime } from "@/components/LocalTime";
+import { calendarDateKey, getLocalTimeZone } from "@/lib/datetime";
 
 // Measure-before-paint on the client (so the scope thumb lands in place, no blink); a no-op on the
 // server render, which sidesteps React's useLayoutEffect-during-SSR warning.
@@ -43,14 +45,44 @@ function Cell({ children, tint }: { children: React.ReactNode; tint?: string }) 
   return <div className={`flex-1 rounded-card border border-border p-3 ${tint ?? "bg-surface"} shadow-[0_2px_8px_rgba(15,23,42,.04)]`}>{children}</div>;
 }
 
+type LocalDayTotal = { dayKey: string; dateAt: string; net: number };
+
+function groupDailyByLocalDay(
+  entries: GlobalAnalytics["daily"],
+  timeZone: string,
+): LocalDayTotal[] {
+  const groups = new Map<string, LocalDayTotal & { firstMs: number }>();
+  for (const entry of entries) {
+    const dayKey = calendarDateKey(entry.kickoffAt, timeZone);
+    const current = groups.get(dayKey);
+    const kickoffMs = new Date(entry.kickoffAt).getTime();
+    if (current) {
+      current.net += entry.net;
+      if (kickoffMs < current.firstMs) {
+        current.firstMs = kickoffMs;
+        current.dateAt = entry.kickoffAt;
+      }
+    } else {
+      groups.set(dayKey, {
+        dayKey,
+        dateAt: entry.kickoffAt,
+        net: entry.net,
+        firstMs: kickoffMs,
+      });
+    }
+  }
+  return [...groups.values()]
+    .sort((a, b) => a.firstMs - b.firstMs)
+    .map(({ firstMs: _firstMs, ...day }) => day);
+}
+
 // Per-matchday net as up/down bars around a ₹0 line: green = a winning day, red = a losing day.
-function DayBars({ days }: { days: { dayKey: string; net: number }[] }) {
+function DayBars({ days }: { days: LocalDayTotal[] }) {
   if (days.length < 1) {
     return <div className="flex h-[92px] items-center justify-center text-[11px] text-muted">Your daily net appears as matches settle.</div>;
   }
   const maxAbs = Math.max(1, ...days.map((d) => Math.abs(d.net)));
   const barH = (n: number) => Math.max(2, Math.round((Math.abs(n) / maxAbs) * 38));
-  const dayNum = (k: string) => k.split(" ")[1] ?? "";
   return (
     <div>
       <div className="relative flex items-stretch gap-[3px]" style={{ height: 92 }}>
@@ -71,7 +103,9 @@ function DayBars({ days }: { days: { dayKey: string; net: number }[] }) {
       </div>
       <div className="mt-1.5 flex gap-[3px]">
         {days.map((d, i) => (
-          <div key={i} className="flex-1 text-center font-mono text-[8px] text-muted">{dayNum(d.dayKey)}</div>
+          <div key={i} className="flex-1 text-center font-mono text-[8px] text-muted">
+            <LocalTime iso={d.dateAt} variant="date" includeYear={false} relative={false} />
+          </div>
         ))}
       </div>
     </div>
@@ -101,7 +135,12 @@ function CellLabel({ children, info }: { children: React.ReactNode; info: string
 }
 
 // ── GLOBAL panel ─────────────────────────────────────────────────────────────────────────────
-function GlobalPanel({ g }: { g: GlobalAnalytics }) {
+function GlobalPanel({ g, timeZone }: { g: GlobalAnalytics; timeZone: string | null }) {
+  const days = timeZone ? groupDailyByLocalDay(g.daily, timeZone) : [];
+  const biggest = days.reduce<LocalDayTotal | null>(
+    (best, day) => (!best || day.net > best.net ? day : best),
+    null,
+  );
   if (g.acc.graded === 0 && g.pot.entered === 0) {
     return <div className="rounded-card border border-dashed border-border p-8 text-center text-[13px] text-muted">Your analytics appear here as matches settle.</div>;
   }
@@ -120,7 +159,7 @@ function GlobalPanel({ g }: { g: GlobalAnalytics }) {
           <span className="flex items-center text-[12px] font-bold">Net by matchday<InfoDot text="Your net ₹ won or lost on each matchday — bars up (green) on winning days, down (red) on losing ones, around the ₹0 line." /></span>
           <span className="rounded-pill bg-mint px-2 py-0.5 text-[9px] font-bold text-primary-press">💰 MONEY</span>
         </div>
-        <DayBars days={g.daily} />
+        <DayBars days={days} />
       </div>
 
       <div className="flex gap-2.5">
@@ -138,7 +177,7 @@ function GlobalPanel({ g }: { g: GlobalAnalytics }) {
         </Cell>
       </div>
 
-      {(g.lucky || g.biggest) && (
+      {(g.lucky || biggest) && (
         <div className="flex gap-2.5">
           <Cell>
             <CellLabel info="The team you've netted the most ₹ on — across every settled match they played that you predicted.">Lucky team 💰</CellLabel>
@@ -147,8 +186,10 @@ function GlobalPanel({ g }: { g: GlobalAnalytics }) {
           </Cell>
           <Cell>
             <CellLabel info="Your best single matchday, by total net ₹ won that day.">Biggest night 💰</CellLabel>
-            <div className="mt-1 text-[14px] font-extrabold">{g.biggest?.dayKey ?? "—"}</div>
-            {g.biggest && <div className={`font-mono text-[12px] font-bold ${netColor(g.biggest.net)}`}>{inr(g.biggest.net)}</div>}
+            <div className="mt-1 text-[14px] font-extrabold">
+              {biggest ? <LocalTime iso={biggest.dateAt} variant="date" includeYear={false} relative={false} /> : "—"}
+            </div>
+            {biggest && <div className={`font-mono text-[12px] font-bold ${netColor(biggest.net)}`}>{inr(biggest.net)}</div>}
           </Cell>
         </div>
       )}
@@ -285,7 +326,12 @@ function LeaguePanel({ lg, myCorrect }: { lg: LeagueAnalytics; myCorrect: number
 export function AnalyticsTab({ view }: { view: AnalyticsView }) {
   const [scope, setScope] = useState<string>("global"); // "global" | leagueId
   const [tip, setTip] = useState<{ text: string; left: number; top: number } | null>(null);
+  const [timeZone, setTimeZone] = useState<string | null>(null);
   const league = view.leagues.find((l) => l.leagueId === scope) ?? null;
+
+  useEffect(() => {
+    setTimeZone(getLocalTimeZone());
+  }, []);
 
   // Anchor the shared bubble just below the tapped ⓘ, clamped so it never overflows the viewport.
   const openTip = useCallback((text: string, rect: DOMRect) => {
@@ -328,7 +374,7 @@ export function AnalyticsTab({ view }: { view: AnalyticsView }) {
           ))}
         </div>
 
-        {league ? <LeaguePanel lg={league} myCorrect={league.acc.correctPct} /> : <GlobalPanel g={view.global} />}
+        {league ? <LeaguePanel lg={league} myCorrect={league.acc.correctPct} /> : <GlobalPanel g={view.global} timeZone={timeZone} />}
       </div>
 
       {tip && (

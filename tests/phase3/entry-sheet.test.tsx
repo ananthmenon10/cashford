@@ -57,6 +57,7 @@ function view(overrides: Partial<GameweekViewDTO> = {}): GameweekViewDTO {
     participation: { format: "gameweek" } as GameweekViewDTO["participation"],
     competition: { id: "c1", name: "Premier League", format: "league" },
     gameweek: { id: "gw24", number: 24, name: "Gameweek 24", status: "open", deadlineAt: "2026-02-03T10:30:00.000Z" },
+    hasSettledHistory: false,
     adjacentGameweeks: [],
     contest: { id: "contest1", status: "open", stakeInr: 100, deadlineAt: "2026-02-03T10:30:00.000Z", inputVersion: 1 },
     lifecycle: "CL2" as GameweekViewDTO["lifecycle"],

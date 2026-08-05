@@ -34,7 +34,8 @@ export interface Entry {
   advancer?: Outcome | null;
   net: number | null;
   kickoffMs: number;
-  dayKey: string; // pre-formatted local-day label (e.g. "Sat 13 Jun") for "biggest night"
+  dayKey?: string; // legacy pure-helper label; the UI groups raw kickoffAt in the browser timezone
+  kickoffAt?: string;
   homeLabel: string;
   awayLabel: string;
   model?: ModelProbs | null; // pre-match model probabilities, when available
@@ -104,7 +105,7 @@ export function cumulativeNet(entries: Entry[]): { x: number; y: number }[] {
 export function dailyNet(entries: Entry[]): { dayKey: string; net: number }[] {
   const byDay = new Map<string, { net: number; t: number }>();
   for (const e of entries) {
-    if (e.net == null) continue;
+    if (e.net == null || !e.dayKey) continue;
     const cur = byDay.get(e.dayKey);
     if (cur) { cur.net += e.net; cur.t = Math.min(cur.t, e.kickoffMs); }
     else byDay.set(e.dayKey, { net: e.net, t: e.kickoffMs });
@@ -135,7 +136,7 @@ export function luckyTeam(entries: Entry[]): { team: string; net: number } | nul
 export function biggestNight(entries: Entry[]): { dayKey: string; net: number } | null {
   const byDay = new Map<string, number>();
   for (const e of entries) {
-    if (e.net == null) continue;
+    if (e.net == null || !e.dayKey) continue;
     byDay.set(e.dayKey, (byDay.get(e.dayKey) ?? 0) + e.net);
   }
   let best: { dayKey: string; net: number } | null = null;
@@ -169,10 +170,9 @@ export interface GlobalAnalytics {
   acc: Accuracy; // 🎯 correctPct / exactPct / goalBias / graded
   pot: { entered: number; won: number }; // 💰
   streak: number; // 🎯
-  daily: { dayKey: string; net: number }[]; // 💰 net per matchday for the bar chart
+  daily: { kickoffAt: string; net: number }[]; // 💰 raw settled entries; the browser groups local matchdays
   best: BestResultView | null; // 💰
   lucky: { team: string; net: number } | null; // 💰
-  biggest: { dayKey: string; net: number } | null; // 💰
   favouritesWonPct: number | null; // match intelligence
   calledUpsets: number; // 🎯 match intelligence
 }

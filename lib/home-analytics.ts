@@ -6,7 +6,7 @@ import "server-only";
 // fixtures (post-lock → picks are visible; no-peek preserved). Pure maths lives in lib/analytics.
 
 import {
-  accuracy, currentStreak, potRecord, dailyNet, bestResult, luckyTeam, biggestNight,
+  accuracy, currentStreak, potRecord, bestResult, luckyTeam,
   calledUpsets, favouritesWonPct,
   type Entry, type ModelProbs, type ResultInfo, type AnalyticsView, type LeagueAnalytics, type Outcome,
 } from "./analytics";
@@ -14,14 +14,13 @@ import type { createClient } from "./supabase/server";
 
 type RlsClient = Awaited<ReturnType<typeof createClient>>;
 
-const istDay = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
 const num = (v: unknown): number | null => (v == null ? null : Number(v));
 
 export async function loadAnalyticsView(supabase: RlsClient, userId: string): Promise<AnalyticsView> {
   const emptyAcc = accuracy([]);
   const emptyGlobal = {
     net: 0, acc: emptyAcc, pot: { entered: 0, won: 0 }, streak: 0, daily: [],
-    best: null, lucky: null, biggest: null, favouritesWonPct: null, calledUpsets: 0,
+    best: null, lucky: null, favouritesWonPct: null, calledUpsets: 0,
   };
 
   const { data: leagues } = await supabase.from("leagues").select("id, name, slug").order("name");
@@ -62,7 +61,7 @@ export async function loadAnalyticsView(supabase: RlsClient, userId: string): Pr
   ]);
 
   // Index a contest → its fixture facts + league, and only keep FINISHED (gradeable) ones.
-  type CInfo = { leagueId: string; isKnockout: boolean; fixtureId: string; result: ResultInfo; kickoffMs: number; dayKey: string; homeLabel: string; awayLabel: string };
+  type CInfo = { leagueId: string; isKnockout: boolean; fixtureId: string; result: ResultInfo; kickoffMs: number; kickoffAt: string; homeLabel: string; awayLabel: string };
   const cinfo = new Map<string, CInfo>();
   for (const c of contestRows) {
     const f = (Array.isArray(c.fixtures) ? c.fixtures[0] : c.fixtures) as any;
@@ -72,7 +71,7 @@ export async function loadAnalyticsView(supabase: RlsClient, userId: string): Pr
     cinfo.set(c.id, {
       leagueId: c.league_id, isKnockout: c.is_knockout, fixtureId: c.fixture_id,
       result: { ftHome: f.ft_home, ftAway: f.ft_away, isKnockout: c.is_knockout, advancer },
-      kickoffMs: ko.getTime(), dayKey: istDay.format(ko), homeLabel: f.home_label, awayLabel: f.away_label,
+      kickoffMs: ko.getTime(), kickoffAt: f.kickoff_at, homeLabel: f.home_label, awayLabel: f.away_label,
     });
   }
 
@@ -89,7 +88,7 @@ export async function loadAnalyticsView(supabase: RlsClient, userId: string): Pr
       outcome: p.outcome, predHome: p.pred_home, predAway: p.pred_away,
       ftHome: ci.result.ftHome, ftAway: ci.result.ftAway, isKnockout: ci.isKnockout, advancer: ci.result.advancer,
       net: netByContestUser.has(k) ? netByContestUser.get(k)! : null,
-      kickoffMs: ci.kickoffMs, dayKey: ci.dayKey, homeLabel: ci.homeLabel, awayLabel: ci.awayLabel,
+      kickoffMs: ci.kickoffMs, kickoffAt: ci.kickoffAt, homeLabel: ci.homeLabel, awayLabel: ci.awayLabel,
       model: model.get(ci.fixtureId) ?? null, slug: slugByLeague.get(ci.leagueId), contestId,
     };
   };
@@ -110,7 +109,6 @@ export async function loadAnalyticsView(supabase: RlsClient, userId: string): Pr
   const myNetTotal = (allResults ?? []).filter((r) => r.user_id === userId).reduce((t, r) => t + (r.net_inr ?? 0), 0);
   const best = bestResult(myEntries);
   const lucky = luckyTeam(myEntries);
-  const biggest = biggestNight(myEntries);
 
   // Tournament-wide favourites: each finished fixture (deduped) that has model odds.
   const favRows: { model: ModelProbs; result: ResultInfo }[] = [];
@@ -127,10 +125,13 @@ export async function loadAnalyticsView(supabase: RlsClient, userId: string): Pr
     acc: accuracy(myEntries),
     pot: potRecord(myEntries),
     streak: currentStreak(myEntries),
-    daily: dailyNet(myEntries),
+    daily: myEntries.flatMap((entry) =>
+      entry.net == null || !entry.kickoffAt
+        ? []
+        : [{ kickoffAt: entry.kickoffAt, net: entry.net }],
+    ),
     best: best ? { net: best.net ?? 0, label: `${best.homeLabel} ${best.ftHome}–${best.ftAway} ${best.awayLabel}`, slug: best.slug ?? "", contestId: best.contestId ?? "" } : null,
     lucky,
-    biggest,
     favouritesWonPct: favouritesWonPct(favRows),
     calledUpsets: calledUpsets(myEntries),
   };

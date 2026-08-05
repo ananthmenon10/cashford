@@ -88,6 +88,7 @@ export const TRANSITION_COPY = {
   anteLabel: "Ante per gameweek",
   consequence: (ante: number) => `Everyone stakes ₹${ante.toLocaleString("en-IN")} a gameweek. Highest score takes the pot.`,
   firstGameweek: (number: number, deadline: string) => `First gameweek: GW${number} · deadline ${deadline}`,
+  firstGameweekPrefix: (number: number) => `First gameweek: GW${number} · deadline`,
   cta: "Start Premier League",
   memberHeading: (captain: string) => `Waiting for ${captain} to start the Premier League`,
   memberBody: "Your World Cup archive and league balance are still here.",
@@ -127,6 +128,8 @@ export const PHASE5_UI_COPY = {
 
 export const firstDeadlineCopy = (number: number, deadline: string) =>
   `First gameweek: GW${number} · deadline ${deadline}`;
+export const firstDeadlinePrefix = (number: number) =>
+  `First gameweek: GW${number} · deadline`;
 export const createConsequenceCopy = (ante: number) =>
   `Everyone stakes ₹${ante.toLocaleString("en-IN")} a gameweek. Highest score takes the pot.`;
 export const beforeTimeCopy = (number: number) =>

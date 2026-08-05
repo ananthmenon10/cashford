@@ -3,17 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { loadDevFeedbackPage } from "@/lib/dev-feedback-load";
 import { FEEDBACK_COPY } from "@/lib/gw-copy";
+import { LocalTime } from "@/components/LocalTime";
 import { resolveFeedback } from "./actions";
 
 export const dynamic = "force-dynamic";
-
-const IST = new Intl.DateTimeFormat("en-IN", {
-  timeZone: "Asia/Kolkata",
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-const ist = (iso: string) => IST.format(new Date(iso));
 
 export default async function DevFeedbackPage() {
   const supabase = await createClient();
@@ -49,7 +42,9 @@ export default async function DevFeedbackPage() {
               const name = profile?.display_name || profile?.username || email;
               return (
                 <tr key={row.id} className="border-t border-border align-top">
-                  <td className="whitespace-nowrap px-3 py-3 font-mono">{ist(row.created_at)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 font-mono">
+                    <LocalTime iso={row.created_at} relative={false} />
+                  </td>
                   <td className="px-3 py-3">
                     <div className="font-bold">{name}</div>
                     <div className="mt-0.5 text-muted">{email}</div>

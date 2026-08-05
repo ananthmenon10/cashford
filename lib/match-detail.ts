@@ -105,6 +105,7 @@ export type MatchDetailView = {
   }>;
   raceLink?: { league: LeagueRef; standingLine: string; href: string };
   notes: string[];
+  correctedAt?: string;
 };
 
 type BlockRow = Record<string, any> | null;
@@ -135,6 +136,7 @@ export type MatchDetailInput = {
     awayGoal: { points: number; rank: number };
   };
   notes?: string[];
+  correctedAt?: string;
 };
 
 export function buildMatchDetailView(
@@ -158,6 +160,7 @@ export function buildMatchDetailView(
     yourCalls: input.yourCalls,
     room,
     notes: input.notes ?? [],
+    ...(input.correctedAt ? { correctedAt: input.correctedAt } : {}),
   };
 
   if (input.state === "live" && input.fixture.score && room && input.liveRace) {

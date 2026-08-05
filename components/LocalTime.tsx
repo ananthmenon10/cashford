@@ -1,25 +1,53 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  formatFriendlyDate,
+  formatFriendlyDateTime,
+  formatFriendlyTime,
+  getLocalTimeZone,
+} from "@/lib/datetime";
+import { GW_UI_COPY } from "@/lib/gw-copy";
 
-// Renders a UTC ISO timestamp in the viewer's local timezone (with tz hint).
-// Server renders nothing visible; client fills in after mount → no hydration mismatch.
-export function LocalTime({ iso, className }: { iso: string; className?: string }) {
+export type LocalTimeVariant = "datetime" | "date" | "time";
+
+// The server cannot know the browser timezone. This boundary waits for the
+// browser's resolved timezone, then uses the shared formatter for the display.
+export function LocalTime({
+  iso,
+  className,
+  now,
+  relative = true,
+  includeTimeZone = false,
+  includeYear = true,
+  variant = "datetime",
+}: {
+  iso: string;
+  className?: string;
+  now?: string | number;
+  relative?: boolean;
+  includeTimeZone?: boolean;
+  includeYear?: boolean;
+  variant?: LocalTimeVariant;
+}) {
   const [txt, setTxt] = useState<string | null>(null);
   useEffect(() => {
-    const d = new Date(iso);
-    const main = new Intl.DateTimeFormat("en-GB", {
-      weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
-    }).format(d);
-    // Short timezone label. Intl gives real abbreviations (EST/PST…) for most zones but a
-    // bare "GMT+5:30" offset for India, so special-case India → IST. Other offset-only zones
-    // keep the native short form.
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    let abbr = new Intl.DateTimeFormat("en-US", { hour: "numeric", timeZoneName: "short" })
-      .formatToParts(d).find((p) => p.type === "timeZoneName")?.value ?? "";
-    if (tz === "Asia/Kolkata" || tz === "Asia/Calcutta") abbr = "IST";
-    setTxt(abbr ? `${main} ${abbr}` : main);
-  }, [iso]);
+    const timeZone = getLocalTimeZone();
+    if (variant === "date") {
+      setTxt(formatFriendlyDate(iso, { timeZone, includeTimeZone, includeYear }));
+    } else if (variant === "time") {
+      setTxt(formatFriendlyTime(iso, { timeZone, includeTimeZone }));
+    } else {
+      setTxt(
+        formatFriendlyDateTime(iso, {
+          timeZone,
+          now,
+          relative,
+          includeTimeZone,
+        }),
+      );
+    }
+  }, [includeTimeZone, includeYear, iso, now, relative, variant]);
   return (
     <time dateTime={iso} className={className} suppressHydrationWarning>
       {txt ?? "…"}
@@ -38,7 +66,7 @@ export function Countdown({ iso, prefix = "Locks in" }: { iso: string; prefix?: 
     return () => clearInterval(t);
   }, [iso]);
   if (left === null) return <span suppressHydrationWarning>…</span>;
-  if (left === 0) return <span>Locked</span>;
+  if (left === 0) return <span>{GW_UI_COPY.locked}</span>;
   const m = Math.floor(left / 60000);
   const s = Math.floor((left % 60000) / 1000);
   const h = Math.floor(m / 60);

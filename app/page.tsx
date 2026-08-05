@@ -7,7 +7,6 @@ import { GW_UI_COPY } from "@/lib/gw-copy";
 import { logout } from "./actions";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { HomeTabs } from "@/components/HomeTabs";
-import { KnockoutBanner } from "@/components/KnockoutBanner";
 import { AnalyticsTab } from "@/components/AnalyticsTab";
 import { LeagueCard } from "@/components/gw/LeagueCard";
 import { APP_VERSION } from "@/lib/version";
@@ -30,7 +29,7 @@ export default async function Home() {
     user?.email?.split("@")[0] ??
     "you";
 
-  const { leagues, analyticsView, homeLeagueCards } = await loadHomePage(
+  const { leagues, analyticsView, homeLeagueCards, analyticsVisible } = await loadHomePage(
     supabase,
     admin,
     user!.id,
@@ -38,7 +37,6 @@ export default async function Home() {
   // ── Tab 1: Leagues ─────────────────────────────────────────────────────────────────
   const leaguesPanel = (
     <div className="px-5 py-5">
-      <KnockoutBanner />
       <h1 className="mb-3.5 text-xl font-extrabold tracking-[-.01em]">
         {GW_UI_COPY.homeTitle}
       </h1>
@@ -100,11 +98,15 @@ export default async function Home() {
   );
 
   // ── Tab 3: Analytics ────────────────────────────────────────────────────────────────
-  const analyticsPanel = (
-    <div className="px-4 py-4">
-      <AnalyticsTab view={analyticsView} />
-    </div>
-  );
+  const analyticsProps = analyticsVisible
+    ? {
+        analytics: (
+          <div className="px-4 py-4">
+            <AnalyticsTab view={analyticsView} />
+          </div>
+        ),
+      }
+    : {};
 
   return (
     <main className="min-h-screen bg-bg">
@@ -147,10 +149,9 @@ export default async function Home() {
             </Link>
           </div>
         }
-        analytics={analyticsPanel}
         matchesAlert={false}
-        bracketHref="/bracket"
-        bracketNew
+        analyticsVisible={analyticsVisible}
+        {...analyticsProps}
       />
     </main>
   );

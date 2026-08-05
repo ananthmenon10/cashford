@@ -110,6 +110,6 @@ describe("matches tab loader", () => {
 
     expect(view?.gw.state).toBe("live");
     expect(view?.yourGw?.provisional).toBe(true);
-    expect(view?.days.flatMap((day) => day.fixtures)).toHaveLength(2);
+    expect(view?.fixtures).toHaveLength(2);
   });
 });

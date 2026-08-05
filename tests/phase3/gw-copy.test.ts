@@ -35,6 +35,7 @@ const SAMPLE_CALLS: Record<string, unknown[]> = {
   C24: [100],
   C26: [24],
   C30: [24, "Sat 3 Feb, 4:00 pm IST"],
+  C30Prefix: [24],
   C31: [200],
   C32: [200],
   C45: [24],

@@ -11,6 +11,28 @@ export const GW_BADGE_COPY = {
   recalculating: "RECALCULATING",
 } as const;
 
+export type EntryStatusKey =
+  | "notEnteredOpen"
+  | "enteredOpen"
+  | "submittedLocked"
+  | "live"
+  | "won"
+  | "lost"
+  | "void"
+  | "syncIssue";
+
+/** The eight entry states from the Foundations reference table. */
+export const ENTRY_STATUS_COPY = {
+  notEnteredOpen: "Not entered · Open until Sat 2:18pm",
+  enteredOpen: "Entered · Editable until Sat 2:18pm",
+  submittedLocked: "Submitted · Locked at 2:18pm",
+  live: "Live · 3rd of 12",
+  won: "Won · 1st of 12 · +₹480",
+  lost: "Lost · 9th of 12 · −₹100",
+  void: "Void · Gameweek called off · Stake returned",
+  syncIssue: "Sync issue · We’ll retry shortly",
+} as const satisfies Record<EntryStatusKey, string>;
+
 export const FEEDBACK_COPY = {
   title: "Report a bug",
   hint: "A little context helps us fix it.",
@@ -28,7 +50,7 @@ export const FEEDBACK_COPY = {
   sendError: "Couldn’t send the report. Please try again.",
   devTitle: "Bug reports",
   devSubtitle: "Unresolved reports, newest first.",
-  created: "Created (IST)",
+  created: "Created",
   user: "User",
   path: "Path",
   league: "League",
@@ -39,8 +61,20 @@ export const FEEDBACK_COPY = {
   empty: "No unresolved reports.",
 } as const;
 
+export const FOUNDATIONS_COPY = {
+  eyebrow: "Foundations",
+  title: "Foundations harness",
+  datetime: "Friendly datetime",
+  datetimeNote: "Browser-local display with a pinned reference instant.",
+  table: "Table standard",
+  tableNote: "Twenty rows; drag the table sideways to check the sticky player column.",
+  tableAriaLabel: "Foundations table",
+  entryStatus: "Entry status copy",
+} as const;
+
 export const C1 = (number: number) => `${gameweekName(number)} is open`;
 export const C2 = (deadline: string) => `Deadline ${deadline}`;
+export const C2Prefix = "Deadline";
 export const C3 = (stakeInr: number) => `Enter for ₹${stakeInr.toLocaleString("en-IN")}`;
 export const C4 = "You’ll predict all 10 scorelines. You can edit until the deadline.";
 export const C5 = (potInr: number, entered: number, eligible: number) =>
@@ -74,6 +108,8 @@ export const C28 = "Nobody entered this gameweek.";
 export const C29 = "No Premier League matches this week.";
 export const C30 = (number: number, deadline: string) =>
   `${gameweekName(number)} open · deadline ${deadline}`;
+export const C30Prefix = (number: number) =>
+  `${gameweekName(number)} open · deadline`;
 export const C31 = (amountInr: number) => `You owe ₹${Math.abs(amountInr).toLocaleString("en-IN")}`;
 export const C32 = (amountInr: number) => `You’re owed ₹${Math.abs(amountInr).toLocaleString("en-IN")}`;
 export const C33 = "Settled up";
@@ -214,6 +250,8 @@ export const GW_UI_COPY = {
   settleUp: "Settle up",
   you: "you",
   duesEmpty: "Dues update as cup matches settle.",
+  homeTabsAria: "Home",
+  locked: "Locked",
 } as const;
 
 export const GW_CREATE_COPY = {

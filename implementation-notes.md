@@ -1193,3 +1193,17 @@ with a distrust-the-audit brief found Bug 2. Keep both seats for money code.
   spot, noted in the harness header. (3) Payment-detail cases currently report
   "not applicable" — no payment rows in the DB snapshot; the loader was exercised
   in round 1 before the skip logic landed.
+
+- **2026-08-05, Foundations review rulings**: (1) Analytics visibility is based on settled history,
+  not on the current gameweek being live: show the home tab when any gameweek contest in a viewer
+  league has a result, or when the existing archived-World-Cup analytics view has settled/entered
+  history. This keeps cup-only and between-season viewers from losing useful history while keeping
+  the tab hidden when there is nothing to show. (2) The KnockoutBanner was removed from home because
+  its archived-World-Cup "NEW · LIVE" CTA conflicts with the locked home navigation rule; `/bracket`
+  and archive links remain. (3) Match and home-analytics day groups now carry raw ISO instants and
+  group in the browser's resolved timezone, so a late-night IST kickoff cannot cross into a wrong
+  UTC bucket or inherit a mismatched header. (4) The corrected-result note deliberately shows the
+  local date and time through `LocalTime`, rather than only a date. (5) `components/AnalyticsTab.tsx`
+  remains in the copy-scan manifest's excluded list because it is a pre-existing Phase 4 surface
+  with a large in-place copy set outside the Phase 3 catalogue; the manifest `_excludedNote` records
+  this ruling and Phase 6 owns routing that copy into a dedicated module.

@@ -1,12 +1,10 @@
 "use client";
 
-// Home dashboard tab shell (PRD: Leagues · Matches · Analytics). Leagues is the default and its
-// content is unchanged from the previous home. Server renders all three panels as ReactNode; this
-// client shell toggles visibility (full ARIA tabs, hydration-safe default). Matches carries a red
-// attention dot when something is live or a pick is due.
+// Home dashboard tab shell. Leagues is the default. The server decides whether
+// Analytics is useful yet; this client shell only renders the tabs it receives.
 
-import Link from "next/link";
 import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
+import { GW_UI_COPY } from "@/lib/gw-copy";
 import { SlideTrack } from "./motion";
 
 const TABS = ["Leagues", "Matches", "Analytics"] as const;
@@ -16,25 +14,25 @@ export function HomeTabs({
   matches,
   analytics,
   matchesAlert = false,
-  bracketHref,
-  bracketNew = false,
+  analyticsVisible = false,
 }: {
   leagues: ReactNode;
   matches: ReactNode;
-  analytics: ReactNode;
+  analytics?: ReactNode;
   matchesAlert?: boolean;
-  bracketHref?: string; // when set, renders a 4th "Bracket" nav link (routes away, not a tab panel)
-  bracketNew?: boolean;
+  analyticsVisible?: boolean;
 }) {
   const id = useId();
-  const [active, setActive] = useState<0 | 1 | 2>(0);
-  const panels = [leagues, matches, analytics];
+  const [active, setActive] = useState(0);
+  const tabs = analyticsVisible ? TABS : TABS.slice(0, 2);
+  const panels = analyticsVisible ? [leagues, matches, analytics] : [leagues, matches];
+  const tabCount = tabs.length;
 
   const onKey = (e: KeyboardEvent, i: number) => {
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       e.preventDefault();
-      const next = (i + (e.key === "ArrowRight" ? 1 : 2)) % 3;
-      setActive(next as 0 | 1 | 2);
+      const next = (i + (e.key === "ArrowRight" ? 1 : tabCount - 1)) % tabCount;
+      setActive(next);
       document.getElementById(`${id}-t-${next}`)?.focus();
     } else if (e.key === "Home") {
       e.preventDefault();
@@ -42,18 +40,16 @@ export function HomeTabs({
       document.getElementById(`${id}-t-0`)?.focus();
     } else if (e.key === "End") {
       e.preventDefault();
-      setActive(2);
-      document.getElementById(`${id}-t-2`)?.focus();
+      setActive(tabCount - 1);
+      document.getElementById(`${id}-t-${tabCount - 1}`)?.focus();
     }
   };
 
   return (
     <div>
       <div className="relative flex border-b border-border bg-surface">
-        {/* display:contents keeps role=tablist wrapping ONLY the real tabs while the 4
-            items still lay out as equal-width flex siblings of the bar. */}
-        <div role="tablist" aria-label="Home" className="contents">
-          {TABS.map((t, i) => (
+        <div role="tablist" aria-label={GW_UI_COPY.homeTabsAria} className="contents">
+          {tabs.map((t, i) => (
             <button
               key={t}
               role="tab"
@@ -61,7 +57,7 @@ export function HomeTabs({
               aria-selected={active === i}
               aria-controls={`${id}-p-${i}`}
               tabIndex={active === i ? 0 : -1}
-              onClick={() => setActive(i as 0 | 1 | 2)}
+              onClick={() => setActive(i)}
               onKeyDown={(e) => onKey(e, i)}
               className={`relative flex-1 py-3 text-center text-[13px] transition-colors ${
                 active === i ? "font-extrabold text-fg" : "font-semibold text-muted"
@@ -74,20 +70,7 @@ export function HomeTabs({
             </button>
           ))}
         </div>
-        {bracketHref && (
-          <Link
-            href={bracketHref}
-            className="relative flex-1 py-3 text-center text-[13px] font-semibold text-muted transition-colors"
-          >
-            Bracket
-            {bracketNew && (
-              <span className="absolute right-[calc(50%-30px)] top-1.5 rounded-[5px] bg-live px-1 py-px text-[7.5px] font-extrabold tracking-[.04em] text-white">
-                NEW
-              </span>
-            )}
-          </Link>
-        )}
-        <SlideTrack count={bracketHref ? TABS.length + 1 : TABS.length} active={active} />
+        <SlideTrack count={tabCount} active={active} />
       </div>
 
       <div className="mx-auto max-w-[480px]">

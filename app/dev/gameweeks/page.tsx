@@ -6,17 +6,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { loadDevGameweeksPage } from "@/lib/dev-gameweeks-load";
+import { LocalTime } from "@/components/LocalTime";
 
 export const dynamic = "force-dynamic";
-
-const IST = new Intl.DateTimeFormat("en-IN", {
-  timeZone: "Asia/Kolkata",
-  day: "2-digit",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-const ist = (iso: string | null) => (iso ? IST.format(new Date(iso)) : "—");
 
 export default async function DevGameweeksPage() {
   const supabase = await createClient();
@@ -53,7 +45,7 @@ export default async function DevGameweeksPage() {
             <tr>
               <th className="py-1 pr-3">GW</th>
               <th className="py-1 pr-3">Status</th>
-              <th className="py-1 pr-3">Deadline (IST)</th>
+              <th className="py-1 pr-3">Deadline</th>
               <th className="py-1 pr-3">Active</th>
               <th className="py-1 pr-3">Excluded</th>
               <th className="py-1 pr-3">Void</th>
@@ -67,7 +59,9 @@ export default async function DevGameweeksPage() {
                 <tr key={g.id} className="border-t border-border">
                   <td className="py-1 pr-3">{g.number}</td>
                   <td className="py-1 pr-3">{g.status}</td>
-                  <td className="py-1 pr-3">{ist(g.deadline_at)}</td>
+                  <td className="py-1 pr-3">
+                    {g.deadline_at ? <LocalTime iso={g.deadline_at} relative={false} /> : "—"}
+                  </td>
                   <td className="py-1 pr-3">{c.active}</td>
                   <td className="py-1 pr-3">{c.excluded}</td>
                   <td className="py-1 pr-3">{c.void}</td>
@@ -91,7 +85,7 @@ export default async function DevGameweeksPage() {
         {(pots ?? []).map((p: any) => (
           <li key={p.id}>
             {p.leagues?.name ?? "?"} · gw {p.gameweek_id.slice(0, 8)} · {p.status} · ₹{p.stake_inr}{" "}
-            · {ist(p.deadline_at)}
+            · {p.deadline_at ? <LocalTime iso={p.deadline_at} relative={false} /> : "—"}
           </li>
         ))}
       </ul>
@@ -103,7 +97,7 @@ export default async function DevGameweeksPage() {
         {(issues ?? []).length === 0 && <li className="text-muted">none</li>}
         {(issues ?? []).map((i: any, n: number) => (
           <li key={n}>
-            {ist(i.created_at)} · {i.source} · {i.kind} · {i.ref ?? "—"}
+            <LocalTime iso={i.created_at} relative={false} /> · {i.source} · {i.kind} · {i.ref ?? "—"}
           </li>
         ))}
       </ul>

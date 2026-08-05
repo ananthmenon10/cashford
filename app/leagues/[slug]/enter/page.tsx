@@ -6,8 +6,8 @@ import {
   loadLeagueIdentity,
   loadMirrorTargets,
 } from "@/lib/gw-view";
-import { GW_UI_COPY } from "@/lib/gw-copy";
-import { formatIstDeadline } from "@/lib/ist";
+import { C2Prefix, GW_UI_COPY } from "@/lib/gw-copy";
+import { LocalTime } from "@/components/LocalTime";
 import { EntrySheet } from "@/components/gw/EntrySheet";
 import { Countdown } from "@/components/gw/Countdown";
 
@@ -59,7 +59,7 @@ export default async function EnterGameweekPage({
       <div className="mx-auto max-w-[560px]">
         <div className="mb-3 flex items-center justify-between rounded-cs2-md border border-cs2-line bg-cs2-paper px-4 py-3">
           <span className="font-mono text-[12px] font-bold tabular">
-            {formatIstDeadline(view.contest.deadlineAt)}
+            {C2Prefix} <LocalTime iso={view.contest.deadlineAt} relative={false} />
           </span>
           <Countdown deadlineAt={view.contest.deadlineAt} />
         </div>

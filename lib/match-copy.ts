@@ -80,6 +80,7 @@ export const MATCH_COPY = {
     `You're not in yet · ante ₹${ante.toLocaleString("en-IN")}`,
   roomLocks: (league: string, deadline: string) =>
     `${league} · locks ${deadline}`,
+  roomLocksPrefix: (league: string) => `${league} · locks`,
   noTableData: "No table data yet.",
   club: "Club",
   played: "P",

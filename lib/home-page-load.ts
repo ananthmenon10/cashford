@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadAnalyticsView } from "./home-analytics";
-import { loadHomeLeagueCards, type HomeLeagueCard } from "./gw-home";
+import {
+  analyticsViewHasHistory,
+  analyticsVisibleForHomeCards,
+  loadHomeLeagueCards,
+  type HomeLeagueCard,
+} from "./gw-home";
 import type { AnalyticsView } from "./analytics";
 
 type CashfordClient = SupabaseClient<any, "cashford", any>;
@@ -13,6 +18,7 @@ export type HomePageLoad = {
   leagues: { id: string; name: string; slug: string; status: string }[];
   analyticsView: AnalyticsView;
   homeLeagueCards: HomeLeagueCard[];
+  analyticsVisible: boolean;
 };
 
 /** The server-side read path used by app/page.tsx. */
@@ -33,5 +39,8 @@ export async function loadHomePage(
     leagues,
     userId,
   );
-  return { leagues, analyticsView, homeLeagueCards };
+  const analyticsVisible =
+    analyticsVisibleForHomeCards(homeLeagueCards) ||
+    analyticsViewHasHistory(analyticsView);
+  return { leagues, analyticsView, homeLeagueCards, analyticsVisible };
 }

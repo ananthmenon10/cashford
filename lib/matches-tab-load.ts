@@ -16,6 +16,7 @@ import { buildLiveInput, liveMoney } from "./gw-live-money";
 import { collapseGameweekFixtures } from "./gw-fixtures";
 import { rankGameweekScores } from "./gw-rank";
 import { ordinal } from "./view-format";
+import { MATCH_COPY } from "./match-copy";
 
 type Client = Awaited<ReturnType<typeof import("./supabase/server").createClient>>;
 
@@ -473,9 +474,12 @@ export async function loadMatchesTab(
                   })
                   .sort((a, b) => b.points - a.points),
               };
+      const display = fixtureLabel(fixture, membershipVoid);
       return {
         id: fixture.id,
-        state: fixtureLabel(fixture, membershipVoid),
+        state: display.label,
+        scheduled: display.scheduled,
+        kickoffAt: fixture.kickoff_at ?? null,
         home: {
           name: one(fixture.home)?.name ?? "TBC",
           crest: one(fixture.home)?.flag_url ?? null,
@@ -498,8 +502,6 @@ export async function loadMatchesTab(
         yourCall: call,
       };
     });
-  const days = groupByDay(fixtureRows, membershipByGw.get(focusRef.id) ?? []);
-  const displayed = limitDays(days, 7);
   const gwState: MatchesTabView["gw"]["state"] = focusContests.some(
     (contest: any) => contest.cl === "CL3" || contest.cl === "CL4",
   )
@@ -562,8 +564,7 @@ export async function loadMatchesTab(
         }
       : null,
     winnersRecap: recap.length ? recap : null,
-    days: displayed.days,
-    overflow: displayed.overflow,
+    fixtures: fixtureRows,
   };
 }
 
@@ -615,80 +616,29 @@ function displayVerdict(
     : undefined;
 }
 
-function fixtureLabel(fixture: any, membershipVoid: boolean) {
+function fixtureLabel(
+  fixture: any,
+  membershipVoid: boolean,
+): { label: string; scheduled: boolean } {
   if (membershipVoid) {
-    return fixture.status === "postponed" ? "Postponed · Void" : "Void";
+    return {
+      label: fixture.status === "postponed" ? "Postponed · Void" : "Void",
+      scheduled: false,
+    };
   }
-  if (fixture.status === "live") return `${fixture.minute ?? ""}' · LIVE`;
-  if (fixture.status === "finished") return "FT";
-  if (fixture.status === "postponed") return "Postponed";
+  if (fixture.status === "live") {
+    return { label: `${fixture.minute ?? ""}' · LIVE`, scheduled: false };
+  }
+  if (fixture.status === "finished") return { label: "FT", scheduled: false };
+  if (fixture.status === "postponed") {
+    return { label: "Postponed", scheduled: false };
+  }
   if (fixture.status === "cancelled" || fixture.status === "abandoned") {
-    return "Void";
+    return { label: "Void", scheduled: false };
   }
-  return fixture.kickoff_at
-    ? new Intl.DateTimeFormat("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "Asia/Kolkata",
-      }).format(new Date(fixture.kickoff_at))
-    : "Date TBC";
-}
-
-function groupByDay(rows: FixtureRowView[], memberships: any[]) {
-  const kickoffById = new Map(
-    memberships.map((membership) => [
-      membership.fixtures?.id,
-      membership.fixtures?.kickoff_at,
-    ]),
-  );
-  const groups = new Map<string, FixtureRowView[]>();
-  for (const row of rows) {
-    const kickoff = kickoffById.get(row.id);
-    const label = kickoff
-      ? new Intl.DateTimeFormat("en-IN", {
-          weekday: "long",
-          day: "numeric",
-          month: "short",
-          timeZone: "Asia/Kolkata",
-        }).format(new Date(kickoff))
-      : "Date TBC";
-    const values = groups.get(label) ?? [];
-    values.push(row);
-    groups.set(label, values);
-  }
-  return [...groups].map(([label, fixtures]) => ({ label, fixtures }));
-}
-
-function limitDays(
-  days: MatchesTabView["days"],
-  limit: number,
-): Pick<MatchesTabView, "days" | "overflow"> {
-  const visible: MatchesTabView["days"] = [];
-  const hiddenLabels: string[] = [];
-  let remaining = limit;
-  let hidden = 0;
-  for (const day of days) {
-    let visibleHere = 0;
-    if (remaining > 0) {
-      const fixtures = day.fixtures.slice(0, remaining);
-      if (fixtures.length) visible.push({ ...day, fixtures });
-      visibleHere = fixtures.length;
-      remaining -= fixtures.length;
-    }
-    const hiddenHere = day.fixtures.length - visibleHere;
-    if (hiddenHere > 0) {
-      hidden += hiddenHere;
-      hiddenLabels.push(day.label.split(" ")[0]);
-    }
-  }
-  const labels = [...new Set(hiddenLabels)];
-  const label =
-    labels.length <= 1
-      ? (labels[0] ?? "")
-      : `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
   return {
-    days: visible,
-    overflow: hidden > 0 ? { count: hidden, label } : null,
+    label: fixture.kickoff_at ? "" : MATCH_COPY.dateTbc,
+    scheduled: Boolean(fixture.kickoff_at),
   };
 }
 

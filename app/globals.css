@@ -45,6 +45,7 @@
   --color-cs2-line-2: #eff1ee;
   --color-cs2-green: #12805c;
   --color-cs2-green-soft: #e8f4ee;
+  --color-cs2-live-soft: rgba(18, 128, 92, 0.1);
   --color-cs2-green-line: #bfe0cf;
   --color-cs2-amber: #a86b12;
   --color-cs2-amber-soft: #fdf3e3;
@@ -104,6 +105,7 @@ html.dark {
   --color-cs2-line-2: #232b36;
   --color-cs2-green: #34d399;
   --color-cs2-green-soft: rgba(18, 128, 92, 0.22);
+  --color-cs2-live-soft: rgba(52, 211, 153, 0.12);
   --color-cs2-green-line: rgba(52, 211, 153, 0.34);
   --color-cs2-amber: #e8b864;
   --color-cs2-amber-soft: rgba(168, 107, 18, 0.22);

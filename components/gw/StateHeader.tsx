@@ -1,7 +1,7 @@
 import { StatusBadge, type GwBadgeState } from "@/components/ui";
 import {
   C1,
-  C2,
+  C2Prefix,
   C4,
   C6,
   C10,
@@ -27,10 +27,11 @@ import {
   correctionCopy,
   voidReasonCopy,
 } from "@/lib/gw-copy";
-import { formatIstDeadline } from "@/lib/ist";
 import type { GameweekViewDTO } from "@/lib/gw-view";
+import { LocalTime } from "@/components/LocalTime";
 import { RecalculatingNote } from "./RecalculatingNote";
 import { SyncIssueNote } from "./SyncIssueNote";
+import { NudgeLink } from "./NudgeLink";
 
 function badgeFor(lifecycle: GameweekViewDTO["lifecycle"]): GwBadgeState {
   if (lifecycle === "CL1") return "open";
@@ -128,18 +129,15 @@ export function StateHeader({ view }: { view: GameweekViewDTO }) {
         <>
           <div className="mt-4 rounded-cs2-md border border-cs2-line-2 bg-cs2-canvas px-3 py-2.5">
             <div className="text-[10px] font-extrabold uppercase tracking-[.1em] text-cs2-ink-3">
-              {C2(formatIstDeadline(view.contest.deadlineAt))}
+              {C2Prefix} <LocalTime iso={view.contest.deadlineAt} relative={false} />
             </div>
           </div>
           {view.nudge ? (
-            <a
-              href={view.nudge.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 block rounded-cs2-md border border-cs2-green-line bg-cs2-green-soft px-3 py-2.5 text-[12px] font-semibold text-cs2-green"
-            >
-              {view.nudge.copy}
-            </a>
+            <NudgeLink
+              league={view.league.name}
+              gameweek={number}
+              deadlineAt={view.nudge.deadlineAt}
+            />
           ) : null}
         </>
       ) : null}

@@ -1,11 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { MATCH_COPY } from "@/lib/match-copy";
+import { groupFixturesByLocalDay } from "@/lib/matches-tab";
 import type {
   LeagueRowView,
   MatchesTabView,
   WinnersRecapView,
+  FixtureDay,
 } from "@/lib/matches-tab";
 import type { StandingsView } from "@/lib/standings-view";
+import { LocalTime } from "@/components/LocalTime";
 
 const card =
   "rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]";
@@ -163,6 +169,16 @@ export function Phase4MatchesPage({
   standings: StandingsView | null;
   segment: "fixtures" | "table";
 }) {
+  const [timeZone, setTimeZone] = useState<string | null>(null);
+  useEffect(() => {
+    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  }, []);
+  const days = useMemo(
+    () => (timeZone ? groupFixturesByLocalDay(view.fixtures, timeZone) : []),
+    [timeZone, view.fixtures],
+  );
+  const displayed = useMemo(() => limitDays(days, 7), [days]);
+
   return (
     <main className="min-h-screen bg-bg">
       <div className="mx-auto max-w-[560px] px-4 py-5">
@@ -266,16 +282,16 @@ export function Phase4MatchesPage({
               </section>
             )}
             {view.winnersRecap && <Winners recap={view.winnersRecap} />}
-            {view.days.map((day) => (
-              <section key={day.label}>
+            {displayed.days.map((day) => (
+              <section key={day.dayKey}>
                 <h2 className="mb-2 text-xs font-extrabold uppercase tracking-wide text-muted">
-                  {day.label}
+                  {day.dateAt ? <LocalTime iso={day.dateAt} variant="date" includeYear={false} relative={false} /> : MATCH_COPY.dateTbc}
                 </h2>
                 <div className="space-y-2">
                   {day.fixtures.map((fixture) => (
                     <Link key={fixture.id} href={fixture.matchHref} className={`block ${card}`}>
                       <div className="mb-2 flex items-center justify-between text-xs text-muted">
-                        <span>{fixture.state}</span>
+                        <span>{fixture.scheduled && fixture.kickoffAt ? <LocalTime iso={fixture.kickoffAt} variant="time" relative={false} /> : fixture.state}</span>
                         {fixture.insightsMark && <span>{MATCH_COPY.insightsMark}</span>}
                       </div>
                       <div className="grid grid-cols-[1fr_auto] gap-y-2 text-[15px]">
@@ -320,11 +336,11 @@ export function Phase4MatchesPage({
                 </div>
               </section>
             ))}
-            {view.overflow && (
+            {displayed.overflow && (
               <div className="text-center text-xs text-muted">
                 {MATCH_COPY.overflow(
-                  view.overflow.count,
-                  view.overflow.label,
+                  displayed.overflow.count,
+                  displayed.overflow.label,
                 )}
               </div>
             )}
@@ -333,6 +349,40 @@ export function Phase4MatchesPage({
       </div>
     </main>
   );
+}
+
+function limitDays(
+  days: readonly FixtureDay[],
+  limit: number,
+): {
+  days: FixtureDay[];
+  overflow: { count: number; label: string } | null;
+} {
+  const visible: FixtureDay[] = [];
+  const hiddenLabels: string[] = [];
+  let remaining = limit;
+  let hidden = 0;
+  for (const day of days) {
+    const visibleFixtures = day.fixtures.slice(0, remaining);
+    if (visibleFixtures.length) {
+      visible.push({ ...day, fixtures: visibleFixtures });
+      remaining -= visibleFixtures.length;
+    }
+    const hiddenHere = day.fixtures.length - visibleFixtures.length;
+    if (hiddenHere > 0) {
+      hidden += hiddenHere;
+      hiddenLabels.push(day.dayKey);
+    }
+  }
+  const labels = [...new Set(hiddenLabels)];
+  const label =
+    labels.length <= 1
+      ? (labels[0] ?? "")
+      : `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
+  return {
+    days: visible,
+    overflow: hidden > 0 ? { count: hidden, label } : null,
+  };
 }
 
 function verdictCopy(verdict: "exact" | "result" | "miss") {

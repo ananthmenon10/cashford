@@ -13,7 +13,8 @@ import {
   joinAnteCopy,
   memberCountCopy,
 } from "@/lib/gw-copy";
-import { beforeTimeCopy, firstDeadlineCopy } from "@/lib/payment-copy";
+import { beforeTimeCopy, firstDeadlinePrefix } from "@/lib/payment-copy";
+import { LocalTime } from "@/components/LocalTime";
 import {
   joinLeague,
   resolveInvite,
@@ -152,7 +153,7 @@ export default async function JoinPage({
               )}
             </>
           )}
-          {dto.participation === "active" && dto.nextGameweekNumber && dto.nextDeadlineAt ? <p className="mt-2 text-[12px] font-semibold text-cs2-ink-2">{firstDeadlineCopy(dto.nextGameweekNumber, dto.nextDeadlineAt)}</p> : null}
+          {dto.participation === "active" && dto.nextGameweekNumber && dto.nextDeadlineAt ? <p className="mt-2 text-[12px] font-semibold text-cs2-ink-2">{firstDeadlinePrefix(dto.nextGameweekNumber)}{" "}<LocalTime iso={dto.nextDeadlineAt} relative={false} /></p> : null}
           {dto.participation === "active" && dto.eligibleFromGameweekNumber && dto.eligibleFromGameweekNumber > 1 ? <p className="mt-1 text-[12px] text-cs2-ink-3">{beforeTimeCopy(dto.eligibleFromGameweekNumber)}</p> : null}
         </div>
 

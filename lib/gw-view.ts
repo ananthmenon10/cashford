@@ -17,8 +17,6 @@ import {
   type LeagueParticipationRow,
   type ResolvedLeagueParticipation,
 } from "./gw-participation";
-import { nudgeMessage } from "./gw-copy";
-import { formatIstDeadline } from "./ist";
 
 export type GameweekContestCandidate = {
   gwNumber: number;
@@ -139,6 +137,7 @@ export type GameweekViewDTO = {
     status: string;
     deadlineAt: string;
   } | null;
+  hasSettledHistory: boolean;
   adjacentGameweeks: {
     number: number;
     name: string;
@@ -179,7 +178,7 @@ export type GameweekViewDTO = {
   potInr: number;
   isDoubleGameweek: boolean;
   viewerEligibleFromGameweekNumber: number | null;
-  nudge: { href: string; copy: string } | null;
+  nudge: { deadlineAt: string } | null;
 };
 
 export type MirrorTarget = {
@@ -244,6 +243,10 @@ type ContestDbRow = {
   stake_inr: number;
   deadline_at: string;
   input_version: number;
+  gameweek_results?:
+    | { outcome: "settled" | "void" }
+    | { outcome: "settled" | "void" }[]
+    | null;
 };
 
 type GameweekDbRow = {
@@ -275,7 +278,7 @@ export async function loadGameweekView(
   const contestQuery = await supabase
     .from("gameweek_contests")
     .select(
-      "id, gameweek_id, competition_id, status, stake_inr, deadline_at, input_version",
+      "id, gameweek_id, competition_id, status, stake_inr, deadline_at, input_version, gameweek_results(outcome)",
     )
     .eq("league_id", identity.league.id)
     .eq("competition_id", participation.competitionId!);
@@ -327,6 +330,7 @@ export async function loadGameweekView(
     return {
       ...emptyBase,
       gameweek: null,
+      hasSettledHistory: false,
       contest: null,
       lifecycle: "CL0",
       viewerParticipation: "VP0",
@@ -485,6 +489,9 @@ export async function loadGameweekView(
     leagueBoundary != null && viewerMemberBoundary != null
       ? Math.max(leagueBoundary, viewerMemberBoundary)
       : null;
+  const hasSettledHistory = contests.some(
+    (row) => one(row.gameweek_results) != null,
+  );
   const viewerEligible = viewerMember
     ? eligibleRows.some((member) => member.user_id === userId)
     : false;
@@ -500,13 +507,6 @@ export async function loadGameweekView(
     (viewerParticipation === "VP1" || viewerParticipation === "VP3") &&
     deadlineMs > nowMs &&
     deadlineMs - nowMs <= 12 * 60 * 60 * 1000;
-  const nudgeCopy = shouldNudge
-    ? nudgeMessage({
-        league: identity.league.name,
-        gw: gameweek.number,
-        deadline: formatIstDeadline(contest.deadline_at),
-      })
-    : null;
 
   const entries = (entriesQuery.data ?? []) as any[];
   const preDeadline = new Date(contest.deadline_at).getTime() > new Date(now).getTime();
@@ -664,6 +664,7 @@ export async function loadGameweekView(
       status: gameweek.status,
       deadlineAt: gameweek.deadline_at,
     },
+    hasSettledHistory,
     contest: {
       id: contest.id,
       status: contest.status,
@@ -694,12 +695,7 @@ export async function loadGameweekView(
     potInr: entryNumbers.potInr,
     isDoubleGameweek: fixtures.filter((fixture) => fixture.state === "active").length > 10,
     viewerEligibleFromGameweekNumber,
-    nudge: nudgeCopy
-      ? {
-          href: `https://wa.me/?text=${encodeURIComponent(nudgeCopy)}`,
-          copy: nudgeCopy,
-        }
-      : null,
+    nudge: shouldNudge ? { deadlineAt: contest.deadline_at } : null,
   };
 }
 

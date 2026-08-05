@@ -1,16 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  C1,
   C5,
   C10,
   C12,
   C16,
   C26,
   C29,
-  C30,
+  C30Prefix,
   C60,
   C68,
 } from "./gw-copy";
-import { formatIstCompact } from "./ist";
+import type { AnalyticsView } from "./analytics";
 import { homeBadgeState } from "./gw-state";
 import { leagueNetByUser } from "./gameweek-db";
 import {
@@ -29,10 +30,31 @@ export type HomeLeagueCard = {
   archived: boolean;
   badge?: string;
   subline: string;
+  openDetails?: {
+    gameweekNumber: number;
+    deadlineAt: string;
+    potInr: number;
+    enteredCount: number;
+    eligibleCount: number;
+  };
+  gameweekStarted: boolean;
+  hasSettledHistory: boolean;
   netInr: number | "suppressed";
   action?: { href: string; label: string };
   pendingPaymentCount: number;
 };
+
+export function analyticsVisibleForHomeCards(
+  cards: readonly Pick<HomeLeagueCard, "hasSettledHistory">[],
+): boolean {
+  return cards.some((card) => card.hasSettledHistory);
+}
+
+export function analyticsViewHasHistory(
+  view: Pick<AnalyticsView, "global">,
+): boolean {
+  return view.global.pot.entered > 0;
+}
 
 export async function loadHomeLeagueCards(
   supabase: CashfordClient,
@@ -62,6 +84,8 @@ export async function loadHomeLeagueCards(
           format: "none" as const,
           archived: league.status === "archived",
           subline: C29,
+          gameweekStarted: false,
+          hasSettledHistory: false,
           netInr,
           pendingPaymentCount,
         };
@@ -75,6 +99,8 @@ export async function loadHomeLeagueCards(
           format: "cup" as const,
           archived: identity.participation.status === "archived",
           subline: identity.participation.competitionName ?? "",
+          gameweekStarted: false,
+          hasSettledHistory: false,
           netInr,
           pendingPaymentCount,
         };
@@ -90,12 +116,19 @@ export async function loadHomeLeagueCards(
         false,
       );
       let subline = C29;
+      let openDetails: HomeLeagueCard["openDetails"];
+      if (view.gameweek && view.lifecycle === "CL1") {
+        subline = C1(view.gameweek.number);
+      }
       if (view.gameweek && view.contest) {
         if (view.lifecycle === "CL1") {
-          subline = `${C30(
-            view.gameweek.number,
-            formatIstCompact(view.contest.deadlineAt),
-          )} · ${C5(view.potInr, view.enteredCount, view.eligibleCount)}`;
+          openDetails = {
+            gameweekNumber: view.gameweek.number,
+            deadlineAt: view.contest.deadlineAt,
+            potInr: view.potInr,
+            enteredCount: view.enteredCount,
+            eligibleCount: view.eligibleCount,
+          };
         } else if (view.lifecycle === "CL2") {
           subline = C10(view.gameweek.number);
         } else if (view.lifecycle === "CL3" || view.lifecycle === "CL4") {
@@ -123,6 +156,10 @@ export async function loadHomeLeagueCards(
         archived: identity.participation.status === "archived",
         badge: homeBadgeState(view.lifecycle, view.viewerParticipation),
         subline,
+        openDetails,
+        gameweekStarted:
+          view.gameweek != null && view.gameweek.status !== "upcoming",
+        hasSettledHistory: view.hasSettledHistory,
         netInr,
         pendingPaymentCount,
         action: needsEntry

@@ -330,6 +330,7 @@ describe("T-U18c — the manifest matches the enumerated candidate set", () => {
       "app/login/actions.ts",
       "app/leagues/[slug]/manage/page.tsx",
       "app/leagues/[slug]/m/[id]/page.tsx",
+      "components/AnalyticsTab.tsx",
     ]);
   });
 
