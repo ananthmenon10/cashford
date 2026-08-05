@@ -58,6 +58,26 @@ rows and put the horizontal inset on the first/last cells. Details in
 9. **#13 /rules rewrite** for the gameweek format; **#16 match detail UI**
    (replace the JSON dumps with designed insight modules).
 
+## Delegation per step
+
+| Step | Builder | Reviewer | QC |
+|---|---|---|---|
+| 1. #12 Route smoke pass | Luna | Opus (harness design: it must fail on the v101/v102 class) | The run itself — execute against the real DB, read-only, all three real leagues + ZZ-P1 |
+| 2. Foundations (datetime, table component, copy constants, #14, bracket removal) | Luna | Opus | Vitest units + chrome-devtools-axi render of a /dev harness page |
+| 3. League screen | Luna | Terra (tab-swap architecture, GW navigation state), Opus second pass | Orchestrator in Ananth's Chrome on ZZ-P1 (GW1–4 states are pre-seeded for this) |
+| 4. League card | Luna | Opus (10 states vs reference frames) | Ananth's Chrome: ZZ-P1 covers open/settled/compound; archive states via KK Bois read-only |
+| 5. Entry sheet + create league | Luna | Opus | Ananth's Chrome, writes in ZZ-P1 only; verify 0-0 guard copy against the reference |
+| 6. Home & Matches hub | Luna (split into two dispatches: hub+navigator, then lists+table) | Terra (biggest surface, multi-competition scoping), Opus second pass | Ananth's Chrome; live-row highlight needs a real live GW or mocked /dev page |
+| 7. #15 Transition batch | Luna | Terra + Opus dual review (adoption touches money paths) | Staging deploy + Ananth's Chrome on archive routes; re-run smoke pass |
+| 8. Analytics | Luna | Opus | Ananth's Chrome; cross-competition sections need a league with WC history (read-only on real leagues) |
+| 9. #13 /rules + #16 match detail | /rules: Sonnet (content, per plain-writing rules), Ananth approves copy. Match detail: Luna, Opus review | Render check + Ananth's Chrome on a real fixture with insights |
+
+Standing rules across all steps: orchestrator runs typecheck + build + vitest
+after every step; re-run the #12 smoke pass after each merge once it exists;
+nothing touches settlement/scoring without strong tests; all UI QC on authed
+pages happens in Ananth's logged-in Chrome (claude-in-chrome), never
+chrome-devtools-axi.
+
 ## Machine and ops facts
 
 - Delegation: Luna/Terra/Sol agent defs are in `~/.claude/agents/`;
