@@ -43,7 +43,7 @@ export async function loadDuesView(
     admin.from("member_competitions").select("user_id").eq("league_id", leagueId),
     admin.from("contest_results").select("user_id, net_inr, contests!inner(id, league_id, fixtures!inner(competition_id))").eq("contests.league_id", leagueId),
     admin.from("gameweek_entries").select("user_id, gameweek_contest_id").eq("league_id", leagueId),
-    admin.from("gameweek_entry_results").select("entry_id, gameweek_contest_id, net_inr, gameweek_entries!inner(user_id, league_id)").eq("gameweek_entries.league_id", leagueId),
+    admin.from("gameweek_entry_results").select("entry_id, gameweek_contest_id, net_inr, gameweek_entries!gameweek_entry_results_entry_id_fkey!inner(user_id, league_id)").eq("gameweek_entries.league_id", leagueId),
     admin.from("gameweek_contests").select("id, input_version, gameweek_results(settled_version)").eq("league_id", leagueId),
     admin.from("transfers").select("id, from_user_id, to_user_id, amount_inr, reversed, contest_id, gameweek_contest_id, created_at").eq("league_id", leagueId),
     admin.from("payments").select("id, kind, payer_user_id, receiver_user_id, amount_inr, paid_on, note, logged_by, logged_at, status, required_payer_confirmation, required_receiver_confirmation, reverses_payment_id").eq("league_id", leagueId),
