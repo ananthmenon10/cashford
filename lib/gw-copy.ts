@@ -11,6 +11,8 @@ export const GW_BADGE_COPY = {
   recalculating: "RECALCULATING",
   archived: "ARCHIVED",
   upcoming: "UPCOMING",
+  /** Home hub multi-competition variant labels a locked-not-live row "Submitted", not "Locked". */
+  submitted: "SUBMITTED",
 } as const;
 
 export type EntryStatusKey =
@@ -34,6 +36,32 @@ export const ENTRY_STATUS_COPY = {
   void: "Void · Gameweek called off · Stake returned",
   syncIssue: "Sync issue · We’ll retry shortly",
 } as const satisfies Record<EntryStatusKey, string>;
+
+/**
+ * Real-data builders for the same eight canonical states. The deadline-bearing states hand back
+ * a prefix only — the caller renders the actual local time via components/LocalTime.tsx rather
+ * than baking a formatted datetime into copy (established pattern, see LeagueCard.tsx). void and
+ * syncIssue have no variable parts, so they reuse ENTRY_STATUS_COPY verbatim.
+ */
+export const HOME_ENTRY_STATUS_COPY = {
+  notEnteredOpenPrefix: "Not entered · Open until ",
+  enteredOpenPrefix: "Entered · Editable until ",
+  submittedLockedPrefix: "Submitted · Locked at ",
+  /** rank is null when a live gameweek's provisional standing hasn't produced this viewer's
+   * rank yet — degrades the rank segment rather than falling back to a Locked-style row. */
+  live: (rank: number | null, total: number) =>
+    rank == null ? "Live · rank pending" : `Live · ${ordinalCopy(rank)} of ${total}`,
+  won: (rank: number, total: number, amountInr: number) =>
+    `Won · ${ordinalCopy(rank)} of ${total} · ${moneyCopy(Math.abs(amountInr))}`,
+  lost: (rank: number, total: number, amountInr: number) =>
+    `Lost · ${ordinalCopy(rank)} of ${total} · ${moneyCopy(-Math.abs(amountInr))}`,
+  /** Not in the frame's eight-state canon — CL5 (settled) with a net of exactly zero. Follows the
+   * won/lost shape (rank of total, then the money segment) rather than LEAGUE_CARD_COPY's
+   * ante-only break-even line, so the row stays scannable next to won/lost in the same list. */
+  brokeEven: (rank: number, total: number) => `Settled · ${ordinalCopy(rank)} of ${total} · Broke even`,
+  void: ENTRY_STATUS_COPY.void,
+  syncIssue: ENTRY_STATUS_COPY.syncIssue,
+} as const;
 
 export const FEEDBACK_COPY = {
   title: "Report a bug",
@@ -143,6 +171,34 @@ export const LEAGUE_CARD_COPY = {
   arrow: "→",
   mutedArrow: "·",
   duesChip: (count: number) => count === 1 ? "1 payment needs your answer" : `${count} payments need your answer`,
+} as const;
+
+/** Home hub · Option A: competition scope chips + GW navigator (segmented strip). */
+export const HOME_HUB_COPY = {
+  competitionScopeAria: "Competition scope",
+  gwNavigatorAria: "Gameweek navigator",
+  previousGameweek: "Previous gameweek",
+  nextGameweek: "Next gameweek",
+  jumpToGameweek: "Jump to gameweek",
+  gameweekLabel: (number: number) => `GW${number}`,
+  gameweekOption: (number: number, isCurrent: boolean) => isCurrent ? `GW${number} (current)` : `GW${number}`,
+  yourGameweek: (number: number) => `Your GW${number}`,
+  /** "3 leagues · 2 entered · 1 to go" — the your-card header's status-count line. */
+  yourGameweekSubtitle: (leagueCount: number, enteredCount: number, toGoCount: number) =>
+    `${leagueCount} ${leagueCount === 1 ? "league" : "leagues"} · ${enteredCount} entered · ${toGoCount} to go`,
+  /** Navigator pill main segment: "GW4 · OPEN" — the badge-style state segment appended to the
+   * plain gameweek label, built from a copy constant (GW_BADGE_COPY) rather than assembled inline. */
+  gameweekStateLabel: (number: number, state: string) => `${HOME_HUB_COPY.gameweekLabel(number)} · ${state}`,
+  closesInPrefix: "closes in",
+  /** Scope chip label: "Premier League · GW4" (or just the name when the scope has no GW yet). */
+  scopeChip: (competitionName: string, gameweekNumber: number | null) =>
+    gameweekNumber != null
+      ? `${competitionName} · ${HOME_HUB_COPY.gameweekLabel(gameweekNumber)}`
+      : competitionName,
+  scopeHelper: "Selected competition drives the GW position, entries, fixtures, and table.",
+  /** Nav-anywhere row below the navigator pill: "Previous GW3" / "Next GW5". */
+  navAnywherePrevious: (number: number) => `Previous ${HOME_HUB_COPY.gameweekLabel(number)}`,
+  navAnywhereNext: (number: number) => `Next ${HOME_HUB_COPY.gameweekLabel(number)}`,
 } as const;
 
 export const LEAGUE_CARD_HARNESS_COPY = {
@@ -371,7 +427,7 @@ export const GW_UI_COPY = {
   locked: "Locked",
 } as const;
 
-function ordinalCopy(value: number): string {
+export function ordinalCopy(value: number): string {
   const suffix = value % 100 >= 11 && value % 100 <= 13
     ? "th"
     : value % 10 === 1

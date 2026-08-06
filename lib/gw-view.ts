@@ -273,6 +273,40 @@ type GameweekDbRow = {
   deadline_at: string;
 };
 
+/**
+ * Home-path perf: only contests that are locked/settling AND currently have a live match
+ * feed the provisional (picks-based) live-standing fact — every other contest's homeFact comes
+ * from gameweek_entry_results (settled) or is skipped entirely (early-continue in the caller's
+ * loop). Scoping the gameweek_picks/gameweek_entries reads to just these contest ids keeps the
+ * output identical while avoiding an all-picks-in-competition fetch on every render.
+ */
+/**
+ * Shared by contestsNeedingLivePicks and loadGameweekView's homeFactByContest loop — both need
+ * "how many of this contest's fixtures are currently live" and previously computed it with two
+ * independently-maintained copies of the same filter, with nothing pinning them together.
+ */
+export function liveMatchCountForContest(
+  contest: Pick<ContestDbRow, "gameweek_id">,
+  gameweekById: Map<string, { id: string }>,
+  fixtureRowsByGameweek: Map<string, { state: string; fixtures: unknown }[]>,
+): number {
+  const gameweek = gameweekById.get(contest.gameweek_id);
+  if (!gameweek) return 0;
+  const rows = fixtureRowsByGameweek.get(gameweek.id) ?? [];
+  return rows.filter((row) => row.state === "active" && one<any>(row.fixtures)?.status === "live").length;
+}
+
+export function contestsNeedingLivePicks(
+  contests: readonly Pick<ContestDbRow, "id" | "status" | "gameweek_id">[],
+  gameweekById: Map<string, { id: string }>,
+  fixtureRowsByGameweek: Map<string, { state: string; fixtures: unknown }[]>,
+): string[] {
+  return contests
+    .filter((contest) => contest.status === "locked" || contest.status === "settling")
+    .filter((contest) => liveMatchCountForContest(contest, gameweekById, fixtureRowsByGameweek) > 0)
+    .map((contest) => contest.id);
+}
+
 export async function loadGameweekView(
   supabase: CashfordClient,
   admin: CashfordClient,
@@ -315,8 +349,6 @@ export async function loadGameweekView(
   const [
     fixtureMetaQuery,
     winnerMetaQuery,
-    historyEntriesQuery,
-    historyPicksQuery,
     memberCompetitionMetaQuery,
   ] = await Promise.all([
     gameweekIds.length
@@ -331,18 +363,6 @@ export async function loadGameweekView(
           .select("gameweek_contest_id, entry_id, points, exacts, goal_error, net_inr, is_winner, gameweek_entries!gameweek_entry_results_entry_id_fkey!inner(user_id, status, profiles(display_name, username))")
           .in("gameweek_contest_id", contestIds)
       : Promise.resolve({ data: [], error: null }),
-    contestIds.length
-      ? admin
-          .from("gameweek_entries")
-          .select("id, gameweek_contest_id, user_id, status")
-          .in("gameweek_contest_id", contestIds)
-      : Promise.resolve({ data: [], error: null }),
-    contestIds.length
-      ? admin
-          .from("gameweek_picks")
-          .select("entry_id, fixture_id, pred_home, pred_away, gameweek_entries!gameweek_picks_entry_id_fkey!inner(gameweek_contest_id)")
-          .in("gameweek_entries.gameweek_contest_id", contestIds)
-      : Promise.resolve({ data: [], error: null }),
     supabase
       .from("member_competitions")
       .select("user_id, left_at")
@@ -351,8 +371,6 @@ export async function loadGameweekView(
   ]);
   fail(fixtureMetaQuery.error, "gameweek-fixture-metadata");
   fail(winnerMetaQuery.error, "gameweek-winner-metadata");
-  fail(historyEntriesQuery.error, "gameweek-history-entries");
-  fail(historyPicksQuery.error, "gameweek-history-picks");
   fail(memberCompetitionMetaQuery.error, "gameweek-member-metadata");
   const eligibleMemberCount = (memberCompetitionMetaQuery.data ?? [])
     .filter((row: any) => row.left_at == null)
@@ -413,6 +431,24 @@ export async function loadGameweekView(
     resultRowsByContest.set(row.gameweek_contest_id, rows);
   }
 
+  const liveContestIds = contestsNeedingLivePicks(contests, gameweekById, fixtureRowsByGameweek);
+  const [historyEntriesQuery, historyPicksQuery] = await Promise.all([
+    liveContestIds.length
+      ? admin
+          .from("gameweek_entries")
+          .select("id, gameweek_contest_id, user_id, status")
+          .in("gameweek_contest_id", liveContestIds)
+      : Promise.resolve({ data: [], error: null }),
+    liveContestIds.length
+      ? admin
+          .from("gameweek_picks")
+          .select("entry_id, fixture_id, pred_home, pred_away, gameweek_entries!gameweek_picks_entry_id_fkey!inner(gameweek_contest_id)")
+          .in("gameweek_entries.gameweek_contest_id", liveContestIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  fail(historyEntriesQuery.error, "gameweek-history-entries");
+  fail(historyPicksQuery.error, "gameweek-history-picks");
+
   const entriesByContest = new Map<string, any[]>();
   for (const row of historyEntriesQuery.data ?? []) {
     const rows = entriesByContest.get(row.gameweek_contest_id) ?? [];
@@ -452,9 +488,7 @@ export async function loadGameweekView(
     const gameweek = gameweekById.get(contest.gameweek_id);
     if (!gameweek || !["locked", "settling"].includes(contest.status)) continue;
     const fixtureRows = fixtureRowsByGameweek.get(gameweek.id) ?? [];
-    const liveMatchCount = fixtureRows.filter(
-      (row) => row.state === "active" && one<any>(row.fixtures)?.status === "live",
-    ).length;
+    const liveMatchCount = liveMatchCountForContest(contest, gameweekById, fixtureRowsByGameweek);
     if (liveMatchCount === 0) continue;
 
     const live = provisionalGameweek({

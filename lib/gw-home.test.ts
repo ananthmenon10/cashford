@@ -3,7 +3,13 @@ import {
   analyticsViewHasHistory,
   analyticsVisibleForHomeCards,
   buildHomeLeagueCard,
+  gwNavigatorTargets,
+  homeCardsForScope,
+  homeCompetitionScopes,
+  homeScopeChipsVisible,
+  resolveHomeEntryStatus,
   resolveHomeLeagueCardState,
+  type HomeLeagueCard,
   type HomeLeagueCardInput,
 } from "./gw-home";
 import {
@@ -18,6 +24,7 @@ import {
   C60,
   C66,
   C72,
+  HOME_ENTRY_STATUS_COPY,
   LEAGUE_CARD_COPY,
 } from "./gw-copy";
 
@@ -208,6 +215,34 @@ describe("buildHomeLeagueCard", () => {
     expect(card.duesLabel).toBe(LEAGUE_CARD_COPY.duesChip(1));
   });
 
+  it("renders S6 for an entered viewer with the edit primary, not the enter one", () => {
+    const card = buildCard({
+      lifecycle: "CL1",
+      viewerParticipation: "VP2",
+      viewerRank: 4,
+      secondary: [{ gameweekNumber: 3, kind: "settled", viewerRank: 2, viewerNetInr: 450, liveMatchCount: 0 }],
+    });
+
+    expect(card.state).toBe("S6");
+    expect(card.badge).toBe(LEAGUE_CARD_COPY.enteredBadge);
+    expect(card.primary.title).toBe(LEAGUE_CARD_COPY.editGameweek(4));
+    expect(card.primary.action?.label).toBe(LEAGUE_CARD_COPY.editPredictions);
+    expect(card.secondary).toBeDefined();
+  });
+
+  it("keeps the enter primary on S6 for a viewer who has not entered", () => {
+    const card = buildCard({
+      lifecycle: "CL1",
+      viewerParticipation: "VP1",
+      secondary: [{ gameweekNumber: 3, kind: "settled", viewerRank: 2, viewerNetInr: 450, liveMatchCount: 0 }],
+    });
+
+    expect(card.state).toBe("S6");
+    expect(card.badge).toBe(LEAGUE_CARD_COPY.openBadge);
+    expect(card.primary.title).toBe(LEAGUE_CARD_COPY.enterGameweek(4));
+    expect(card.primary.action?.label).toBe(LEAGUE_CARD_COPY.makePredictions);
+  });
+
   it("does not render a zero settled net as a loss", () => {
     const card = buildCard({ lifecycle: "CL5", viewerParticipation: "VP4", viewerNetInr: 0 });
 
@@ -279,5 +314,218 @@ describe("analyticsVisibleForHomeCards", () => {
         global: { acc: { graded: 0 }, pot: { entered: 1 } },
       } as never),
     ).toBe(true);
+  });
+});
+
+// ── Step 6A: home hub — scope chips, GW navigator, entry-status copy ────────────────
+
+function scopeCard(overrides: Partial<HomeLeagueCard> = {}): HomeLeagueCard {
+  return {
+    leagueId: "l1",
+    leagueName: "League",
+    slug: "league",
+    competitionName: "Premier League",
+    competitionSlug: "pl",
+    gameweekNumber: 4,
+    allGameweekNumbers: [1, 2, 3, 4, 5],
+    format: "gameweek",
+    archived: false,
+    state: "OTHER",
+    tone: "neutral",
+    badge: "",
+    primary: { kicker: "", title: "", countdown: false },
+    rail: { net: "₹0", netTone: "neutral", positionLabel: "", position: "—", positionTone: "muted" },
+    context: [],
+    netInr: 0,
+    hasSettledHistory: false,
+    pendingPaymentCount: 0,
+    entryStatus: null,
+    ...overrides,
+  };
+}
+
+describe("homeCompetitionScopes / homeScopeChipsVisible", () => {
+  it("hides scope chips when every league is in the same competition", () => {
+    const cards = [scopeCard(), scopeCard({ leagueId: "l2", competitionSlug: "pl" })];
+    expect(homeScopeChipsVisible(cards)).toBe(false);
+    expect(homeCompetitionScopes(cards)).toEqual([
+      { competitionSlug: "pl", competitionName: "Premier League", gameweekNumber: 4 },
+    ]);
+  });
+
+  it("shows scope chips once leagues span more than one competition", () => {
+    const cards = [
+      scopeCard(),
+      scopeCard({ leagueId: "l2", competitionSlug: "laliga", competitionName: "LaLiga", gameweekNumber: 3 }),
+    ];
+    expect(homeScopeChipsVisible(cards)).toBe(true);
+    expect(homeCompetitionScopes(cards)).toEqual([
+      { competitionSlug: "pl", competitionName: "Premier League", gameweekNumber: 4 },
+      { competitionSlug: "laliga", competitionName: "LaLiga", gameweekNumber: 3 },
+    ]);
+  });
+
+  it("excludes archived and format:none cards from the scope list", () => {
+    const cards = [
+      scopeCard(),
+      scopeCard({ leagueId: "archived", archived: true, competitionSlug: "wc2026", competitionName: "World Cup 2026" }),
+      scopeCard({ leagueId: "none", format: "none", competitionSlug: null as never, competitionName: "" }),
+      scopeCard({ leagueId: "l3", competitionSlug: "laliga", competitionName: "LaLiga" }),
+    ];
+    expect(homeCompetitionScopes(cards)).toEqual([
+      { competitionSlug: "pl", competitionName: "Premier League", gameweekNumber: 4 },
+      { competitionSlug: "laliga", competitionName: "LaLiga", gameweekNumber: 4 },
+    ]);
+  });
+
+  it("always keeps archived and format:none cards regardless of the selected scope", () => {
+    const archived = scopeCard({ leagueId: "archived", archived: true, competitionSlug: "wc2026" });
+    const none = scopeCard({ leagueId: "none", format: "none", competitionSlug: null as never });
+    const pl = scopeCard({ leagueId: "pl-league" });
+    const laliga = scopeCard({ leagueId: "laliga-league", competitionSlug: "laliga" });
+    const cards = [archived, none, pl, laliga];
+    expect(homeCardsForScope(cards, "pl").map((c) => c.leagueId)).toEqual(["archived", "none", "pl-league"]);
+    expect(homeCardsForScope(cards, "laliga").map((c) => c.leagueId)).toEqual(["archived", "none", "laliga-league"]);
+    expect(homeCardsForScope(cards, null).map((c) => c.leagueId)).toEqual(cards.map((c) => c.leagueId));
+  });
+});
+
+describe("gwNavigatorTargets", () => {
+  it("returns every gameweek as a reachable target, sorted, with the current one flagged", () => {
+    expect(gwNavigatorTargets([3, 1, 5, 2, 4], 3)).toEqual([
+      { gameweekNumber: 1, isCurrent: false },
+      { gameweekNumber: 2, isCurrent: false },
+      { gameweekNumber: 3, isCurrent: true },
+      { gameweekNumber: 4, isCurrent: false },
+      { gameweekNumber: 5, isCurrent: false },
+    ]);
+  });
+
+  it("dedupes gameweek numbers and marks none current when the current GW isn't in the list", () => {
+    expect(gwNavigatorTargets([1, 1, 2], 9)).toEqual([
+      { gameweekNumber: 1, isCurrent: false },
+      { gameweekNumber: 2, isCurrent: false },
+    ]);
+  });
+});
+
+describe("resolveHomeEntryStatus — canonical eight-state mapping", () => {
+  const base = {
+    lifecycle: "CL1" as const,
+    viewerParticipation: "VP1" as const,
+    viewerRank: null as number | null,
+    eligibleCount: 12,
+    viewerNetInr: null as number | null,
+    deadlineAt: "2026-08-22T13:42:00.000Z",
+    liveMatchCount: 0,
+    archived: false,
+  };
+
+  it("notEnteredOpen: CL1 + VP1", () => {
+    expect(resolveHomeEntryStatus(base)).toEqual({ key: "notEnteredOpen", deadlineAt: base.deadlineAt });
+  });
+
+  it("enteredOpen: CL1 + VP2/VP3/VP4", () => {
+    expect(resolveHomeEntryStatus({ ...base, viewerParticipation: "VP2" })).toEqual({
+      key: "enteredOpen",
+      deadlineAt: base.deadlineAt,
+    });
+  });
+
+  it("submittedLocked: locked/live-eligible lifecycle with no live match", () => {
+    expect(resolveHomeEntryStatus({ ...base, lifecycle: "CL3", viewerParticipation: "VP4" })).toEqual({
+      key: "submittedLocked",
+      deadlineAt: base.deadlineAt,
+    });
+  });
+
+  it("live: locked lifecycle with a live match and a known rank", () => {
+    expect(
+      resolveHomeEntryStatus({
+        ...base,
+        lifecycle: "CL3",
+        viewerParticipation: "VP4",
+        liveMatchCount: 2,
+        viewerRank: 3,
+      }),
+    ).toEqual({ key: "live", rank: 3, total: 12 });
+  });
+
+  it("won: CL5 with a positive net", () => {
+    expect(
+      resolveHomeEntryStatus({ ...base, lifecycle: "CL5", viewerParticipation: "VP4", viewerRank: 1, viewerNetInr: 480 }),
+    ).toEqual({ key: "won", rank: 1, total: 12, amountInr: 480 });
+  });
+
+  it("lost: CL5 with a negative net", () => {
+    expect(
+      resolveHomeEntryStatus({ ...base, lifecycle: "CL5", viewerParticipation: "VP4", viewerRank: 9, viewerNetInr: -100 }),
+    ).toEqual({ key: "lost", rank: 9, total: 12, amountInr: -100 });
+  });
+
+  it("void: CL7 (settled result outcome not settled)", () => {
+    expect(resolveHomeEntryStatus({ ...base, lifecycle: "CL7" })).toEqual({ key: "void" });
+  });
+
+  // Step 6A round 2 — item 4 regression: CL10 (all fixtures void, lib/gw-state.ts:83) was
+  // incorrectly grouped with CL2/CL3/CL4 into submittedLocked. It must map to void, consistent
+  // with the league screen's badge mapping (homeBadgeState treats CL7/CL10 identically).
+  it("void: CL10 (all fixtures voided) maps to void, not submittedLocked — regression for the round-2 fix", () => {
+    expect(resolveHomeEntryStatus({ ...base, lifecycle: "CL10", viewerParticipation: "VP4" })).toEqual({
+      key: "void",
+    });
+  });
+
+  it("syncIssue: CL6/CL8 (dirty) and CL9 (corrupt)", () => {
+    expect(resolveHomeEntryStatus({ ...base, lifecycle: "CL6" })).toEqual({ key: "syncIssue" });
+    expect(resolveHomeEntryStatus({ ...base, lifecycle: "CL8" })).toEqual({ key: "syncIssue" });
+    expect(resolveHomeEntryStatus({ ...base, lifecycle: "CL9" })).toEqual({ key: "syncIssue" });
+  });
+
+  // Item 14: CL5 with a net of exactly zero previously returned null (no row at all). It now
+  // returns a settled brokeEven row instead of silently dropping the entry-status line.
+  it("brokeEven: CL5 with a net of exactly zero — regression for the round-2 fix", () => {
+    expect(
+      resolveHomeEntryStatus({ ...base, lifecycle: "CL5", viewerParticipation: "VP4", viewerRank: 5, viewerNetInr: 0 }),
+    ).toEqual({ key: "brokeEven", rank: 5, total: 12 });
+  });
+
+  // Item 15: a live lifecycle whose provisional standing hasn't produced this viewer's rank yet
+  // must still show a live-state row (degraded rank), not fall back to submittedLocked.
+  it("live: locked lifecycle with a live match but no rank yet degrades the rank segment instead of falling back to Locked", () => {
+    expect(
+      resolveHomeEntryStatus({
+        ...base,
+        lifecycle: "CL3",
+        viewerParticipation: "VP4",
+        liveMatchCount: 2,
+        viewerRank: null,
+      }),
+    ).toEqual({ key: "live", rank: null, total: 12 });
+  });
+
+  it("returns null for archived cards and for a blank CL0 lifecycle", () => {
+    expect(resolveHomeEntryStatus({ ...base, archived: true })).toBeNull();
+    expect(resolveHomeEntryStatus({ ...base, lifecycle: "CL0" })).toBeNull();
+  });
+});
+
+// Step 6A round 2 — item 17: exact-string and codepoint assertions for the home entry-status
+// copy builders (lib/gw-copy.ts HOME_ENTRY_STATUS_COPY), pinned separately from the style-rule
+// scan in tests/phase3/gw-copy.test.ts since these are nested function properties, not top-level
+// exports, and so aren't covered by that file's SAMPLE_CALLS registry.
+describe("HOME_ENTRY_STATUS_COPY — exact-string and codepoint pins (item 17)", () => {
+  it("live(3, 12) generates the exact ordinal string", () => {
+    expect(HOME_ENTRY_STATUS_COPY.live(3, 12)).toBe("Live · 3rd of 12");
+  });
+
+  it("live(null, 12) degrades the rank segment instead of throwing or omitting it", () => {
+    expect(HOME_ENTRY_STATUS_COPY.live(null, 12)).toBe("Live · rank pending");
+  });
+
+  it("lost(9, 12, -100) emits U+2212 (minus sign), not a hyphen, before the money amount", () => {
+    const out = HOME_ENTRY_STATUS_COPY.lost(9, 12, -100);
+    expect(out).toContain("−");
+    expect(out).not.toMatch(/[^−]-\d/); // no ASCII hyphen directly preceding a digit
   });
 });

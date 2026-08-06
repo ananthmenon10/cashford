@@ -8,7 +8,7 @@ import { logout } from "./actions";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { HomeTabs } from "@/components/HomeTabs";
 import { AnalyticsTab } from "@/components/AnalyticsTab";
-import { LeagueCard } from "@/components/gw/LeagueCard";
+import { HomeHub } from "@/components/gw/HomeHub";
 import { APP_VERSION } from "@/lib/version";
 import { MATCH_COPY } from "@/lib/match-copy";
 
@@ -63,11 +63,7 @@ export default async function Home() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {homeLeagueCards.map((card) => (
-            <LeagueCard key={card.leagueId} card={card} />
-          ))}
-        </div>
+        <HomeHub cards={homeLeagueCards} />
       )}
 
       {homeLeagueCards.length > 0 && (

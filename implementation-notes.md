@@ -1407,3 +1407,260 @@ Nothing was committed or pushed.
   Management API, the full path exercised in-browser (muted defaults → touch transition → arm →
   double-tap resistance → confirm-save), and the entry re-created by the save itself (5 picks: one 1-0,
   four 0-0 defaults — verified in DB).
+
+## Step 6A (2026-08-06) — Home hub layout A, GW navigator, scope chips, entry-status copy, perf
+
+Built from the Home & Matches frames in `docs/design/2026-08-05-feedback-r1-reference.html`
+(inline hub layout A, multi-competition scope-chip variant, segmented GW navigator, entry-status
+copy A / canonical eight-state table). This pass covers the home hub only — the fixture-list
+day-accordions and the complete-table rebuild are step 6B's job and were not touched; `app/matches`
+and `Phase4MatchesPage` are untouched.
+
+**Files changed.** `components/gw/HomeHub.tsx` (new — scope chips, GW navigator, entry-status
+rows), `app/page.tsx` (renders `<HomeHub>` above the existing `LeagueCard` list), `lib/gw-home.ts`
+(`competitionSlug`, `gameweekNumber`, `allGameweekNumbers`, `entryStatus` added to `HomeLeagueCard`;
+new pure helpers `homeCompetitionScopes`, `homeScopeChipsVisible`, `homeCardsForScope`,
+`gwNavigatorTargets`, `resolveHomeEntryStatus`; archived-standings caching), `lib/gw-copy.ts`
+(`HOME_ENTRY_STATUS_COPY`, `HOME_HUB_COPY`; `ordinalCopy` exported for reuse), `lib/gw-view.ts`
+(`contestsNeedingLivePicks` narrows the live-picks query), `lib/gw-home.test.ts` +
+`lib/gw-view.test.ts` (new), `tests/phase3/copy-scan-manifest.json` + `tests/phase3/gw-copy.test.ts`
+(registered the new component/copy).
+
+**Scope item 1 — hub layout A.** `HomeHub` sits directly below the three-tab home nav, above the
+existing `LeagueCard` stack (unchanged, not restyled). It renders, top to bottom: competition scope
+chips (only when leagues span >1 competition), the GW navigator, then the entry-status list. The
+full "Matches hub" section (segment control, fixture-day accordions, table) from the frame is out
+of scope for 6A per the brief and is left to 6B.
+
+**Scope item 2 — competition scope chips.** `homeCompetitionScopes` collects one entry per distinct
+`competitionSlug` across active (non-archived, non-`format:"none"`) leagues, first-seen order.
+`homeScopeChipsVisible` is true only when that list has >1 entry. `homeCardsForScope` filters the
+league list to the selected scope, but always keeps archived and `format:"none"` cards regardless
+of scope (they have no competition-scoped GW to switch on, per the reference's modification note).
+Switching scope is `useState` + `onClick` in the client component — no navigation, no reload.
+
+**Scope item 3 — GW navigator A.** `gwNavigatorTargets` turns a league's `allGameweekNumbers` into
+a deduped, sorted, fully-reachable target list with the current GW flagged; every GW is a valid
+target, not just the adjacent ones. The visible control matches the reference's segmented strip
+(chevrons + GW pill + countdown); chevrons and the jump control are real links to
+`/leagues/[slug]?gw=N#league-gw-N-matches` (the league screen's existing GW-scoped matches anchor)
+because the home matches hub itself doesn't exist yet in this pass — routing "jump to any GW" to
+the league screen is the only place that data currently renders. `GameweekStrip.tsx` (chevrons +
+all-gameweeks sheet, navigation B) was left alone; this is a different pattern (A), not a reuse.
+
+**Scope item 4 — entry-status copy A.** `resolveHomeEntryStatus` maps a card's existing
+lifecycle/participation facts onto the eight canonical states from
+`docs/design/2026-08-05-feedback-r1-reference.html`'s canonical copy table. The three
+deadline-bearing states hand back a prefix string only (`HOME_ENTRY_STATUS_COPY.notEnteredOpenPrefix`
+etc.) so the component renders the actual time via `<LocalTime>` rather than baking a formatted
+datetime into copy, matching the existing `LeagueCard.tsx` pattern. Void and sync-issue reuse
+`ENTRY_STATUS_COPY` verbatim (no variable parts). All strings live in `lib/gw-copy.ts`; nothing is
+assembled inline in the component.
+
+**Perf item 1 — narrowed `loadGameweekView` query.** `contestsNeedingLivePicks` pre-filters to
+exactly the contests whose `entriesByContest`/`picksByEntry` maps are actually read later in the
+function (locked/settling status AND a currently-live fixture in that gameweek — the same guard
+the live-provisional branch already applied via an early `continue`). The `gameweek_entries` /
+`gameweek_picks` queries now scope to that narrowed id list instead of every contest id, which is
+the ~2k-row-by-GW20 saving named in the brief. This function is shared by the home path and the
+league-screen path (`app/leagues/[slug]/page.tsx`, `enter/page.tsx`, `lib/gw-season.ts`,
+`lib/league-table-load.ts`); the narrowing changes what's fetched, not what's returned, so both
+paths keep identical output — no home-specific branch was needed.
+
+**Perf item 2 — cached `loadArchivedCardFacts`.** Wrapped in `loadArchivedCardFactsCached`, an
+in-process `Map` keyed by `leagueId:competitionId:userId` with a 5-minute TTL. Archived-competition
+standings don't change once the archive is closed, so this skips the three-query rebuild
+(`league_members` + `gameweek_entry_results` + `gameweek_picks`, `buildWcFinalStandings`) on
+repeat home loads within the TTL window without risking a stale-forever cache if data is ever
+corrected behind the scenes.
+
+**Tests.** `lib/gw-home.test.ts`: scope-chip visibility (1 vs >1 competition, archived/`none`
+cards excluded from scope list but always kept in `homeCardsForScope`), `gwNavigatorTargets`
+(every GW reachable, dedup, current-GW-not-in-list case), `resolveHomeEntryStatus` (all eight
+states plus the archived/CL0 null cases). `lib/gw-view.test.ts` (new): `contestsNeedingLivePicks`
+across locked/settled/settling/open statuses and active/void fixture-row states, including the
+"excludes a locked contest with no live fixture" case that is the actual perf saving. All existing
+`lib/gw-home.test.ts` / `gw-view.ts` consumers stayed green — no shape changes to existing exports.
+
+### Deviations
+
+**The GW navigator's jump-to-any-gameweek control is a screen-reader-exposed (`sr-only`) native
+`<select>`, not a visible dropdown.** The reference frame's "GW navigator bar" section only shows
+chevrons + a GW pill + a static "38 gameweeks available" stat — it never depicts a literal
+jump-to-any affordance for sighted users. Read against the brief's explicit requirement ("jump to
+ANY gameweek"), the pragmatic call was an accessible `<select>` that satisfies "every GW is
+reachable" without inventing a visual control the reference doesn't show. Flagging this as a
+narrow interpretation worth a second look in 6B once the actual GW-scoped matches view exists on
+home and there's a real place to land a visible jump control.
+
+**Entry-status rows link to `/leagues/[slug]` (the league card's existing destination), not a
+per-status deep link**, since the frame's Option A text-badge rows are themselves plain
+league-scoped rows with no distinct per-status navigation shown.
+
+**`homeCardsForScope`'s "always show archived/`none` cards" behavior was inferred from the
+reference's modification annotation** ("each competition keeps its own GW position and its own
+entries, fixtures, and table scope") rather than stated as an explicit rule — archived cards have
+no live competition scope to gate on, so excluding them from a scope filter (rather than hiding
+them when a scope is selected) was read as the only behavior consistent with the frame not showing
+archived cards disappearing under a scope chip.
+
+### Verification
+
+`npm run typecheck` — clean. `npx vitest run` — 70 files, 791 tests, all passing. `npm run build` —
+clean, same route set as before (10.3 kB / 126 kB First Load JS on `/`). `node --env-file=.env.local
+scripts/smoke/route-smoke.mjs` — all routes report ✓ across all four leagues (Solid Yenne Boys, KK
+Bois, PES Bois, ZZ-P1 Test League), including the home-path loader the perf changes touch. Nothing
+committed or pushed.
+
+## Step 6A round 2 (2026-08-06) — fixes from adversarial review
+
+Second pass on the home hub, fixing eight must-fix items plus ten cheap follow-ups flagged by
+review of round 1. Same scope boundary as round 1: home hub only, matches page (`app/matches`,
+step 6B) untouched, no settlement/scoring changes, `LeagueCard` internals not restyled.
+
+**Files changed.** `app/page.tsx` (drops its own `LeagueCard` loop — `HomeHub` now owns the whole
+scoped list), `components/gw/HomeHub.tsx` (rewritten — scope now drives the league-card stack too,
+new your-card wrapper, nav-anywhere row, state segment, jump-to-any-gameweek sheet), new
+`lib/use-bottom-sheet.ts` (focus-trap/scroll-lock hook extracted from `GameweekStrip.tsx`),
+`components/gw/GameweekStrip.tsx` (now consumes the extracted hook — no behavior change),
+`lib/gw-copy.ts` (`GW_BADGE_COPY.submitted`; `HOME_ENTRY_STATUS_COPY.live` accepts `rank: number |
+null`; new `HOME_ENTRY_STATUS_COPY.brokeEven`; new `HOME_HUB_COPY` builders — `closesInPrefix`,
+`scopeChip`, `gameweekStateLabel`, `navAnywherePrevious`/`navAnywhereNext`, `scopeHelper`,
+`yourGameweekSubtitle`), `lib/gw-home.ts` (CL10→void fix, request-scoped archived-card-facts cache,
+`live`/`brokeEven` changes to `HomeEntryStatus`), `lib/gw-view.ts` (extracted
+`liveMatchCountForContest`, shared by `contestsNeedingLivePicks` and the `homeFactByContest` loop),
+`lib/gw-home.test.ts` + `lib/gw-view.test.ts` (new regression/pinning tests).
+
+**Items 1–2 — scope chips now filter the whole page; double-render killed.** The `LeagueCard`
+stack moved from `app/page.tsx` into `HomeHub`, under the same `scoped` variable the entry-status
+rows already used. `app/page.tsx` now renders only `<HomeHub cards={homeLeagueCards} />`; `HomeHub`
+maps `scoped` to `LeagueCard` at the bottom of its own JSX. One league no longer appears twice —
+its `EntryStatusRow` sits inside the new your-card wrapper, its full `LeagueCard` sits below,
+detail-only, both gated by the same scope selection.
+
+**Item 3 — your-card wrapper.** New section using `HOME_HUB_COPY.yourGameweek(gw)` for the title,
+`HOME_HUB_COPY.yourGameweekSubtitle(leagues, entered, toGo)` for the subtitle, and a ₹ metric.
+`entered`/`toGo` counts come from `entryStatus.key` (`notEnteredOpen` → toGo; every other
+non-void/non-syncIssue key → entered — see Deviations). The metric is the summed `netInr` across
+the your-card's rows (see Deviations — the frame doesn't specify its source).
+
+**Item 4 — CL10→void.** `resolveHomeEntryStatus` now checks `lifecycle === "CL7" ||
+lifecycle === "CL10"` before the CL2/CL3/CL4 branch (CL10 removed from that branch), matching
+`homeBadgeState`'s existing CL7/CL10→VOID mapping on the league screen. Regression test added:
+`lib/gw-home.test.ts` — "void: CL10 (all fixtures voided) maps to void, not submittedLocked".
+
+**Item 5 — navigator state segment + nav-anywhere row.** The navigator pill's main line is now
+`HOME_HUB_COPY.gameweekStateLabel(gw, stateWord)` ("GW4 · OPEN") where `stateWord` comes from
+`entryStatusBadgeLabel` (the same function the your-card badges use — one source of truth for the
+word, not two). A `nav-anywhere` row below the pill links "Previous GW3" / "Next GW5" via
+`HOME_HUB_COPY.navAnywherePrevious`/`navAnywhereNext`.
+
+**Item 6 — visible jump control, no full-page reload.** The sr-only `<select>` +
+`window.location.href` is gone. A new `JumpToGameweekSheet` opens a bottom sheet (built on the
+extracted `useBottomSheet` hook — same focus-trap/scroll-lock/Escape-close behavior as
+`GameweekStrip`'s all-gameweeks sheet, narrower content since the home hub only has
+`gwNavigatorTargets`' `{number, isCurrent}` shape, not the league screen's richer per-GW facts).
+At the GW1/last-GW boundary, the chevron is now a real `disabled` `<button>` with an `aria-label`
+instead of a blank spacer — a screen reader announces it as a disabled control rather than nothing.
+
+**Item 7 — request-scoped cache.** The module-level TTL `Map` is gone.
+`loadHomeLeagueCards` now creates one `Map` per call and threads it through
+`loadArchivedCardFactsCached` as a parameter — no cross-request state, no unbounded growth.
+
+**Item 8 — shared live-fixture-count helper.** `liveMatchCountForContest` in `lib/gw-view.ts` is
+now the single implementation used by both `contestsNeedingLivePicks` and the
+`homeFactByContest` loop's guard. `lib/gw-view.test.ts` adds a test asserting the helper's count
+and `contestsNeedingLivePicks`'s inclusion decision agree, so the two call sites can't silently
+diverge again.
+
+**Items 9–13, 16 (cheap fixes).** `prefix="closes in"` → `HOME_HUB_COPY.closesInPrefix` (9); the
+`${scope.competitionName} · GW4` JSX template → `HOME_HUB_COPY.scopeChip(name, gw)` (10); the dead
+`now` param on `EntryStatusRow` removed (11); `submittedLocked`'s badge now reads
+`GW_BADGE_COPY.submitted` ("SUBMITTED") instead of `.locked` (12, see Deviations for the frame
+citation caveat); the byte-exact scope-helper line renders under the chips when they're visible
+(13); the new sheet trigger has exactly one accessible name — an `aria-label`, no competing visible
+text (16).
+
+**Items 14–15 — CL5 break-even and live-with-no-rank now render rows instead of dropping them.**
+CL5 with `viewerNetInr === 0` now returns `{ key: "brokeEven", rank, total }` (new
+`HomeEntryStatus` variant, new `HOME_ENTRY_STATUS_COPY.brokeEven` builder) instead of `null` (14).
+The live branch (CL2/CL3/CL4 with a live match) no longer requires `viewerRank != null` — a live
+gameweek with no provisional rank yet still returns `{ key: "live", rank: null, total }`, and
+`HOME_ENTRY_STATUS_COPY.live` degrades to `"Live · rank pending"` when `rank` is `null` (15).
+
+**Item 17 — copy-builder tests.** `lib/gw-home.test.ts` pins `HOME_ENTRY_STATUS_COPY.live(3, 12)`
+to the exact string `"Live · 3rd of 12"`, `live(null, 12)` to `"Live · rank pending"`, and asserts
+`lost(9, 12, -100)` contains U+2212 (minus sign) rather than an ASCII hyphen before the amount.
+
+**Tests.** `lib/gw-home.test.ts`: 3 new `resolveHomeEntryStatus` cases (CL10→void, CL5 net-zero→
+brokeEven, live with null rank) plus 3 new copy-builder pins. `lib/gw-view.test.ts`: 2 new
+`liveMatchCountForContest` cases pinning it to `contestsNeedingLivePicks`'s inclusion decision.
+
+### Deviations — round 2
+
+**Item 12's cited frame line (~:7291) doesn't actually depict `submittedLocked`.** The multi-
+competition frame's "Submitted" badge sits on a row still reading "editable until…" — that's
+`enteredOpen` (still open, already entered) in this codebase's state model, not the locked-and-
+no-longer-editable `submittedLocked` state the item's prose names. Followed the item's explicit
+instruction ("submittedLocked badge… labels the row 'Submitted'") over the cited example, since a
+locked, already-submitted entry is the more literal fit for "Submitted" terminology — flagging the
+mismatch for a second look rather than silently picking one reading.
+
+**Your-card metric is the summed `netInr` across the your-card's rows, not a pot/stake total.**
+The frame shows "₹200" with no stated source and `HomeLeagueCard` doesn't expose `potInr`
+downstream of `buildHomeLeagueCard` — net position (money won/lost this GW) was the closest
+already-computed number that matches "one ₹ figure per your-card." If the frame's intent was a
+stake-in-play total instead, `potInr` would need adding to the `HomeLeagueCard` shape.
+
+**`entered`/`toGo` counts in the your-card subtitle exclude `void` and `syncIssue` rows from both
+buckets.** Neither state is "still open" (toGo) nor "an entry that's in" (entered) in the way the
+frame's counts imply — they're data-integrity states, not participation states — so they're
+counted in the your-card's row list but not in either half of the "N entered · M to go" copy.
+
+**`brokeEven`'s copy shape follows `won`/`lost` (ordinal + "Broke even"), not
+`LEAGUE_CARD_COPY`'s ante-only break-even line.** Keeps the your-card row visually consistent with
+its won/lost neighbors (rank of total, then a settlement word) rather than switching to a shorter
+convention mid-list.
+
+**`navigatorCard` is still the first scoped card with a `gameweekNumber`** (unchanged from round
+1 — the frame assumes one GW per competition; this codebase's data model doesn't guarantee it).
+If two leagues in the same scope ever diverge on gameweek position, the navigator only reflects
+the first one found, and the state-segment word on the pill comes from that same card's
+`entryStatus` (falls back to no state segment — just the plain "GW4" label — if that card happens
+to be archived, since `resolveHomeEntryStatus` returns `null` for archived cards).
+
+**Reviewer caveat: the picks queries on the league-screen path (`loadGameweekView`) still
+serialize behind the fixture-metadata fetch, an unavoidable +1 RTT.** `contestsNeedingLivePicks`
+(now backed by the shared `liveMatchCountForContest`) needs `fixtureRowsByGameweek`, which only
+exists after the first `Promise.all` (fixture metadata, winner metadata, member metadata)
+resolves. The `gameweek_entries`/`gameweek_picks` queries that follow can't start until that
+completes, so every `loadGameweekView` call pays two sequential round trips minimum on this path
+regardless of how many contests actually need live picks. This was already true before round 2
+(round 1's perf item 1 introduced the narrowing, not the serialization) but wasn't called out as a
+caveat until now — it's inherent to needing the live-fixture facts before knowing which contests'
+picks to fetch, not something this round's refactor could remove without restructuring the whole
+loader around a two-phase fetch.
+
+**Superseded from round 1:** the "GW navigator's jump-to-any-gameweek control is a sr-only
+`<select>`" deviation no longer applies — item 6 replaced it with the visible
+`JumpToGameweekSheet`.
+
+### Verification — round 2
+
+`npm run typecheck` — clean. `npx vitest run` — 70 files, 799 tests, all passing (8 new tests: 3
+`resolveHomeEntryStatus` regressions, 3 `HOME_ENTRY_STATUS_COPY` pins, 2
+`liveMatchCountForContest` pins). `npm run build` — clean, same route set. `node
+--env-file=.env.local scripts/smoke/route-smoke.mjs` — 0 failures across all four leagues (Solid
+Yenne Boys, KK Bois, PES Bois, ZZ-P1 Test League), including `home` for every league. Nothing
+committed or pushed.
+
+### Step 6A round 3 — orchestrator fixes from browser QC
+
+- **S6/S7 ignored viewer participation** (`lib/gw-home.ts`): the compound open states resolve
+  before VP is checked, and their render branch always used the S1 "Enter GWn / Make predictions"
+  primary with the OPEN badge. An entered viewer on a league with a settled previous GW (ZZ-P1
+  GW4 after GW3 settled — caught live in QC) saw "Enter GW4" on the card while the hub row above
+  said "Entered". S6/S7 now key the primary, badge, and rail on VP2 (edit primary + ENTERED badge,
+  same secondary strip). Two pinning tests added (entered and not-entered variants). Pre-existing
+  step-4 gap, surfaced by the 6A hub sitting next to the card.
+- **`yourGameweekSubtitle` pluralization**: "1 leagues" → "1 league" (count-aware).

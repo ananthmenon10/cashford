@@ -15,6 +15,7 @@
     { "path": "components/gw/LeagueShell.tsx", "mode": "jsx", "note": "" },
     { "path": "components/gw/LeaguePanes.tsx", "mode": "jsx", "note": "shared league pane assembly" },
     { "path": "components/gw/GameweekStrip.tsx", "mode": "jsx", "note": "" },
+    { "path": "components/gw/HomeHub.tsx", "mode": "jsx", "note": "Step 6A home hub: scope chips, GW navigator, entry-status rows" },
     { "path": "components/gw/StateHeader.tsx", "mode": "jsx", "note": "" },
     { "path": "components/gw/EntryCta.tsx", "mode": "jsx", "note": "" },
     { "path": "components/gw/EntryCard.tsx", "mode": "jsx", "note": "" },

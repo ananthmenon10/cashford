@@ -22,6 +22,7 @@ import {
   C72,
   LEAGUE_CARD_COPY,
   moneyCopy,
+  type EntryStatusKey,
 } from "./gw-copy";
 import {
   homeBadgeState,
@@ -94,6 +95,7 @@ export type HomeLeagueCardInput = {
   liveMatchCount?: number;
   finalMatchCount?: number;
   totalMatchCount?: number;
+  allGameweekNumbers?: readonly number[];
 }
 
 type HomeLeagueCardActionTone = "green" | "amber";
@@ -117,6 +119,9 @@ export type HomeLeagueCard = {
   leagueName: string;
   slug: string;
   competitionName: string;
+  competitionSlug: string | null;
+  gameweekNumber: number | null;
+  allGameweekNumbers: readonly number[];
   format: HomeLeagueCardInput["format"];
   archived: boolean;
   state: HomeLeagueCardResolvedState;
@@ -153,6 +158,7 @@ export type HomeLeagueCard = {
   netInr: number | "suppressed";
   hasSettledHistory: boolean;
   pendingPaymentCount: number;
+  entryStatus: HomeEntryStatus | null;
 };
 
 export function resolveHomeLeagueCardState(
@@ -288,6 +294,9 @@ export function buildHomeLeagueCard(input: HomeLeagueCardInput): HomeLeagueCard 
     leagueName: input.leagueName,
     slug: input.slug,
     competitionName: input.competitionName,
+    competitionSlug: input.competitionSlug ?? null,
+    gameweekNumber: input.gameweekNumber,
+    allGameweekNumbers: input.allGameweekNumbers ?? [],
     format: input.format,
     archived: input.archived,
     state,
@@ -311,24 +320,39 @@ export function buildHomeLeagueCard(input: HomeLeagueCardInput): HomeLeagueCard 
     netInr: input.netInr,
     hasSettledHistory: input.hasSettledHistory,
     pendingPaymentCount: input.pendingPaymentCount,
+    entryStatus: resolveHomeEntryStatus(input),
   };
 
   if (state === "S1" || state === "S6" || state === "S7") {
+    // S6/S7 are compound "open + previous-GW fact" states resolved before viewer participation,
+    // so an entered viewer lands here too. The open-GW action owns the primary block (locked
+    // decision), and for a VP2 viewer that action is editing, not entering — otherwise the card
+    // tells someone who already entered to "Enter GW4" while the hub row above says "Entered".
+    const entered = input.viewerParticipation === "VP2";
     base.tone = "open";
-    base.badge = LEAGUE_CARD_COPY.openBadge;
+    base.badge = entered ? LEAGUE_CARD_COPY.enteredBadge : LEAGUE_CARD_COPY.openBadge;
     base.primary = {
       kicker: LEAGUE_CARD_COPY.nextAction,
-      title: LEAGUE_CARD_COPY.enterGameweek(input.gameweekNumber ?? 0),
+      title: entered
+        ? LEAGUE_CARD_COPY.editGameweek(input.gameweekNumber ?? 0)
+        : LEAGUE_CARD_COPY.enterGameweek(input.gameweekNumber ?? 0),
       deadlineAt: input.deadlineAt ?? undefined,
       deadlinePrefix: LEAGUE_CARD_COPY.closes,
       deadlineVariant: "time",
       deadlineIncludeWeekday: true,
       countdown: true,
-      action: openAction(input, LEAGUE_CARD_COPY.makePredictions),
+      action: openAction(
+        input,
+        entered ? LEAGUE_CARD_COPY.editPredictions : LEAGUE_CARD_COPY.makePredictions,
+      ),
     };
-    base.rail.position = LEAGUE_CARD_COPY.missingValue;
-    base.rail.positionTone = "muted";
-    base.context = standardContext({ ...input, viewerRank: null });
+    if (entered) {
+      base.rail.positionLabel = LEAGUE_CARD_COPY.seasonPosition;
+    } else {
+      base.rail.position = LEAGUE_CARD_COPY.missingValue;
+      base.rail.positionTone = "muted";
+      base.context = standardContext({ ...input, viewerRank: null });
+    }
     if (state === "S6" || state === "S7") {
       base.secondary = secondaryPresentation(latestSecondary(input.secondary));
     }
@@ -604,12 +628,40 @@ function one<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
+type ArchivedCardFacts = { memberCount: number; archiveRank: number | null; hasHistory: boolean };
+
+/**
+ * Perf: an archived competition's standings never change once the archive is closed out, but
+ * every home render otherwise rebuilds them from three queries + buildWcFinalStandings. Cache
+ * the result within a single request — a league appearing more than once in the same
+ * loadHomeLeagueCards call (or a competition shared across leagues) skips the rebuild. Scoped to
+ * the request (caller passes a fresh Map per call) rather than module-level: a module-level Map
+ * persisted across requests/lambda instances with no eviction and gave non-deterministic results
+ * across instances.
+ */
+export type ArchivedCardFactsCache = Map<string, ArchivedCardFacts>;
+
+async function loadArchivedCardFactsCached(
+  admin: CashfordClient,
+  leagueId: string,
+  competitionId: string,
+  userId: string,
+  cache: ArchivedCardFactsCache,
+): Promise<ArchivedCardFacts> {
+  const key = `${leagueId}:${competitionId}:${userId}`;
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const value = await loadArchivedCardFacts(admin, leagueId, competitionId, userId);
+  cache.set(key, value);
+  return value;
+}
+
 async function loadArchivedCardFacts(
   admin: CashfordClient,
   leagueId: string,
   competitionId: string,
   userId: string,
-): Promise<{ memberCount: number; archiveRank: number | null; hasHistory: boolean }> {
+): Promise<ArchivedCardFacts> {
   const [membersQuery, resultsQuery, predictionsQuery] = await Promise.all([
     admin.from("league_members").select("user_id").eq("league_id", leagueId),
     admin
@@ -700,6 +752,7 @@ export async function loadHomeLeagueCards(
   leagues: readonly { id: string; name: string; slug: string; status: string }[],
   userId: string,
 ): Promise<HomeLeagueCard[]> {
+  const archivedCardFactsCache: ArchivedCardFactsCache = new Map();
   return Promise.all(
     leagues.map(async (league) => {
       const [identity, leagueNet] = await Promise.all([
@@ -745,7 +798,7 @@ export async function loadHomeLeagueCards(
 
       if (identity.participation.format === "cup") {
         const archiveFacts = identity.participation.status === "archived"
-          ? await loadArchivedCardFacts(admin, league.id, identity.participation.competitionId!, userId)
+          ? await loadArchivedCardFactsCached(admin, league.id, identity.participation.competitionId!, userId, archivedCardFactsCache)
           : null;
         return buildHomeLeagueCard({
           leagueId: league.id,
@@ -811,7 +864,161 @@ export async function loadHomeLeagueCards(
         liveMatchCount: activeFixtures.filter((fixture) => fixture.status === "live").length,
         finalMatchCount: activeFixtures.filter((fixture) => fixture.status === "finished").length,
         totalMatchCount: activeFixtures.length,
+        allGameweekNumbers: view.adjacentGameweeks.map((row) => row.number),
       });
     }),
   );
 }
+
+// ── Home hub: competition scope chips ───────────────────────────────────────────────
+
+export type HomeCompetitionScope = {
+  competitionSlug: string;
+  competitionName: string;
+  gameweekNumber: number | null;
+};
+
+/**
+ * One scope per distinct competitionSlug across the viewer's active (non-archived, non-"none"
+ * format) leagues, first-seen order. Archived leagues and leagues with no competition yet never
+ * gate or get filtered by scope — they always show regardless of the selected chip.
+ */
+export function homeCompetitionScopes(
+  cards: readonly Pick<HomeLeagueCard, "archived" | "format" | "competitionSlug" | "competitionName" | "gameweekNumber">[],
+): HomeCompetitionScope[] {
+  const seen = new Map<string, HomeCompetitionScope>();
+  for (const card of cards) {
+    if (card.archived) continue;
+    if (card.format === "none") continue;
+    if (!card.competitionSlug) continue;
+    if (seen.has(card.competitionSlug)) continue;
+    seen.set(card.competitionSlug, {
+      competitionSlug: card.competitionSlug,
+      competitionName: card.competitionName,
+      gameweekNumber: card.gameweekNumber,
+    });
+  }
+  return [...seen.values()];
+}
+
+/** Scope chips show only when the viewer's leagues span more than one competition. */
+export function homeScopeChipsVisible(
+  cards: readonly Pick<HomeLeagueCard, "archived" | "format" | "competitionSlug" | "competitionName" | "gameweekNumber">[],
+): boolean {
+  return homeCompetitionScopes(cards).length > 1;
+}
+
+/** Cards visible for a selected scope: archived and format:"none" cards always show; others filter by competitionSlug. */
+export function homeCardsForScope<T extends Pick<HomeLeagueCard, "archived" | "format" | "competitionSlug">>(
+  cards: readonly T[],
+  scopeSlug: string | null,
+): T[] {
+  if (!scopeSlug) return [...cards];
+  return cards.filter(
+    (card) => card.archived || card.format === "none" || card.competitionSlug === scopeSlug,
+  );
+}
+
+// ── Home hub: GW navigator (Option A · segmented strip, jump to any GW) ─────────────
+
+export type GwNavigatorTarget = { gameweekNumber: number; isCurrent: boolean };
+
+/** Every gameweek in the league is a reachable navigator target; the current one is flagged. */
+export function gwNavigatorTargets(
+  allGameweekNumbers: readonly number[],
+  currentGameweekNumber: number | null,
+): GwNavigatorTarget[] {
+  return [...new Set(allGameweekNumbers)]
+    .sort((a, b) => a - b)
+    .map((gameweekNumber) => ({
+      gameweekNumber,
+      isCurrent: gameweekNumber === currentGameweekNumber,
+    }));
+}
+
+// ── Home hub: entry-status copy A (eight-state canon) ───────────────────────────────
+
+export type HomeEntryStatus =
+  | { key: "notEnteredOpen"; deadlineAt: string | null }
+  | { key: "enteredOpen"; deadlineAt: string | null }
+  | { key: "submittedLocked"; deadlineAt: string | null }
+  | { key: "live"; rank: number | null; total: number }
+  | { key: "won"; rank: number; total: number; amountInr: number }
+  | { key: "lost"; rank: number; total: number; amountInr: number }
+  /** Not in the frame's eight-state canon — CL5 (settled) with a net of exactly zero. See
+   * HOME_ENTRY_STATUS_COPY.brokeEven (lib/gw-copy.ts) for the copy convention judgment call. */
+  | { key: "brokeEven"; rank: number; total: number }
+  | { key: "void" }
+  | { key: "syncIssue" };
+
+/**
+ * Maps a league card's already-resolved lifecycle/participation facts onto the eight canonical
+ * entry-status states (lib/gw-copy.ts EntryStatusKey / HOME_ENTRY_STATUS_COPY). Returns null when
+ * no entry-status row applies (archived cards, or no contest yet for the current gameweek).
+ */
+export function resolveHomeEntryStatus(
+  input: Pick<
+    HomeLeagueCardInput,
+    | "lifecycle"
+    | "viewerParticipation"
+    | "viewerRank"
+    | "eligibleCount"
+    | "viewerNetInr"
+    | "deadlineAt"
+    | "liveMatchCount"
+    | "archived"
+  >,
+): HomeEntryStatus | null {
+  if (input.archived) return null;
+  const lifecycle = input.lifecycle;
+  if (lifecycle == null || lifecycle === "CL0") return null;
+
+  if (lifecycle === "CL9" || lifecycle === "CL6" || lifecycle === "CL8") {
+    return { key: "syncIssue" };
+  }
+  // CL10 = all of this gameweek's fixtures voided (lib/gw-state.ts resolveContestLifecycle);
+  // consistent with the league screen's badge mapping (homeBadgeState), which treats CL7/CL10
+  // identically as VOID. Must be checked before the CL2/CL3/CL4/CL10 locked-family branch below.
+  if (lifecycle === "CL7" || lifecycle === "CL10") return { key: "void" };
+
+  if (lifecycle === "CL1") {
+    if (input.viewerParticipation === "VP1") {
+      return { key: "notEnteredOpen", deadlineAt: input.deadlineAt };
+    }
+    if (
+      input.viewerParticipation === "VP2" ||
+      input.viewerParticipation === "VP3" ||
+      input.viewerParticipation === "VP4"
+    ) {
+      return { key: "enteredOpen", deadlineAt: input.deadlineAt };
+    }
+    return null;
+  }
+
+  if (lifecycle === "CL2" || lifecycle === "CL3" || lifecycle === "CL4") {
+    // Degrade gracefully rather than fall back to Locked: a live gameweek whose provisional
+    // standing hasn't produced this viewer's rank yet still shows a live-state row, with the
+    // rank segment itself degraded (HOME_ENTRY_STATUS_COPY.live handles rank === null).
+    if ((input.liveMatchCount ?? 0) > 0 && input.eligibleCount) {
+      return { key: "live", rank: input.viewerRank, total: input.eligibleCount };
+    }
+    return { key: "submittedLocked", deadlineAt: input.deadlineAt };
+  }
+
+  if (lifecycle === "CL5") {
+    if (input.viewerRank == null || !input.eligibleCount || input.viewerNetInr == null) return null;
+    if (input.viewerNetInr > 0) {
+      return { key: "won", rank: input.viewerRank, total: input.eligibleCount, amountInr: input.viewerNetInr };
+    }
+    if (input.viewerNetInr < 0) {
+      return { key: "lost", rank: input.viewerRank, total: input.eligibleCount, amountInr: input.viewerNetInr };
+    }
+    // net === 0: a settled contest where the viewer's stake exactly offset — not in the frame's
+    // eight-state canon. See HOME_ENTRY_STATUS_COPY.brokeEven for the copy judgment call.
+    return { key: "brokeEven", rank: input.viewerRank, total: input.eligibleCount };
+  }
+
+  return null;
+}
+
+export type { EntryStatusKey };

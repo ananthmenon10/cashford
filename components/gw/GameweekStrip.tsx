@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LocalTime } from "@/components/LocalTime";
 import { GW_UI_COPY, LEAGUE_SCREEN_COPY } from "@/lib/gw-copy";
+import { useBottomSheet } from "@/lib/use-bottom-sheet";
 import type { GameweekViewDTO } from "@/lib/gw-view";
 
 type GameweekRow = GameweekViewDTO["adjacentGameweeks"][number];
@@ -49,54 +49,7 @@ export function GameweekStrip({
   gameweek: GameweekViewDTO["gameweek"];
   adjacent: GameweekViewDTO["adjacentGameweeks"];
 }) {
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const dialogRef = useRef<HTMLElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const closeSheet = useCallback(() => setSheetOpen(false), []);
-
-  useEffect(() => {
-    if (!sheetOpen) return;
-    const previousActive = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const dialog = dialogRef.current;
-    const focusable = dialog
-      ? Array.from(dialog.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), [tabindex]:not([tabindex='-1'])"))
-      : [];
-    const initialFocus = dialog?.querySelector<HTMLElement>("button") ?? focusable[0];
-    const frame = window.requestAnimationFrame(() => (initialFocus ?? dialog)?.focus());
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeSheet();
-        return;
-      }
-      if (event.key !== "Tab" || !dialog) return;
-      const controls = Array.from(dialog.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), [tabindex]:not([tabindex='-1'])"));
-      if (!controls.length) {
-        event.preventDefault();
-        dialog.focus();
-        return;
-      }
-      const first = controls[0];
-      const last = controls[controls.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      if (previousActive && document.contains(previousActive)) previousActive.focus();
-      else triggerRef.current?.focus();
-    };
-  }, [closeSheet, sheetOpen]);
+  const { open: sheetOpen, setOpen: setSheetOpen, close: closeSheet, dialogRef, triggerRef } = useBottomSheet();
 
   if (!gameweek) return null;
 
