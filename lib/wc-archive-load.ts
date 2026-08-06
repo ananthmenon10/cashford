@@ -3,7 +3,11 @@ import type { Entry } from "./analytics";
 import { loadDuesView, type DuesView } from "./dues-view";
 import type { LeagueIdentity } from "./gw-view";
 import { loadKnockoutLeaderboards, loadKnockoutView } from "./knockout-data";
-import { buildWcFinalStandings, combinedBalanceLabel, type WcArchiveStanding } from "./wc-archive";
+import { ARCHIVE_COPY } from "./payment-copy";
+import { buildWcFinalStandings, combinedBalanceParts, countSettledFixtures, type WcArchiveStanding } from "./wc-archive";
+
+export type WcArchiveBalance = { prefix: string; amount: string | null; sign: "positive" | "negative" | "zero" };
+export type WcLiveCompetition = { name: string; href: string };
 
 type CashfordClient = SupabaseClient<any, "cashford", any>;
 
@@ -15,15 +19,42 @@ function one<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
+/** Shared across all three archive routes (analytics/matches/bracket) — every route shows the
+ * same "Open <live competition> →" exit link when the league has an active PL competition. */
+async function loadLiveCompetition(admin: CashfordClient, leagueId: string, slug: string) {
+  const pl = await admin
+    .from("competitions")
+    .select("id, name, status")
+    .eq("slug", "pl-2026-27")
+    .maybeSingle();
+  fail(pl.error, "wc-archive-pl-competition");
+  const plParticipation = pl.data
+    ? await admin
+        .from("league_competitions")
+        .select("competition_id")
+        .eq("league_id", leagueId)
+        .eq("competition_id", pl.data.id)
+        .maybeSingle()
+    : { data: null, error: null };
+  fail(plParticipation.error, "wc-archive-pl-participation");
+  const liveCompetition: WcLiveCompetition | null =
+    pl.data?.status === "active" && plParticipation.data
+      ? { name: pl.data.name ?? ARCHIVE_COPY.plReturn, href: `/leagues/${slug}` }
+      : null;
+  return { pl, plParticipation, liveCompetition };
+}
+
 export type WcArchivePageLoad = {
   dues: DuesView;
   standings: WcArchiveStanding[];
   mine: WcArchiveStanding | null;
-  pl: { id: string; status: string } | null;
+  pl: { id: string; name: string; status: string } | null;
   plParticipation: { competition_id: string } | null;
   leagueConfig: { default_stake_inr: number } | null;
   nextPl: { number: number; deadline_at: string } | null;
-  balance: string | undefined;
+  balance: WcArchiveBalance | undefined;
+  matchesSettled: number;
+  liveCompetition: WcLiveCompetition | null;
 };
 
 /** The server-side read path used by app/leagues/[slug]/archive/wc2026/page.tsx. */
@@ -75,11 +106,14 @@ export async function loadWcArchivePage(
 
   const net = new Map<string, number>();
   const resultByKey = new Map<string, number>();
+  const resultFixtureIds: string[] = [];
   for (const row of (resultQ.data ?? []) as any[]) {
     const contest = one<any>(row.contests);
     net.set(row.user_id, (net.get(row.user_id) ?? 0) + Number(row.net_inr ?? 0));
     resultByKey.set(`${contest.id}:${row.user_id}`, Number(row.net_inr ?? 0));
+    if (contest?.fixture_id) resultFixtureIds.push(contest.fixture_id);
   }
+  const matchesSettled = countSettledFixtures(resultFixtureIds);
 
   const predictions = await admin
     .from("predictions")
@@ -124,21 +158,11 @@ export async function loadWcArchivePage(
     unavailableUserIds: [...unavailableUserIds],
   });
 
-  const pl = await admin
-    .from("competitions")
-    .select("id, status")
-    .eq("slug", "pl-2026-27")
-    .maybeSingle();
-  fail(pl.error, "wc-archive-pl-competition");
-  const plParticipation = pl.data
-    ? await admin
-        .from("league_competitions")
-        .select("competition_id")
-        .eq("league_id", identity.league.id)
-        .eq("competition_id", pl.data.id)
-        .maybeSingle()
-    : { data: null, error: null };
-  fail(plParticipation.error, "wc-archive-pl-participation");
+  const { pl, plParticipation, liveCompetition } = await loadLiveCompetition(
+    admin,
+    identity.league.id,
+    identity.league.slug,
+  );
   const leagueConfig = await admin
     .from("leagues")
     .select("default_stake_inr")
@@ -161,7 +185,7 @@ export async function loadWcArchivePage(
   const mine = standings.find((row) => row.userId === userId) ?? null;
   const balance =
     dues.ledger.status === "clean"
-      ? combinedBalanceLabel(dues.ledger.netByUser[userId] ?? 0)
+      ? combinedBalanceParts(dues.ledger.netByUser[userId] ?? 0)
       : undefined;
   return {
     dues,
@@ -172,6 +196,8 @@ export async function loadWcArchivePage(
     leagueConfig: leagueConfig.data,
     nextPl: nextPl.data,
     balance,
+    matchesSettled,
+    liveCompetition,
   };
 }
 
@@ -184,17 +210,19 @@ export type WcArchiveMatchRow = {
 
 export type WcArchiveMatchesPageLoad = {
   dues: DuesView;
-  balance: string | undefined;
+  balance: WcArchiveBalance | undefined;
   rows: WcArchiveMatchRow[];
   predictions: Map<string, any>;
   results: Map<string, number>;
+  liveCompetition: WcLiveCompetition | null;
 };
 
 export type WcArchiveBracketPageLoad = {
   dues: DuesView;
   view: Awaited<ReturnType<typeof loadKnockoutView>>;
   boards: Awaited<ReturnType<typeof loadKnockoutLeaderboards>>;
-  balance: string | undefined;
+  balance: WcArchiveBalance | undefined;
+  liveCompetition: WcLiveCompetition | null;
 };
 
 /** The server-side read path used by the archive bracket page. */
@@ -209,9 +237,10 @@ export async function loadWcArchiveBracketPage(
   const boards = await loadKnockoutLeaderboards(session as any, userId, view.results);
   const balance =
     dues.ledger.status === "clean"
-      ? combinedBalanceLabel(dues.ledger.netByUser[userId] ?? 0)
+      ? combinedBalanceParts(dues.ledger.netByUser[userId] ?? 0)
       : undefined;
-  return { dues, view, boards, balance };
+  const { liveCompetition } = await loadLiveCompetition(admin, identity.league.id, identity.league.slug);
+  return { dues, view, boards, balance, liveCompetition };
 }
 
 /** The server-side read path used by the archive matches page. */
@@ -268,7 +297,8 @@ export async function loadWcArchiveMatchesPage(
   ) as WcArchiveMatchRow[];
   const balance =
     dues.ledger.status === "clean"
-      ? combinedBalanceLabel(dues.ledger.netByUser[userId] ?? 0)
+      ? combinedBalanceParts(dues.ledger.netByUser[userId] ?? 0)
       : undefined;
-  return { dues, balance, rows, predictions, results };
+  const { liveCompetition } = await loadLiveCompetition(admin, identity.league.id, identity.league.slug);
+  return { dues, balance, rows, predictions, results, liveCompetition };
 }

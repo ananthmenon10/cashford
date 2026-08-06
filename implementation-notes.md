@@ -1,5 +1,103 @@
 # Phase 1 foundation — implementation notes
 
+## Step 7A
+
+Two items: rebuild the archive top bar to match "variant C" from
+`docs/design/throwaway/archive-topbar-variants-CD.html`, and fix the ₹ sign bug on the archive
+final standings / recap screens (negative money rendered as `₹-N` with an ASCII hyphen instead of
+the app-wide `−₹N` with U+2212).
+
+**Top bar (`components/archive/ArchiveShell.tsx`).** Header trimmed to identity only (back link,
+league title, avatar) — the three-tab nav stays below it unchanged. Below the tabs, one anchored
+amber banner (`ARCHIVE` mark + lock glyph, `ARCHIVED` state chip, "World Cup 2026", the freeze
+note, and a conditional "Open Premier League 2026-27 →" exit link). Below the banner: an owed
+line (prefix + bold green-mono amount, "league balance" context) and an "Archive snapshot" card
+(Matches settled / Your finish / Your net).
+
+- New copy in `ARCHIVE_COPY` (`lib/payment-copy.ts`): `archiveMark`, `leagueBalance`,
+  `snapshotTitle`, `matchesSettled`, `yourFinish`, `yourNet`, `openLive(name)` (returns
+  `{label, arrow}` so the arrow renders in its own right-pinned mono span, not baked into a
+  string), `archiveBannerLabel(competition)` (the banner's aria-label, needed to keep the
+  copy-scan test happy — see Deviations).
+- `matchesSettled` is new in `lib/wc-archive-load.ts`'s `WcArchivePageLoad` — counted via
+  `countSettledFixtures` (new pure helper in `lib/wc-archive.ts`), keyed on `contests.fixture_id`
+  (already selected), not `contests.id` (never selected — see Deviations).
+- The owed line's amount now renders bold via `combinedBalanceParts` (new in `lib/wc-archive.ts`),
+  which returns `{prefix, amount}` instead of one assembled sentence. All three archive loaders
+  (`WcArchivePageLoad`, `WcArchiveMatchesPageLoad`, `WcArchiveBracketPageLoad`) now type `balance`
+  as that parts object; the matches/bracket pages forward it unchanged.
+- `snapshot` and `liveCompetition` are new optional `ArchiveShell` props. The analytics page
+  (`app/leagues/[slug]/archive/wc2026/page.tsx`) is the only one that passes them for now —
+  matches/bracket keep their existing body content, only the shared header/banner changed under
+  them.
+
+**₹ sign fix.** New `wcNetLabel`/`wcNetLine` in `lib/wc-archive.ts` (U+2212 minus, not an ASCII
+hyphen, for negative amounts — the app-wide convention). `WcFinalStandings.tsx`'s net column and
+`WcRecap.tsx`'s net line both switched to it. Unit tests in `lib/wc-archive.test.ts` pin the
+minus-sign behaviour plus `countSettledFixtures`'s regression case (rows keyed on an undefined
+column collapsing to one bucket).
+
+### Review fixes folded in
+- `matchesSettled` counts distinct `fixture_id`, not `contests.id` — the select never fetches
+  `id`, so counting on it would always collapse to a `Set{undefined}` of size 1 (or 0). Pinned by
+  a regression test in `lib/wc-archive.test.ts` (`countSettledFixtures`).
+- `WcRecap.tsx` also had the ₹ sign bug (same ASCII-hyphen issue as standings) — fixed with the
+  same `wcNetLine` helper, covered by the same test file.
+- Banner typography matched to the frame exactly: season name 20px / -.035em tracking; banner-copy
+  margins 7px top / 14px bottom (arbitrary-value Tailwind classes where the frame's px value isn't
+  on the default spacing scale).
+- Exit-link arrow renders in its own right-pinned mono span via `ARCHIVE_COPY.openLive`'s
+  `{label, arrow}` shape, not parsed out of an assembled string.
+- Owed-line amount bolds in green mono via `combinedBalanceParts`'s split `{prefix, amount}`,
+  not parsed back out of `combinedBalanceLabel`'s sentence.
+
+### Deviations
+- Dropped `CompetitionSheet` from the archive header. The pre-7A `ArchiveShell` fetched the
+  league's competition sheet and rendered `<CompetitionSheet>` next to the avatar; variant C's
+  header has no such control. Read-only archive screens don't need a competition switcher in the
+  header — the top bar's own "Open Premier League 2026-27 →" link already covers the one
+  navigation case that matters here.
+- Didn't split the "Read-only. These are the screens and rules as they applied in 2026." sentence
+  into parts — it's one `ARCHIVE_COPY.notice` string, same as before. Nothing in variant C treats
+  it as anything but a plain paragraph.
+- The "Archive snapshot" card is presentation-only analytics (matches settled / finish / net) — it
+  doesn't gate or unlock anything, so no new access-control logic was needed.
+- Left `resultByKey`'s `contests.id`-keyed lookup, the `freeze("final settlement")` placeholder,
+  late-member card suppression, and the inline `"—"` literals untouched — all deliberately queued
+  for step 7B (`docs/plans/2026-08-06-010-archive-gaps-for-15.md`).
+
+### Round-3 review fixes (2 blocking + 9 nits)
+- **B1 — exit link missing on matches/bracket routes.** `liveCompetition` was only wired into the
+  analytics loader. Moved the computation into a shared `loadLiveCompetition(admin, leagueId,
+  slug)` helper in `lib/wc-archive-load.ts`, called by all three loaders
+  (`loadWcArchivePage`/`loadWcArchiveMatchesPage`/`loadWcArchiveBracketPage`); each now returns a
+  `liveCompetition` field, and `matches/page.tsx` / `bracket/page.tsx` pass it to `<ArchiveShell>`
+  (previously they didn't pass the prop at all).
+- **B2 — owed-line amount hardcoded green.** `combinedBalanceParts` now returns a third `sign:
+  "positive" | "negative" | "zero"` field; `ArchiveShell.tsx` derives the color from it via a
+  small `signClass()` helper, matching `SeasonTable.tsx`'s green/red/ink convention. Applied the
+  same helper to the snapshot net figure, which previously only ever went green (never red).
+- Nit 1: "Your finish" now renders via `ordinalCopy()` ("3rd") instead of `#3`.
+- Nit 2: snapshot net now renders via `moneyCopy()` instead of an inlined +₹/−₹/₹0 ternary.
+- Nit 3: added `C31Prefix`/`C32Prefix` plain-string exports to `lib/gw-copy.ts`; `C31`/`C32` are
+  now built from them, and `combinedBalanceParts` imports the same constants instead of duplicating
+  "You owe "/"You're owed " as inline literals.
+- Nit 4: deleted `combinedBalanceLabel` (confirmed unused outside its own definition).
+- Nit 5: `rounded-full` → `rounded-pill` (state chip), `rounded-[10px]` → `rounded-cs2-sm`
+  (exit-link action).
+- Nit 6: dropped the owed line's `mx-1` so it sits flush with the banner inset.
+- Nit 7: league title is now `<h1>` (was `<h2>`); the "Archive snapshot" heading stayed `<h2>`
+  under it — no other `<h1>` exists on these pages.
+- Nit 8: `pl` select in `wc-archive-load.ts` now fetches `name`; `loadLiveCompetition` uses
+  `pl.data.name`, falling back to `ARCHIVE_COPY.plReturn` only if the column is null.
+- Nit 9: `resultFixtureIds` is now a plain `string[]` (only truthy fixture ids pushed); trimmed
+  `countSettledFixtures`'s signature to match. Regression test in `lib/wc-archive.test.ts` updated
+  to the new plain-array shape (same collapse-to-undefined case still covered).
+
+`bash scripts/verify-all.sh` → `ALL GREEN (typecheck · vitest · build · smoke)` after all of the
+above. No settlement/scoring files touched; no commits made.
+
+
 Built from `docs/plans/2026-07-27-003-phase1-foundation-plan.md` on branch `feat/p1-foundation`.
 Nothing here is applied to the production database — the migration is written and syntax-checked
 only. `lib/settlement.ts` is untouched.
@@ -1844,3 +1942,25 @@ formats through `formatFriendlyDate` ("Collapse Mon 10 Aug"), matching the visib
 QC seed: `competition_standings` gained a `source='derived'` snapshot for zzp1-mock-pl (10 mock
 clubs, mixed GD signs) so the ZZ table view has data. Left in place — it only affects the test
 competition.
+
+## Incident — 2026-08-06: Air agent mirror wiped the MBP working tree
+
+At ~19:03 IST the MacBook Air session ran `rsync -az --delete` (including `.git`) from the Air
+onto this machine, believing this checkout was a stale snapshot. It was the live build tree,
+mid-step-7A. Losses: the local git history and feature/cashford-2 branch (all pushed commits
+were safe on origin/main), the entire uncommitted 7A diff, the untracked ops scripts
+(verify-all.sh, set-test-passwords.mjs, scripts/smoke/*), and the CASHFORD_TEST_PASSWORD line
+in .env.local. The one gain: the Air's commit carried docs/plans/2026-08-06-010-archive-gaps-for-15.md
+(the #15 gap list), which unblocked step 7B.
+
+Recovery (same evening): main rebased onto origin/main so the gap-doc commit sits on top of the
+15 build commits (39d143a, pushed); feature/cashford-2 recreated there; verify-all.sh and
+set-test-passwords.mjs restored verbatim from session transcripts; route-smoke.mjs +
+ts-resolve-loader.mjs rebuilt by replaying 26 Codex apply_patch payloads from ~/.codex/sessions
+(one hunk failed to replay — repair delegated to the 7A builder); 7A re-applied by the builder
+from its own transcript with the Opus review fixes folded in. Ananth re-adds the test password
+by hand.
+
+Rule going forward: no machine-to-machine mirror syncs of this repo while a build session is
+active anywhere. Move state through git (push/pull) only; untracked ops scripts get copied
+explicitly, never via --delete mirrors.

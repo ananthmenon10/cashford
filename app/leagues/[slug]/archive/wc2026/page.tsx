@@ -12,7 +12,8 @@ import { CaptainAdoptionSheet } from "@/components/gw/CaptainAdoptionSheet";
 
 export default async function WcArchivePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params; const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) notFound(); const identity = await loadLeagueIdentity(supabase, slug); if (!identity) notFound(); const loaded = await loadWcArchivePage(supabase, createServiceRoleClient(), identity, user.id);
-  const { dues, standings, mine, pl, plParticipation, leagueConfig, nextPl, balance } = loaded;
+  const { dues, standings, mine, pl, plParticipation, leagueConfig, nextPl, balance, matchesSettled, liveCompetition } = loaded;
   const isCaptain = identity.league.createdBy === user.id;
-  return <ArchiveShell slug={slug} leagueName={identity.league.name} viewerName={dues.viewerName} balance={balance} active="analytics"><p className="mt-4 text-[12px] text-muted">{ARCHIVE_COPY.freeze("final settlement")}</p><WcFinalStandings rows={standings} /><WcRecap row={mine} /><WcRules />{pl?.status === "active" && !plParticipation && isCaptain ? <CaptainAdoptionSheet slug={slug} leagueId={identity.league.id} anteInr={Number(leagueConfig?.default_stake_inr ?? 500)} gameweekNumber={nextPl?.number ?? null} deadlineAt={nextPl?.deadline_at ?? null} /> : null}</ArchiveShell>;
+  const snapshot = { matchesSettled, finish: mine?.finish ?? null, netInr: mine?.netInr ?? null };
+  return <ArchiveShell slug={slug} leagueName={identity.league.name} viewerName={dues.viewerName} balance={balance} active="analytics" snapshot={snapshot} liveCompetition={liveCompetition}><p className="mt-4 text-[12px] text-muted">{ARCHIVE_COPY.freeze("final settlement")}</p><WcFinalStandings rows={standings} /><WcRecap row={mine} /><WcRules />{pl?.status === "active" && !plParticipation && isCaptain ? <CaptainAdoptionSheet slug={slug} leagueId={identity.league.id} anteInr={Number(leagueConfig?.default_stake_inr ?? 500)} gameweekNumber={nextPl?.number ?? null} deadlineAt={nextPl?.deadline_at ?? null} /> : null}</ArchiveShell>;
 }

@@ -28,8 +28,8 @@ export default async function WcArchiveMatchesPage({ params }: { params: Promise
   const identity = await loadLeagueIdentity(supabase, slug);
   if (!identity) notFound();
   const loaded = await loadWcArchiveMatchesPage(supabase, createServiceRoleClient(), identity, user.id);
-  const { dues, balance, rows, predictions, results } = loaded;
-  return <ArchiveShell slug={slug} leagueName={identity.league.name} viewerName={dues.viewerName} balance={balance} active="matches"><p className="mt-4 text-[12px] text-muted">{ARCHIVE_COPY.matchesNotice}</p><div className="mt-4 flex flex-col gap-2">{rows.map((row: any) => {
+  const { dues, balance, rows, predictions, results, liveCompetition } = loaded;
+  return <ArchiveShell slug={slug} leagueName={identity.league.name} viewerName={dues.viewerName} balance={balance} active="matches" liveCompetition={liveCompetition}><p className="mt-4 text-[12px] text-muted">{ARCHIVE_COPY.matchesNotice}</p><div className="mt-4 flex flex-col gap-2">{rows.map((row: any) => {
     const fixture = one<any>(row.fixtures);
     const pick = predictions.get(row.id);
     const net = results.has(row.id) ? results.get(row.id)! : null;

@@ -280,8 +280,10 @@ export const C30 = (number: number, deadline: string) =>
   `${gameweekName(number)} open · deadline ${deadline}`;
 export const C30Prefix = (number: number) =>
   `${gameweekName(number)} open · deadline`;
-export const C31 = (amountInr: number) => `You owe ₹${Math.abs(amountInr).toLocaleString("en-IN")}`;
-export const C32 = (amountInr: number) => `You’re owed ₹${Math.abs(amountInr).toLocaleString("en-IN")}`;
+export const C31Prefix = "You owe ";
+export const C32Prefix = "You’re owed ";
+export const C31 = (amountInr: number) => `${C31Prefix}₹${Math.abs(amountInr).toLocaleString("en-IN")}`;
+export const C32 = (amountInr: number) => `${C32Prefix}₹${Math.abs(amountInr).toLocaleString("en-IN")}`;
 export const C33 = "Settled up";
 export const C34 = "Which competition?";
 export const C35 = "Ante per gameweek";

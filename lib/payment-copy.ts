@@ -80,6 +80,14 @@ export const ARCHIVE_COPY = {
   staleTable: (time: string) => `Last updated ${time}. A newer table is on the way.`,
   bracketReadOnly: "World Cup 2026 is archived. Bracket picks are read-only.",
   rulesList: ["Per-match stakes", "Correct predictors split the incorrect predictors’ stakes.", "Each match locked at kickoff.", "Closest-score rules broke an otherwise tied field."],
+  archiveMark: "ARCHIVE",
+  leagueBalance: "league balance",
+  snapshotTitle: "Archive snapshot",
+  matchesSettled: "Matches settled",
+  yourFinish: "Your finish",
+  yourNet: "Your net",
+  openLive: (name: string) => ({ label: `Open ${name}`, arrow: "→" }),
+  archiveBannerLabel: (competition: string) => `${competition} archive`,
 } as const;
 
 export const TRANSITION_COPY = {
