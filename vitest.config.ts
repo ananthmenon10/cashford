@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL(".", import.meta.url)),
+      "server-only": fileURLToPath(new URL("./tests/shims/server-only.ts", import.meta.url)),
     },
   },
   test: {
@@ -18,6 +19,7 @@ export default defineConfig({
       ["tests/phase3/entry-sheet.test.tsx", "jsdom"],
       ["tests/phase3/state-header-copy.test.tsx", "jsdom"],
       ["tests/phase4/matches-page.test.tsx", "jsdom"],
+      ["tests/phase5/wc-archive-components.test.tsx", "jsdom"],
     ],
   },
 });

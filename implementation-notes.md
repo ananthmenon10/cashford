@@ -1964,3 +1964,350 @@ by hand.
 Rule going forward: no machine-to-machine mirror syncs of this repo while a build session is
 active anywhere. Move state through git (push/pull) only; untracked ops scripts get copied
 explicitly, never via --delete mirrors.
+
+## Step 7B
+
+Built the 8 ranked archive-journey gaps + 3 reviewer flags from
+`docs/plans/2026-08-06-010-archive-gaps-for-15.md`. All 8 items done; none of the escape hatch
+(structurally-bigger-than-described) invoked.
+
+1. **Adoption entry point.** `LeagueCard`/home hub: `HomeLeagueCardInput.showAdopt` (new optional
+   flag) drives a second "Adopt Premier League" bottom action next to "Open archive" — computed
+   in `loadHomeLeagueCards` via `resolveWcTransition(...) === "captain_adopt"`. Archive analytics
+   page (`app/leagues/[slug]/archive/wc2026/page.tsx`) renders `CaptainAdoptionSheet` on the same
+   condition. Non-captains now see `TRANSITION_COPY.memberHeading`/`memberBody` instead of
+   nothing. Manage page gets a "Premier League" section, same gate.
+2. **`transitionState()` wired for real.** Added `resolveWcTransition()` (in the new
+   `lib/wc-live-competition.ts`, see Deviations) as the production call site — replaces the
+   inline `pl?.status === "active" && !plParticipation && isCaptain` check the archive page used
+   to reimplement. The adopt API route (`app/api/leagues/[slug]/adopt/route.ts`) now maps RPC
+   error messages to `TRANSITION_COPY` strings instead of forwarding raw Postgres text.
+3. **Late joiners (AC8/AC9/AC10).** `isLateMember(joinedAt, freezeAt)` (pure helper,
+   `lib/wc-archive.ts`) excludes members who joined after the WC's last settlement from the
+   ranked standings; they get a separate "not in this one" row (`ARCHIVE_COPY.lateMember`)
+   instead of a fabricated 0-correct/0-exact line. Bracket page (AC10) now hides the knockout
+   circle behind the same "not in this one" gate when the league itself never reached the
+   bracket. Recap card (AC9) shows the same note for the viewer when they're the late one.
+4. **Partial results scope.** `buildWcFinalStandings`/`WcFinalStandings`/`WcRecap`: an
+   `unavailable` result (fixture without a final score yet) blanks Net only (`wcNetLabel`/
+   `wcNetLine`'s existing null path, "—"/"Net —") — Correct/Exact counts still render.
+5. **Freeze line.** `ARCHIVE_COPY.freeze(freezeDate)` uses the real latest `contests.settled_at`
+   for the league (computed while building standings), falling back to
+   `PHASE5_UI_COPY.finalSettlement` only when nothing has settled yet.
+6. **Un-hard-coded `pl-2026-27`.** `loadLiveCompetition()` resolves the live competition by
+   `format = 'league' AND status = 'active'` (same predicate the `adopt_league_competition` RPC
+   already enforces) instead of a slug literal. One shared helper, four call sites: the three
+   archive page loaders, the adopt route, the manage page, and `gw-home.ts`'s home-card gate.
+7. **Gap-7 (adoption stake-mismatch), report-only.** Documented in
+   `docs/design/throwaway/7b-gap7-proposed-migration.sql` — `adopt_league_competition`'s
+   re-adopt branch (`found and v_lc.status = 'active'`) is missing a check that the new
+   `p_ante_inr` matches the existing `v_lc.adopted_stake_inr`, so a captain can silently change
+   the league's stake by re-running adoption with a different amount after the RPC already
+   returned "already active" once. Proposed fix included as a commented-out replacement
+   function. **Never applied** — no migration ran against any database, per the task's hard
+   constraint.
+8. **Test coverage.** `lib/wc-archive.test.ts` gained `isLateMember` (4 tests) and
+   `buildWcFinalStandings` (3 tests: ranking/tiebreak order, `isPastMember` passthrough,
+   partial-results `entriesCount`/null-net). `lib/wc-archive-load.test.ts` (new) covers
+   `resolveWcTransition` across all 6 transition outcomes. `tests/phase5/wc-archive-components.
+   test.tsx` (new, jsdom) covers `WcFinalStandings`/`WcRecap` rendering: Net-only blanking,
+   past-member label, late-joiner rows, AC8/AC9 recap notes. `tests/phase3/payment-copy.test.ts`
+   (new) extends copy-scan-style governance (banned words, no "!", typographic apostrophe, real
+   minus sign) to every string `lib/payment-copy.ts` exports or generates — the AST copy-scan
+   never reached this file (it only walks `app/`/`components/`), so this is a dedicated test file
+   mirroring `tests/phase3/gw-copy.test.ts`'s pattern, not an edit to the AST scan's exemption
+   list.
+
+**3 reviewer flags:**
+- AC11 (CompetitionSheet needs a read-only/dues-carry-across note): added
+  `ARCHIVE_COPY.switcherNote` (already existed, unused) as a footer line in
+  `components/gw/CompetitionSheet.tsx`.
+- resultByKey trap (contest_results keyed on unselected `contests.id`): **correction (dual-review
+  fix round, must-fix #10) — this claim was wrong.** `git diff 4b80b1e -- lib/wc-archive-load.ts`
+  shows the `contests!inner(id, league_id, fixture_id, settled_at, fixtures!inner(...))` select
+  line as an ADDED line in THIS diff, not pre-existing — this Step 7B change is what added the
+  `id` column, fixing a real dormant bug rather than confirming one was already fixed. The
+  regression test cited above (`countSettledFixtures`'s "does not collapse to 1" case) only
+  guards the pure helper, not the loader's select/key pairing itself — it would not catch a
+  regression where the select stopped fetching `contests.id` again. No loader-level test was
+  added for that in this round either: `loadWcArchivePage` depends on `loadDuesView` and
+  `loadLeagueIdentity`, both of which need a real or extensively mocked Supabase client, and
+  the function doesn't return per-entry `net` values (only the top-level per-user `net` map,
+  which isn't affected by this specific key bug) — so there's no return-value assertion that
+  would actually catch a regression here without a much heavier client-mocking investment.
+  Logged explicitly rather than skipped silently, per the fail-loud rule.
+- Departed members: `PHASE5_UI_COPY.pastMember` now actually renders in `WcFinalStandings` next
+  to a departed member's name (previously defined but never used).
+
+### Deviations
+
+- **`showAdopt` as a single boolean, not full transition facts.** `HomeLeagueCardInput` gained
+  one optional `showAdopt?: boolean` field rather than threading `pl`/`hasParticipation`/
+  `otherActiveCompetition` through the whole card-building type. `gw-home.ts` computes it once
+  per card via `resolveWcTransition(...) === "captain_adopt"` before calling
+  `buildHomeLeagueCard`. Smaller surface, and it kept `HomeLeagueCardInput`'s existing test
+  literals (in `lib/gw-home.test.ts`) valid with no other changes.
+- **New file `lib/wc-live-competition.ts`, split out of `lib/wc-archive-load.ts`.** Not in the
+  original plan. `gw-home.ts` needed `loadLiveCompetition`/`resolveWcTransition` for item 1's
+  `showAdopt` gate, but `gw-home.ts`'s pure helpers (`homeCompetitionScopes`, etc.) are imported
+  by `components/gw/HomeHub.tsx`, a client component. `wc-archive-load.ts` also exports
+  `loadKnockoutView`/`loadKnockoutLeaderboards`, which import `./knockout-data`, which imports
+  the `server-only` package — any import from `wc-archive-load.ts` at the top of `gw-home.ts`
+  (even a dynamic `await import(...)` inside an async function; Next's server-only check still
+  traces the module graph, static or dynamic) drags that chain into the client bundle and fails
+  the production build with "You're importing a component that needs server-only". Fix: moved
+  `loadLiveCompetition`/`resolveWcTransition` (which depend only on `payment-copy.ts` and
+  `transition.ts`, neither server-only) into their own file; `wc-archive-load.ts` now imports
+  and re-exports them for its existing call sites, so no other file's imports changed. Caught by
+  `npm run build` (typecheck and vitest alone did not catch it — see next point).
+- **Added a `server-only` → shim alias in `vitest.config.ts`.** Vitest has no bundler-side
+  awareness of the `server-only` package's Next-specific guard; a Node/Vite module resolver
+  fails outright trying to load it (`Failed to load url server-only`), which is a different
+  failure mode than Next's build-time client-boundary check. Added
+  `tests/shims/server-only.ts` (an empty no-op module) aliased in `resolve.alias` so any test
+  that transitively imports `lib/knockout-data.ts` can load. This was already a latent gap before
+  Step 7B — `lib/gw-home.test.ts`, `tests/phase4/matches-tab-load.test.ts`, and
+  `lib/matches-tab-load.fixture-label.test.ts` started failing to load the moment
+  `lib/gw-home.ts` gained any import reaching `knockout-data.ts` (they don't import
+  `knockout-data.ts` directly; `matches-tab-load.ts` imports `homeCompetitionScopes` from
+  `gw-home.ts`). Vitest's failure and Next's build failure are two independent problems with the
+  same root cause (item 1's new import); both needed fixing, and fixing the build issue (moving
+  the import) made the vitest shim mostly moot for `gw-home.ts` itself, but the shim stays since
+  it's a correct, low-risk fix for any future test that reaches `server-only` through a real
+  server-side path (e.g. the new `lib/wc-archive-load.test.ts`, which does still import
+  `wc-archive-load.ts`'s knockout-data-dependent exports).
+- **`mapAdoptError`'s fallback.** The adopt route maps two known RPC error substrings
+  ("already archived", "is already active for this league") to specific `TRANSITION_COPY`
+  strings; any other RPC error (including "unknown competition") falls back to
+  `TRANSITION_COPY.preparing`. Conservative choice — no raw Postgres text ever reaches the
+  client, and "preparing" is the least-wrong generic message for an adoption that didn't
+  resolve to a known state.
+- **Freeze-line fallback.** `ARCHIVE_COPY.freeze()` takes `freezeDate ?? PHASE5_UI_COPY.
+  finalSettlement` — a league with zero settled WC fixtures has no real freeze date to show; the
+  existing placeholder copy covers that case rather than inventing a new string.
+- T-U41/T-U43 (explicitly skippable "unless trivially quick" per the brief): not addressed —
+  skipped, not attempted. Noting here per the task's fail-loud requirement rather than leaving
+  this silent.
+
+Verification: `bash scripts/verify-all.sh` → `ALL GREEN (typecheck · vitest · build · smoke)`
+(857 vitest tests passing, `next build` clean, route smoke pass green on all real leagues,
+read-only). No commits made; no migrations applied; no browser QC performed (per task
+constraints — orchestrator's job).
+
+## Step 7B → "Dual-review fixes"
+
+Dual review came back reviewer-1 RED / reviewer-2 GREEN-WITH-NITS. One consolidated fix round,
+same tree, no commits. Every blocker and must-fix item below, in the order team-lead listed them.
+
+### Blocker 1 — wrong competition bound on real leagues
+
+**Schema check (part b's prerequisite):** inspected `cashford.competitions` via the read-only
+Management API path — columns are `id, slug, name, format, season, espn_slug, fpl_source,
+status, created_at`. No existing discriminator column. Wrote (did **not** apply)
+`supabase/migrations/20260806000001_competitions_current_season.sql`:
+`alter table cashford.competitions add column if not exists is_current_season boolean not null
+default false;` + `update … set is_current_season = true where slug = 'pl-2026-27';`.
+
+**Part (a) — league-scoped resolution wherever the league has a participation.**
+`lib/wc-live-competition.ts`'s `loadLiveCompetition` now resolves the league's own
+`league_competitions` row for the current-season competition first (`.eq("league_id",
+leagueId).eq("competition_id", current.id)`), any status — never by which competition is
+globally newest. Confirmed this fixes the real reproduction: league `c4e6c342-...` has an
+`archived` `league_competitions` row for `pl-2026-27` and an `active` one for `zzp1-mock-pl`
+simultaneously — the old code read this league as `hasParticipation: false` for `pl-2026-27`
+(global-newest picked the mock) and could have offered `captain_adopt` on the real competition
+underneath an already-adopted mock; the new code reads `participationStatus: "archived"` for
+this league's own pl-2026-27 row directly, mapping to `"archived"` (see Blocker 2).
+
+**Part (b) — the adopt target when the league has no participation.** Added
+`resolveCurrentSeasonCompetition(admin)` — queries active league-format competitions with
+`is_current_season`, resolves via the new pure `pickCurrentSeasonCompetition()` (flag wins,
+no ordering fallback). Degrades to `null` (no CTA) if the column doesn't exist yet — see
+Deviations. Pinned in `lib/wc-archive-load.test.ts`: two active league-format competitions,
+the flagged one wins regardless of creation order; with no flag set, nothing is offered.
+
+### Blocker 2 — participation status and adopted:false handling
+
+- `loadLiveCompetition` now returns `participationStatus: "active" | "archived" | "none"`.
+  `resolveWcTransition` short-circuits: `participationStatus === "archived"` → `"archived"`,
+  checked before the general transition matrix — so an archived participation for a
+  still-globally-active competition can never read as `captain_adopt`. Pinned with a new test
+  case in `wc-archive-load.test.ts`.
+- The adopt route (`app/api/leagues/[slug]/adopt/route.ts`) now inspects the RPC's returned
+  `adopted` boolean. `adopted: false` (an idempotent no-op replay, or a race where someone else's
+  adoption landed first) returns **409** with `TRANSITION_COPY.alreadyAdopted`, not a 200 — a
+  stale page can no longer read a no-op as "your ante took effect".
+  `components/gw/CaptainAdoptionSheet.tsx` shows that message and does not redirect on any
+  non-2xx response.
+
+### Blocker 3 — gap-7 doc rewritten
+
+`docs/design/throwaway/7b-gap7-proposed-migration.sql` fully rewritten. It previously documented
+the re-adopt-with-a-different-ante branch as "gap 7" — that finding is real but secondary, kept
+and correctly relabeled. The actual gap 7 is the fresh-adoption `gameweek_contests` reselect
+(migration `20260731000002`, ~lines 401-402): `on conflict on constraint
+gameweek_contests_league_id_gameweek_id_key do nothing` followed by an unchecked reselect keyed
+only on `(league_id, gameweek_id)` — a pre-existing row for that pair (different competition/
+stake/deadline) would be silently reported as this adoption's pot with `adopted: true`. Fix:
+assert the reselected row's `(competition_id, stake_inr, deadline_at)` match before returning
+success, raising the existing `'adoption idempotency facts changed'` exception text (reused, not
+a new string). Doc now includes the COMPLETE current function body, the COMPLETE proposed
+replacement (both fixes applied), a note that `create or replace function` preserves grants, and
+the `mapAdoptError` prerequisite (this round added the `TRANSITION_COPY.idempotencyMismatch`
+mapping both new raise branches rely on). Still not applied.
+
+### Must-fix items
+
+1. `app/leagues/[slug]/archive/wc2026/bracket/page.tsx` — split the `view.locked` gate.
+   `KnockoutLeaderboard` now renders unconditionally (league-wide); only `KnockoutCircle` (the
+   viewer's own bracket) stays gated on `view.locked`. The prior implementation-notes claim
+   describing this as correct is superseded by this fix — see the resultByKey correction above
+   for the parallel must-fix #10 correction in the same spirit.
+2. `mapAdoptError` (adopt route) rewritten with distinct copy per failure class: the "already
+   active" and "already archived" messages now regex-extract the competition name FROM the RPC's
+   own message text (`% is already active for this league` / `This league already archived %`)
+   instead of always substituting the adopt target's name — the two can differ (a captain
+   adopted a mock; the target is the real Premier League). Added
+   `TRANSITION_COPY.idempotencyMismatch`, `.invalidAnte`, `.adoptionFailed` as distinct strings;
+   removed the old unreachable duplicate branch that mapped everything else to `.preparing`.
+   `.preparing` now renders only for the genuinely-not-active-yet cases (`"competition is not
+   active"` / `"unknown competition"`).
+3. `CaptainAdoptionSheet`: added `inFlight` state, disables the CTA and shows "Starting…" while a
+   request is outstanding. `clientRequestId` regenerates (via a `useEffect` watching `ante`)
+   whenever the ante value changes, so an edited resubmit is a fresh request, not a
+   idempotency-mismatched replay of the first one.
+4. The sheet now takes and sends a `competitionSlug` prop; the adopt route validates it against
+   its own `resolveCurrentSeasonCompetition` resolution and returns 409 +
+   `TRANSITION_COPY.competitionMismatch` on any mismatch (a stale page resolved a different
+   competition than the route just did).
+5. `lib/wc-archive.ts`'s `isLateMember` now takes a third `entriesCount` argument and returns
+   `false` whenever `entriesCount > 0` — a member who joined after the freeze point but still has
+   entries (they played, even if unsettled) stays ranked. `loadWcArchivePage` passes
+   `(entriesByUser.get(userId) ?? []).length`; the computation already ran after `entriesByUser`
+   was built, so no reordering was needed, just the extra argument. New test case added in
+   `wc-archive.test.ts`.
+6. Added `ARCHIVE_COPY.freezeUnset = "Nothing has settled yet."` — a distinct full sentence, not
+   the old `freeze(finalSettlement)` template with a substituted noun (which rendered as "Frozen
+   at the final settlement on final settlement."). `wc2026/page.tsx` now branches on
+   `freezeDate` directly instead of defaulting it before formatting.
+7. Blocked-state copy in `wc2026/page.tsx` now uses `otherActiveCompetitionName` (returned by
+   `loadLiveCompetition`, sourced from the actual OTHER active `league_competitions` row's
+   competition name) instead of `pl.name` (the adopt target). `archivedTarget`'s use of `pl.name`
+   was already correct and unchanged — that branch names the target itself, which is exactly
+   what's archived in that case.
+8. Manage page's hardcoded `<h2>Premier League</h2>` replaced with
+   `{TRANSITION_COPY.adoptionHeading(pl.data.name)}` — a new copy-module entry (`(competition:
+   string) => competition`) that renders the resolved competition's real name, not a literal.
+9. `lib/gw-home.ts`'s `loadHomeLeagueCards` now calls `resolveCurrentSeasonCompetition(admin)`
+   once before the `leagues.map(...)` loop and passes the result into every `loadLiveCompetition`
+   call as its new optional 4th parameter — one query per request instead of one per league.
+10. See the resultByKey correction above (moved into the Step 7A section it belongs to, since
+    that's the claim being corrected) — acknowledged this diff added `contests.id`, and logged
+    explicitly why no loader-level regression test was added instead of adding a performative one.
+
+### Deviations
+
+- **Pre-migration degrade path is not just "column exists but nothing flagged" — it's "column
+  doesn't exist at all yet."** Team-lead's framing ("make code degrade safely if the column is
+  all-false") describes the post-migration case. Until the migration is applied, querying
+  `is_current_season` returns a real Postgres `42703` ("column does not exist"). Extended the
+  degrade path in `resolveCurrentSeasonCompetition` to catch `error.code === "42703"` specifically
+  and return `null` — same "nothing to adopt" result as the legitimate post-migration
+  all-false case, never a fallback to the old unsafe ordering.
+- **`scripts/smoke/route-smoke.mjs` patched to allow exactly this one expected error.** The smoke
+  harness treats any Postgres error surfaced through its tracked clients as a hard failure,
+  including ones a loader deliberately queries for and catches without throwing. Since the
+  migration is intentionally not applied yet, every route touching an archived cup league or the
+  home page would trip this until team-lead applies it — 16 route-smoke cases failed before this
+  patch. Added a narrow `isExpectedPreMigrationColumnGap(error)` check
+  (`error.code === "42703" && /is_current_season/.test(error.message)`) that excludes only this
+  exact signature from `recordQueryError`; every other Postgres error still fails the run. This
+  is the one place in this fix round that touches a file outside the original scope list — flagged
+  here rather than silently. Once the migration is applied, this check simply never matches
+  anything again (dead code, safe to remove or leave).
+- **`otherActiveCompetitionName` is `null` (not shown) when nothing else is active.** `wc2026/
+  page.tsx`'s blocked-state paragraph now guards on `otherActiveCompetitionName` truthiness
+  instead of `pl` truthiness — if the transition machine ever reports `"blocked"` without a
+  resolvable other-active name (shouldn't happen given `otherActiveCompetition` and
+  `otherActiveCompetitionName` are computed from the same query), the page silently renders no
+  paragraph rather than a broken one. Conservative default matching the "no CTA rather than
+  wrong CTA" instruction from Blocker 1.
+- **Gap-7 fix and the secondary ante-ignore fix share one exception string.** Both raise
+  `'adoption idempotency facts changed'` rather than inventing separate exception text per
+  branch — same caller-visible failure class ("what you tried doesn't match what's on record"),
+  and it reuses the copy mapping this round already added instead of needing a second one.
+
+Verification: `bash scripts/verify-all.sh` → `ALL GREEN (typecheck · vitest · build · smoke)`
+(861 vitest tests passing — 4 new: 1 `isLateMember` entries-count case, 2
+`pickCurrentSeasonCompetition` pins, 1 `resolveWcTransition` archived-participation-wins pin;
+`next build` clean; all 76 route-smoke cases green, read-only, on all real leagues and the test
+league). No commits made; no migrations applied (the new
+`20260806000001_competitions_current_season.sql` is write-only, awaiting team-lead's re-review
+and Management API apply); no DB writes of any kind; no settlement/scoring logic touched.
+
+## Step 7B → "Dual-review fixes" → micro-round (both reviewers converged)
+
+Six small items, all done, no commits, no migrations applied:
+
+1. **Migration amendments.** Added
+   `create unique index ... on cashford.competitions ((is_current_season)) where is_current_season`
+   so at most one row can ever be flagged, and changed the update to
+   `set is_current_season = (slug = 'pl-2026-27')` (no where-clause) so it unsets every other row
+   in the same statement — reruns after a future season rollover can't leave two flags. Still not
+   applied.
+2. **D1 (archived LEAGUE dead CTA).** `resolveWcTransition` now takes a required `leagueStatus`
+   field and returns `"archived"` when it's `"archived"`, checked before the participation
+   check. All three call sites (`wc-archive-load.ts`'s `loadWcArchivePage`, `manage/page.tsx`,
+   `gw-home.ts`'s adopt-gate) already had the league's status in scope (`identity.league.status`
+   / `league.status`) — no new query needed anywhere. Added
+   `TRANSITION_COPY.leagueArchived` and a backstop branch in `mapAdoptError` for the RPC's own
+   `'league is archived'` raise (confirmed the exact string in
+   `20260731000002_dues_archive_transition.sql:360`), so a stale page that still posts gets a
+   real message instead of the generic fallback.
+3. **adopted:false replay.** Before 409ing on `adopted:false`, the adopt route now checks whether
+   the league already holds an `active` `league_competitions` row for the resolved competition —
+   if so, this is an idempotent replay of a request that already succeeded, and the route returns
+   the same 200 shape the original success path would. Only genuinely-failed/raced requests still
+   get `alreadyAdopted` + 409.
+4. **Zod-reject path.** The route's `safeParse` failure (e.g. an empty ante string, where
+   `Number("") === 0` fails the schema's `min(50)` before reaching the RPC) returned the raw
+   internal string `"invalid adoption"`. Now returns `TRANSITION_COPY.invalidAnte` — the same
+   copy the RPC's own `'invalid ante'` case already uses.
+5. **"Starting…" label.** Moved out of `CaptainAdoptionSheet.tsx`'s JSX into
+   `TRANSITION_COPY.startingLabel` (kept the U+2026 ellipsis character).
+6. **Removed `isExpectedPreMigrationColumnGap`** and its call site from
+   `scripts/smoke/route-smoke.mjs` — team-lead applies the migration before the next smoke run,
+   so the exclusion has nothing left to match; both reviewers required it gone in this same round
+   rather than left dormant.
+
+Ran `npm run typecheck && npx vitest run` only, per team-lead's explicit instruction (full
+`verify-all.sh` would fail smoke until the migration is applied — team-lead applies it, then runs
+`verify-all.sh` themselves). Result: typecheck clean, 862 vitest tests passing (1 new:
+`resolveWcTransition` archived-league-wins pin). No commits, no migrations applied, no DB writes,
+no settlement/scoring logic touched.
+
+## Step 7B → "Dual-review fixes" → QC catch (exit link lost for a league's non-current-season active competition)
+
+Blocker-1's league-scoped resolution fixed the adopt-target bug but broke a different case: the
+archive banner's exit link (`liveCompetition` → "Open X →") derived only from the league's own
+participation in the flagged current-season competition. ZZ-P1's participation in pl-2026-27 is
+archived, but ZZ-P1 has an ACTIVE participation in zzp1-mock-pl — so the exit link disappeared
+entirely instead of pointing at the competition the league is actually playing.
+
+Fix: extracted a pure `pickLiveCompetitionLink(leagueSlug, current, hasOwnCurrentSeasonParticipation,
+otherActive)` in `lib/wc-live-competition.ts`. Own active current-season participation wins (the
+real-league post-adoption case, unchanged); otherwise falls back to whichever OTHER competition
+holds an active `league_competitions` row for this league (the `otherActiveQ` query
+`loadLiveCompetition` already ran for `otherActiveCompetitionName` — extended its select to also
+fetch `competitions.slug` so the fallback link has somewhere to point). The ADOPT-target
+resolution (`pickCurrentSeasonCompetition`/`resolveCurrentSeasonCompetition`, `pl`) is untouched —
+this only changes where the banner's exit link points.
+
+Added `describe("pickLiveCompetitionLink")` to `lib/wc-archive-load.test.ts` (3 tests): own
+active current-season wins, falls back to the other active participation when the current-season
+one isn't active for this league (the ZZ-P1 case, pinned by name), and null when neither is
+active.
+
+`npm run typecheck && npx vitest run && npm run build` (smoke skipped per team-lead — they run
+full `verify-all.sh` themselves): typecheck clean, 865 vitest tests passing, `next build` clean.
+No commits, no migrations applied, no DB writes, no settlement/scoring logic touched.

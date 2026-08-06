@@ -7,6 +7,9 @@ import { RemoveMemberButton } from "./RemoveMemberButton";
 import { CopyButton } from "./CopyButton";
 import { BackLink } from "@/components/BackLink";
 import { originFromHeaders } from "@/lib/site-url";
+import { loadLiveCompetition, resolveWcTransition } from "@/lib/wc-archive-load";
+import { CaptainAdoptionSheet } from "@/components/gw/CaptainAdoptionSheet";
+import { TRANSITION_COPY } from "@/lib/payment-copy";
 
 export default async function ManagePage({
   params,
@@ -21,6 +24,25 @@ export default async function ManagePage({
 
   const origin = await originFromHeaders();
   const inviteLink = invite ? `${origin}/j/${invite.token}` : null;
+
+  // Item 1: the manage page is one of the three promised adoption entry points — captain-only,
+  // gated on the real transition state so it only appears when there's something to adopt.
+  const { pl, participationStatus, otherActiveCompetition } = await loadLiveCompetition(admin, league.id, slug);
+  const transition = resolveWcTransition(
+    { pl: pl.data, participationStatus, otherActiveCompetition, leagueStatus: league.status },
+    true,
+  );
+  const nextPl = pl.data
+    ? await admin
+        .from("gameweeks")
+        .select("number, deadline_at")
+        .eq("competition_id", pl.data.id)
+        .eq("status", "open")
+        .gt("deadline_at", new Date().toISOString())
+        .order("number", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+    : { data: null, error: null };
 
   // Bound server actions (closures over slug)
   async function doRevokeInvite() {
@@ -149,6 +171,23 @@ export default async function ManagePage({
             })}
           </div>
         </section>
+
+        {/* ── Premier League adoption ─────────────────────────────────────── */}
+        {transition === "captain_adopt" && pl.data ? (
+          <section>
+            <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-muted">
+              {TRANSITION_COPY.adoptionHeading(pl.data.name)}
+            </h2>
+            <CaptainAdoptionSheet
+              slug={slug}
+              leagueId={league.id}
+              competitionSlug={pl.data.slug}
+              anteInr={Number(league.default_stake_inr ?? 500)}
+              gameweekNumber={nextPl.data?.number ?? null}
+              deadlineAt={nextPl.data?.deadline_at ?? null}
+            />
+          </section>
+        ) : null}
 
         {/* ── Danger zone ──────────────────────────────────────────────────── */}
         {league.status !== "archived" && (

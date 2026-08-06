@@ -123,7 +123,9 @@ function errorText(error) {
 
 function trackedReadOnlyClient(base, label, mutateSelect, state) {
   const recordQueryError = (resource, error) => {
-    if (error) state.queryErrors.push({ client: label, table: resource, error });
+    if (error) {
+      state.queryErrors.push({ client: label, table: resource, error });
+    }
   };
   const blocked = (operation) => {
     state.blockedWrites.push({ client: label, operation });

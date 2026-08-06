@@ -2,12 +2,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Entry } from "./analytics";
 import { loadDuesView, type DuesView } from "./dues-view";
 import type { LeagueIdentity } from "./gw-view";
+import { formatIstDate } from "./ist";
 import { loadKnockoutLeaderboards, loadKnockoutView } from "./knockout-data";
-import { ARCHIVE_COPY } from "./payment-copy";
-import { buildWcFinalStandings, combinedBalanceParts, countSettledFixtures, type WcArchiveStanding } from "./wc-archive";
+import type { TransitionState } from "./transition";
+import { buildWcFinalStandings, combinedBalanceParts, countSettledFixtures, isLateMember, type WcArchiveStanding } from "./wc-archive";
+import { loadLiveCompetition, resolveWcTransition, type WcLiveCompetition } from "./wc-live-competition";
+
+export type { WcLiveCompetition };
+export { loadLiveCompetition, resolveWcTransition };
 
 export type WcArchiveBalance = { prefix: string; amount: string | null; sign: "positive" | "negative" | "zero" };
-export type WcLiveCompetition = { name: string; href: string };
 
 type CashfordClient = SupabaseClient<any, "cashford", any>;
 
@@ -19,42 +23,23 @@ function one<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
-/** Shared across all three archive routes (analytics/matches/bracket) — every route shows the
- * same "Open <live competition> →" exit link when the league has an active PL competition. */
-async function loadLiveCompetition(admin: CashfordClient, leagueId: string, slug: string) {
-  const pl = await admin
-    .from("competitions")
-    .select("id, name, status")
-    .eq("slug", "pl-2026-27")
-    .maybeSingle();
-  fail(pl.error, "wc-archive-pl-competition");
-  const plParticipation = pl.data
-    ? await admin
-        .from("league_competitions")
-        .select("competition_id")
-        .eq("league_id", leagueId)
-        .eq("competition_id", pl.data.id)
-        .maybeSingle()
-    : { data: null, error: null };
-  fail(plParticipation.error, "wc-archive-pl-participation");
-  const liveCompetition: WcLiveCompetition | null =
-    pl.data?.status === "active" && plParticipation.data
-      ? { name: pl.data.name ?? ARCHIVE_COPY.plReturn, href: `/leagues/${slug}` }
-      : null;
-  return { pl, plParticipation, liveCompetition };
-}
-
 export type WcArchivePageLoad = {
   dues: DuesView;
   standings: WcArchiveStanding[];
+  lateMembers: { userId: string; name: string }[];
   mine: WcArchiveStanding | null;
-  pl: { id: string; name: string; status: string } | null;
+  mineIsLate: boolean;
+  pl: { id: string; slug: string; name: string; status: string } | null;
   plParticipation: { competition_id: string } | null;
   leagueConfig: { default_stake_inr: number } | null;
   nextPl: { number: number; deadline_at: string } | null;
   balance: WcArchiveBalance | undefined;
   matchesSettled: number;
   liveCompetition: WcLiveCompetition | null;
+  transition: TransitionState;
+  freezeDate: string | null;
+  captainName: string;
+  otherActiveCompetitionName: string | null;
 };
 
 /** The server-side read path used by app/leagues/[slug]/archive/wc2026/page.tsx. */
@@ -76,20 +61,29 @@ export async function loadWcArchivePage(
 
   const membersQ = await admin
     .from("league_members")
-    .select("user_id")
+    .select("user_id, joined_at, left_at")
     .eq("league_id", identity.league.id);
   fail(membersQ.error, "wc-archive-members");
 
   const resultQ = await admin
     .from("contest_results")
     .select(
-      "user_id, net_inr, contests!inner(league_id, fixture_id, fixtures!inner(competition_id, external_id, kickoff_at, ft_home, ft_away, is_knockout, advancer_team_id))",
+      // "id" is included deliberately — resultByKey below keys on contests.id per user, and the
+      // dormant bug this fixes was this exact select omitting it: every key silently collapsed
+      // to "undefined:<user>", so any recap stat built from resultByKey was always null.
+      "user_id, net_inr, contests!inner(id, league_id, fixture_id, settled_at, fixtures!inner(competition_id, external_id, kickoff_at, ft_home, ft_away, is_knockout, advancer_team_id))",
     )
     .eq("contests.league_id", identity.league.id)
     .eq("contests.fixtures.competition_id", wcId);
   fail(resultQ.error, "wc-archive-results");
 
   const memberIds = (membersQ.data ?? []).map((row: any) => row.user_id as string);
+  const joinedAtByUser = new Map(
+    (membersQ.data ?? []).map((row: any) => [row.user_id as string, row.joined_at as string]),
+  );
+  const pastMemberIds = new Set(
+    (membersQ.data ?? []).filter((row: any) => row.left_at).map((row: any) => row.user_id as string),
+  );
   const profiles = memberIds.length
     ? await admin
         .from("profiles")
@@ -107,11 +101,13 @@ export async function loadWcArchivePage(
   const net = new Map<string, number>();
   const resultByKey = new Map<string, number>();
   const resultFixtureIds: string[] = [];
+  let freezeAt: string | null = null;
   for (const row of (resultQ.data ?? []) as any[]) {
     const contest = one<any>(row.contests);
     net.set(row.user_id, (net.get(row.user_id) ?? 0) + Number(row.net_inr ?? 0));
     resultByKey.set(`${contest.id}:${row.user_id}`, Number(row.net_inr ?? 0));
     if (contest?.fixture_id) resultFixtureIds.push(contest.fixture_id);
+    if (contest?.settled_at && (!freezeAt || contest.settled_at > freezeAt)) freezeAt = contest.settled_at;
   }
   const matchesSettled = countSettledFixtures(resultFixtureIds);
 
@@ -151,17 +147,42 @@ export async function loadWcArchivePage(
     entriesByUser.set(row.user_id, list);
   }
 
+  // Item 3 (AC8): members who joined after the WC's last settlement never lived through it —
+  // exclude them from the ranked standings entirely rather than giving them a fabricated
+  // "Finish #N · 0 correct · 0 exact" line built from history they weren't there for.
+  //
+  // Dual-review fix (R2 F6): computed after entriesByUser so a member who joined late but
+  // still has entries (they played, even if unsettled) isn't wrongly classified as late.
+  const lateMemberIds = new Set(
+    memberIds.filter((userId) =>
+      isLateMember(joinedAtByUser.get(userId), freezeAt, (entriesByUser.get(userId) ?? []).length),
+    ),
+  );
+  const eligibleMemberIds = memberIds.filter((userId) => !lateMemberIds.has(userId));
+  const lateMembers = memberIds
+    .filter((userId) => lateMemberIds.has(userId))
+    .map((userId) => ({ userId, name: names.get(userId) ?? "player" }));
+
   const standings = buildWcFinalStandings({
-    members: memberIds.map((userId) => ({ userId, name: names.get(userId) ?? "player" })),
+    members: eligibleMemberIds.map((userId) => ({
+      userId,
+      name: names.get(userId) ?? "player",
+      isPastMember: pastMemberIds.has(userId),
+    })),
     entriesByUser,
     netByUser: net,
     unavailableUserIds: [...unavailableUserIds],
   });
 
-  const { pl, plParticipation, liveCompetition } = await loadLiveCompetition(
+  const { pl, plParticipation, liveCompetition, otherActiveCompetition, otherActiveCompetitionName, participationStatus } = await loadLiveCompetition(
     admin,
     identity.league.id,
     identity.league.slug,
+  );
+  const isCaptain = identity.league.createdBy === userId;
+  const transition = resolveWcTransition(
+    { pl: pl.data, participationStatus, otherActiveCompetition, leagueStatus: identity.league.status },
+    isCaptain,
   );
   const leagueConfig = await admin
     .from("leagues")
@@ -183,14 +204,19 @@ export async function loadWcArchivePage(
   fail(nextPl.error, "wc-archive-next-gameweek");
 
   const mine = standings.find((row) => row.userId === userId) ?? null;
+  const mineIsLate = lateMemberIds.has(userId);
   const balance =
     dues.ledger.status === "clean"
       ? combinedBalanceParts(dues.ledger.netByUser[userId] ?? 0)
       : undefined;
+  const freezeDate = freezeAt ? formatIstDate(freezeAt) : null;
+  const captainName = names.get(identity.league.createdBy) ?? "The captain";
   return {
     dues,
     standings,
+    lateMembers,
     mine,
+    mineIsLate,
     pl: pl.data,
     plParticipation: plParticipation.data,
     leagueConfig: leagueConfig.data,
@@ -198,6 +224,10 @@ export async function loadWcArchivePage(
     balance,
     matchesSettled,
     liveCompetition,
+    transition,
+    freezeDate,
+    captainName,
+    otherActiveCompetitionName,
   };
 }
 

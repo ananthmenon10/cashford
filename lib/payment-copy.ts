@@ -66,6 +66,7 @@ export const ARCHIVE_COPY = {
   notice: "Read-only. These are the screens and rules as they applied in 2026.",
   standings: "Final standings",
   freeze: (date: string) => `Frozen at the final settlement on ${date}.`,
+  freezeUnset: "Nothing has settled yet.",
   rules: "Rules as they applied",
   matchesNotice: "Read-only. Every World Cup match, with what you called and what it paid.",
   bracketNotice: "Read-only. Frozen when the World Cup ended.",
@@ -104,6 +105,14 @@ export const TRANSITION_COPY = {
   otherActive: (competition: string) => `${competition} is already active for this league.`,
   preparing: "Premier League setup is still being checked.",
   archivedTarget: (competition: string) => `This league already archived ${competition}. It can’t be started again.`,
+  adoptionHeading: (competition: string) => competition,
+  alreadyAdopted: "This didn’t go through — it looks like this was already started. Refresh to see the current state.",
+  idempotencyMismatch: "That ante doesn’t match your last attempt. Refresh and try again.",
+  invalidAnte: "Enter an ante between ₹50 and ₹10,00,000.",
+  adoptionFailed: "Couldn’t start this. Try again in a moment.",
+  competitionMismatch: "This page is out of date. Refresh and try again.",
+  leagueArchived: "This league is archived. It can’t start a new competition.",
+  startingLabel: "Starting…",
 } as const;
 
 export const PHASE5_UI_COPY = {

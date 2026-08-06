@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { combinedBalanceParts, countSettledFixtures, wcNetLabel, wcNetLine } from "./wc-archive";
+import {
+  buildWcFinalStandings,
+  combinedBalanceParts,
+  countSettledFixtures,
+  isLateMember,
+  wcNetLabel,
+  wcNetLine,
+} from "./wc-archive";
 
 describe("wcNetLabel", () => {
   it("uses the app-wide U+2212 minus sign for a negative net, not an ASCII hyphen", () => {
@@ -61,5 +68,63 @@ describe("countSettledFixtures", () => {
 
   it("returns 0 for no settled results", () => {
     expect(countSettledFixtures([])).toBe(0);
+  });
+});
+
+describe("isLateMember", () => {
+  it("is late when joined_at is after the freeze date and has no entries", () => {
+    expect(isLateMember("2026-08-01T00:00:00.000Z", "2026-07-19T00:00:00.000Z", 0)).toBe(true);
+  });
+
+  it("is not late when joined_at is before the freeze date", () => {
+    expect(isLateMember("2026-06-01T00:00:00.000Z", "2026-07-19T00:00:00.000Z", 0)).toBe(false);
+  });
+
+  it("is never late when nothing has settled yet (no freeze point to be late against)", () => {
+    expect(isLateMember("2026-08-01T00:00:00.000Z", null, 0)).toBe(false);
+  });
+
+  it("is never late when joined_at is missing", () => {
+    expect(isLateMember(undefined, "2026-07-19T00:00:00.000Z", 0)).toBe(false);
+  });
+
+  it("dual-review fix (R2 F6): joined after freeze but has entries stays ranked, not late", () => {
+    expect(isLateMember("2026-08-01T00:00:00.000Z", "2026-07-19T00:00:00.000Z", 3)).toBe(false);
+  });
+});
+
+describe("buildWcFinalStandings", () => {
+  it("ranks by net descending, then correct, then exact, then userId as a tiebreak", () => {
+    const rows = buildWcFinalStandings({
+      members: [
+        { userId: "b", name: "Bala" },
+        { userId: "a", name: "Ananth" },
+        { userId: "c", name: "Chandu" },
+      ],
+      entriesByUser: {},
+      netByUser: { a: 500, b: 900, c: 900 },
+    });
+    // b and c tie on net (900) with 0 correct/exact each — userId breaks the tie (b < c).
+    expect(rows.map((row) => row.userId)).toEqual(["b", "c", "a"]);
+    expect(rows.map((row) => row.finish)).toEqual([1, 2, 3]);
+  });
+
+  it("carries isPastMember through untouched (departed members stay ranked)", () => {
+    const rows = buildWcFinalStandings({
+      members: [{ userId: "a", name: "Ananth", isPastMember: true }],
+      entriesByUser: {},
+      netByUser: { a: 100 },
+    });
+    expect(rows[0].isPastMember).toBe(true);
+  });
+
+  it("counts entries even when a member has zero settled results (partial-results scope)", () => {
+    const rows = buildWcFinalStandings({
+      members: [{ userId: "a", name: "Ananth" }],
+      entriesByUser: {},
+      netByUser: { a: null },
+    });
+    expect(rows[0].entriesCount).toBe(0);
+    expect(rows[0].netInr).toBeNull();
   });
 });

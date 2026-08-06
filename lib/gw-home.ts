@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AnalyticsView, Entry } from "./analytics";
 import { buildWcFinalStandings } from "./wc-archive";
+// Deliberately from "./wc-live-competition", not "./wc-archive-load" — the latter also exports
+// loadKnockoutView/loadKnockoutLeaderboards, which transitively import "./knockout-data" (a
+// server-only DB loader). gw-home.ts's pure helpers (e.g. homeCompetitionScopes) are imported by
+// client components, so any top-level import here — static or dynamic — must not touch that
+// chain, or Next's build fails with "You're importing a component that needs server-only".
+import { loadLiveCompetition, resolveCurrentSeasonCompetition, resolveWcTransition } from "./wc-live-competition";
 import {
   C6,
   C10,
@@ -96,6 +102,11 @@ export type HomeLeagueCardInput = {
   finalMatchCount?: number;
   totalMatchCount?: number;
   allGameweekNumbers?: readonly number[];
+  /** Item 1: the S9 "Adopt Premier League" bottom action is only real for a captain whose league
+   * has a live league-format competition ready and not yet joined — computed via
+   * resolveWcTransition() by the caller (transitionState() === "captain_adopt"), not guessed
+   * here. Defaults to false so every other card keeps its current shape. */
+  showAdopt?: boolean;
 }
 
 type HomeLeagueCardActionTone = "green" | "amber";
@@ -433,22 +444,32 @@ export function buildHomeLeagueCard(input: HomeLeagueCardInput): HomeLeagueCard 
       LEAGUE_CARD_COPY.memberCount(input.memberCount ?? 0),
       LEAGUE_CARD_COPY.readOnly,
     ];
-    base.bottomActions = [
-      {
-        href: archiveHref,
-        label: LEAGUE_CARD_COPY.openArchive,
-        muted: false,
-        arrow: "",
-        tone: "green",
-      },
-      {
-        href: adoptHref,
-        label: LEAGUE_CARD_COPY.adoptPremierLeague,
-        muted: false,
-        arrow: "",
-        tone: "amber",
-      },
-    ];
+    base.bottomActions = input.showAdopt
+      ? [
+          {
+            href: archiveHref,
+            label: LEAGUE_CARD_COPY.openArchive,
+            muted: false,
+            arrow: "",
+            tone: "green",
+          },
+          {
+            href: adoptHref,
+            label: LEAGUE_CARD_COPY.adoptPremierLeague,
+            muted: false,
+            arrow: "",
+            tone: "amber",
+          },
+        ]
+      : [
+          {
+            href: archiveHref,
+            label: LEAGUE_CARD_COPY.openArchive,
+            muted: false,
+            arrow: "",
+            tone: "green",
+          },
+        ];
   } else if (state === "S10") {
     base.tone = "upcoming";
     base.badge = LEAGUE_CARD_COPY.upcomingBadge;
@@ -753,6 +774,10 @@ export async function loadHomeLeagueCards(
   userId: string,
 ): Promise<HomeLeagueCard[]> {
   const archivedCardFactsCache: ArchivedCardFactsCache = new Map();
+  // Dual-review fix (R1 nit 5): the "which competition is current season" half of
+  // loadLiveCompetition is league-independent — resolve it once per request instead of
+  // re-querying it inside the per-league loop below.
+  const currentSeasonCompetition = await resolveCurrentSeasonCompetition(admin);
   return Promise.all(
     leagues.map(async (league) => {
       const [identity, leagueNet] = await Promise.all([
@@ -800,6 +825,22 @@ export async function loadHomeLeagueCards(
         const archiveFacts = identity.participation.status === "archived"
           ? await loadArchivedCardFactsCached(admin, league.id, identity.participation.competitionId!, userId, archivedCardFactsCache)
           : null;
+        // Item 1: gate the "Adopt Premier League" entry point on the real transition state
+        // instead of showing it unconditionally on every archived cup league.
+        const adoptGate = identity.participation.status === "archived"
+          ? await loadLiveCompetition(admin, league.id, league.slug, currentSeasonCompetition)
+          : null;
+        const showAdopt = adoptGate
+          ? resolveWcTransition(
+              {
+                pl: adoptGate.pl.data,
+                participationStatus: adoptGate.participationStatus,
+                otherActiveCompetition: adoptGate.otherActiveCompetition,
+                leagueStatus: league.status,
+              },
+              identity.league.createdBy === userId,
+            ) === "captain_adopt"
+          : false;
         return buildHomeLeagueCard({
           leagueId: league.id,
           leagueName: league.name,
@@ -824,6 +865,7 @@ export async function loadHomeLeagueCards(
           hasSettledHistory: archiveFacts?.hasHistory ?? false,
           memberCount: archiveFacts?.memberCount ?? null,
           archiveRank: archiveFacts?.archiveRank ?? null,
+          showAdopt,
         });
       }
 

@@ -20,6 +20,9 @@ export function CompetitionSheet({ dto }: { dto: CompetitionSheetDTO }) {
             {item.name} <span className="ml-1 text-[9px] font-bold text-cs2-amber">{ARCHIVE_COPY.badge}</span>
           </div>
         ))}
+        <p className="mt-1 border-t border-cs2-line-2 px-3 pt-2 text-[10px] font-medium text-cs2-ink-3">
+          {ARCHIVE_COPY.switcherNote}
+        </p>
       </div>
     </details>
   );

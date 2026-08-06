@@ -1,14 +1,41 @@
 import { accuracy, isCorrect, isExact, type Entry } from "./analytics";
 import { C31Prefix, C32Prefix, C33 } from "./gw-copy";
 
-export type WcArchiveMember = { userId: string; name: string; isViewer?: boolean; joinedAt?: string };
+export type WcArchiveMember = {
+  userId: string;
+  name: string;
+  isViewer?: boolean;
+  joinedAt?: string;
+  isPastMember?: boolean;
+};
 export type WcArchiveStanding = WcArchiveMember & {
   correct: number;
   exact: number;
+  entriesCount: number;
   netInr: number | null;
   unavailable: boolean;
   finish: number;
 };
+
+/** Item 3 (AC8): a member who joined the league after the World Cup was already settled never
+ * lived through it — they get the "not in this one" note (AC8/AC9/AC10), not a fabricated
+ * standings line. `freezeAt` is the latest WC settlement timestamp for this league (null when
+ * nothing has settled yet, in which case nobody can be "late" — there's no freeze point to be
+ * late against).
+ *
+ * Dual-review fix (R2 F6 / R1 nit 7): joined-after-freeze alone isn't enough — a member who
+ * joined late but still has entries (they were predicting matches, even if none have graded
+ * yet) actually played and must stay ranked. `entriesCount` must be 0 as well before a member
+ * is excluded as "late" — otherwise a real participant gets erased from their own history. */
+export function isLateMember(
+  joinedAt: string | null | undefined,
+  freezeAt: string | null,
+  entriesCount: number,
+): boolean {
+  if (!joinedAt || !freezeAt) return false;
+  if (entriesCount > 0) return false;
+  return new Date(joinedAt).getTime() > new Date(freezeAt).getTime();
+}
 
 export function buildWcFinalStandings(input: {
   members: readonly WcArchiveMember[];
@@ -30,6 +57,7 @@ export function buildWcFinalStandings(input: {
       ...member,
       correct: entries.filter(isCorrect).length,
       exact: entries.filter(isExact).length,
+      entriesCount: entries.length,
       netInr: netFor(member.userId),
       unavailable: unavailable.has(member.userId),
       finish: 0,
