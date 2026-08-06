@@ -63,8 +63,11 @@ export function StateHeader({ view }: { view: GameweekViewDTO }) {
       </div>
     );
   }
+  const activeFixtureCount = view.fixtures.filter(
+    (fixture) => fixture.state === "active",
+  ).length;
   let title = C1(number);
-  let body = C4;
+  let body = C4(activeFixtureCount);
 
   if (view.viewerParticipation === "VP0") {
     title = C65(view.viewerEligibleFromGameweekNumber ?? number + 1);

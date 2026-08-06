@@ -71,6 +71,7 @@ export default async function EnterGameweekPage({
         <EntrySheet
           key={view.gameweek.id}
           view={view}
+          viewerId={user.id}
           mirrorTargets={mirrorTargets}
         />
       </div>

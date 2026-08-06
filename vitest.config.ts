@@ -16,6 +16,7 @@ export default defineConfig({
     environmentMatchGlobs: [
       ["tests/phase3/entry-sheet.test.ts", "jsdom"],
       ["tests/phase3/entry-sheet.test.tsx", "jsdom"],
+      ["tests/phase3/state-header-copy.test.tsx", "jsdom"],
     ],
   },
 });

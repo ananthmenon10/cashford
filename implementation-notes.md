@@ -1253,3 +1253,157 @@ archive at its top or sending the viewer to league management. No new route was 
 **Rail labels (2026-08-06).** S2 labels its open-card rail "Season rank" because the home loader
 uses the season standing there; settled and live cards label their current-gameweek standing
 "GW rank". This removes the old ambiguity while keeping the values in the same rail.
+
+## Step 5 (2026-08-06) — Entry sheet + create league rebuild, feedback-r1 frames
+
+Built from the "Entry & Create" frames in `docs/design/2026-08-05-feedback-r1-reference.html` and
+the locked decision at `docs/plans/2026-08-05-009-macbook-handoff.md` line 26. UI/copy rebuild only
+— no change to the entry submit server action's write semantics, and `lib/settlement.ts` /
+`lib/settle-contest.ts` were not opened.
+
+**Files changed.** `components/gw/EntrySheet.tsx` (full rewrite), `components/gw/ScoreStepper.tsx`
+(full rewrite — dropped nullable `value`, added `muted`), `lib/gw-copy.ts` (`C4` became a function
+of the real fixture count; added `ENTRY_SHEET_COPY`), `components/gw/StateHeader.tsx` (calls
+`C4(activeFixtureCount)` instead of the static string), `app/leagues/new/page.tsx` (dropped a
+hardcoded `relative={false}` on the first-deadline `<LocalTime>`), `tests/phase3/gw-copy.test.ts`
+(registered `C4`'s sample call), `tests/phase3/entry-sheet.test.tsx` (rewrote the completeness
+tests for the new 0-0 guard, added untouched/touched transition coverage), new
+`tests/phase3/state-header-copy.test.tsx`, `vitest.config.ts` (added the new test file to the
+jsdom `environmentMatchGlobs` list).
+
+**Scope item 1 — Entry sheet rebuild.** `PickState` changed from
+`{ home: number | null; away: number | null }` to `{ home: number; away: number; touched: boolean }`.
+Every active fixture defaults to `{ home: 0, away: 0, touched: false }` unless the viewer already
+has a saved pick for it, in which case it starts `touched: true` regardless of its saved value —
+an already-entered fixture is a real decision even if that decision happens to be 0-0; the muted
+"default" styling is about an undecided pick, not the literal score. Fixture cards are now a
+stacked/centered 2-column layout (team name above its stepper, both centered, no separating dash —
+matches the reference's note that the separator "disappears into the two-column layout"), with a
+meta row (kickoff datetime + a "DEFAULT 0–0" tag while untouched) and a centered row of 4 fixed
+quick-score chips (0-0/1-0/1-1/2-1) below each fixture. The old completeness gate
+(`complete`/`completeCount`/"Set every scoreline to continue.") is gone — every fixture is always a
+valid pick — replaced by an arm-then-confirm guard: tapping Save while any fixture is still
+untouched arms the guard (relabels the button to "Tap again to save N picks at 0-0", shows the
+picks-left count and hint copy) instead of posting; a second tap, or any tap once every fixture has
+been touched, saves. The progress line now reads `ENTRY_SHEET_COPY.chosenProgress` ("N/M chosen"),
+counting touched fixtures rather than fully-set ones. The existing `save()` POST-routing
+(`/api/gw/enter` vs `/api/gw/picks`), the verification GET disambiguating C55/C55b, the
+sessionStorage draft key, and every error-mapping branch are untouched — only the values feeding
+the payload changed from `picks[id].home!` (non-null assertion) to plain `picks[id].home` (never
+null now).
+
+**Scope item 2 — "predict all 10 scorelines" bug.** `C4` in `lib/gw-copy.ts` is now
+`(fixtureCount: number) => ...` instead of a static string baked to "10". `StateHeader.tsx` (the
+only call site) passes the gameweek's real active-fixture count, the same expression the file
+already used for `C14`. Covered by the new `tests/phase3/state-header-copy.test.tsx` (5-fixture,
+10-fixture, and void-fixture-excluded cases).
+
+**Scope item 3 — Create league flow.** The only defect found against the reference frame was the
+first-deadline preview line forcing `relative={false}` on its `<LocalTime>`, which suppressed the
+"(in N days)" parenthetical the FIX frame shows. Removed the prop (LocalTime's default is
+`relative={true}`). The competition picker, name/slug/stake fields, and post-create share screen
+already matched the current copy decisions and needed no change.
+
+**Scope item 4 — copy governance.** All new strings landed in `ENTRY_SHEET_COPY` in
+`lib/gw-copy.ts` — nothing assembled inline. The dynamic quick-score-row `aria-label`
+("Common scores for X versus Y") is built via `ENTRY_SHEET_COPY.quickScoresAria(home, away)` rather
+than a template literal in the component, since the AST copy scanner always flags a11y-prop
+literals regardless of prose shape. No file in the manifest changed set — every file touched was
+already listed in `tests/phase3/copy-scan-manifest.json`.
+
+**Scope item 5 — unit tests.** Added: the confirm-guard arms instead of posting while any fixture
+is untouched, a second tap saves through, and a fully-touched sheet never arms (in
+`entry-sheet.test.tsx`, replacing the old always-disabled-until-complete tests); the stepper's 0/9
+clamp against the new 0-default (replacing the old null-based setup clicks); untouched→touched
+transitions via both the stepper and a quick-score chip, and the already-entered-fixture-starts-
+touched case; and the per-gameweek C4 fixture count in the new `state-header-copy.test.tsx`
+(5-fixture, 10-fixture, void-exclusion cases). Each test asserts on the guard/count logic actually
+flipping, not just a snapshot of current output.
+
+### Deviations
+
+**The confirm guard is an arm-then-confirm state machine on the Save button, not a modal or a
+persistent always-active blocker.** The reference frame shows a persistently-visible confirm bar
+with a live untouched count and hint text but does not specify the click mechanics. Interpreted as:
+Save's first tap while `untouchedCount > 0` arms the guard (relabels the button, shows the confirm
+bar) instead of posting; a second tap actually saves. Touching any further pick before the second
+tap disarms the guard implicitly (once `untouchedCount` reaches 0 the confirm bar and its copy stop
+rendering, and Save posts on a single tap from then on) rather than requiring an explicit
+re-confirmation cycle.
+
+**The confirm bar (picks-left count, "REAL PICK" label, hint copy) only renders while
+`untouchedCount > 0`.** The reference shows the count and "REAL PICK" label together, but "REAL
+PICK" reads as static chrome labeling the counter rather than a toggleable state — with nothing
+left to warn about, showing an always-present "REAL PICK" badge with no count next to it added
+noise the reference didn't call for, so the whole block is suppressed once every fixture has been
+touched.
+
+**`GW_UI_COPY.entryIncomplete` ("Set every scoreline to continue.") — removed in round 2** (see
+below), along with the also-consumerless `C22`. Originally left in place per the note above; a
+round-2 adversarial review flagged both as dead and they've now been deleted from `lib/gw-copy.ts`
+and their `tests/phase3/gw-copy.test.ts` sample-call entries.
+
+**`ScoreStepper`'s decrease/increase `aria-label`s stay generic ("Decrease home score") rather than
+naming the team, even though the reference mock uses team-specific wording.** The app's existing
+accessibility labels are already generic and multiple existing tests assert on that exact text;
+switching to team-specific labels would be a behavior change to an unrelated, already-shipped
+a11y surface and would break passing tests for no requirement in scope. The new quick-score row's
+group `aria-label` does name both teams, matching the reference there.
+
+**`components/gw/ScoreChips.tsx` / `lib/model-chips.ts` (existing odds-model-derived chips) were
+left untouched and not reused.** They are unrelated dead code (unused anywhere in the app) tied to
+the odds-model system; the reference's quick-score chips are fixed static presets (0-0/1-0/1-1/2-1),
+not odds-derived, so a new inline chip row was built directly in `EntrySheet.tsx` instead of
+repurposing that file, keeping the settlement-adjacent odds code untouched.
+
+### Deviations — round 2 (adversarial-review fixes)
+
+**Confirm bar now carries its own distinct submitting control, rather than sharing the Save
+button.** A double-tap on Save could previously arm-then-confirm in two taps on the same control,
+defeating the guard. Save now only arms while `untouchedCount > 0` (never submits on that tap); the
+confirm bar that appears carries a separate button that does the actual submit. The reference frame
+has no distinct label for that button — it repeats the ordinary "Save predictions · ₹[stake]"
+phrasing — so the new bar button keeps the existing `ENTRY_SHEET_COPY.confirmAgain` copy rather than
+inventing new copy the frame doesn't call for.
+
+**Home/Away side labels sourced as plain "Home"/"Away" strings with `uppercase` applied via
+Tailwind**, matching the reference's `.team-side` class (8px mono, uppercase via `text-transform`,
+not via uppercase characters in the string itself).
+
+**Two more phantom `bg-cs2-paper-2` occurrences found but left unfixed at `app/leagues/new/page.tsx`
+lines ~169 (copy-code button) and ~217 (competition consequence box).** The round-2 brief named only
+line ~245's occurrence; these two were discovered incidentally via a codebase grep for the phantom
+class. Left as-is rather than silently fixed, since they're outside the brief's named scope —
+flagging here for a follow-up pass.
+
+**sessionStorage restore's legacy-draft coercion checks `typeof pick.home === "number"` before
+`Number.isFinite`, rather than coercing via `Number(...)` first.** `Number(null) === 0`, which is
+finite — a naive `Number()`-then-`isFinite` guard would silently accept a `{home: null, away: null}`
+legacy draft as a touched 0-0 pick instead of dropping it. Guarding on `typeof` first closes that
+gap; a regression test (stale null-score draft) now covers it.
+
+### Verification
+
+`npm run typecheck` — clean. `npx vitest run` — 69 files, 770 tests, all passing (round-2 added 3
+new tests to `entry-sheet.test.tsx`: the zero-active-fixtures guard, the double-tap-never-submits
+guard, and the stale-null-draft regression; removed 1 vacuous assertion). `npm run build` — clean,
+same route set as before. Route smoke was not re-run in round 2 (no server-action or data-layer
+changes); UI/state changes only, covered by the expanded component test suite.
+Nothing was committed or pushed.
+
+### Deviations — round 3 (orchestrator inline fixes, post-QC)
+
+- **Cross-account draft leak fixed** (`components/gw/EntrySheet.tsx`, `app/leagues/[slug]/enter/page.tsx`):
+  the sessionStorage draft key was `cf-gw-draft:<contestId>` with no user scoping. Browser QC caught it
+  live — testb's entry sheet opened pre-filled and "5/5 chosen" from another account's draft in the same
+  browser, which suppresses the 0-0 confirm guard entirely. Key is now
+  `cf-gw-draft:<contestId>:<viewerId>` (viewer id passed from the server page). Pre-existing bug, but it
+  defeats the new guard, so fixed in-step. Test assertions updated to the new key.
+- **Two remaining phantom `bg-cs2-paper-2` classes** on `app/leagues/new/page.tsx` (lines ~169/217,
+  pre-existing, flagged by round 2 as out-of-scope) replaced with the real `bg-cs2-line-2` token so the
+  join-code input and competition info box actually render their tinted backgrounds.
+- **Browser QC of the guard path** required a virgin entry state; ZZ-P1 GW4 had saved picks for every
+  test account. testa's GW4 entry + 5 picks (test data, write-safe league) were deleted via the
+  Management API, the full path exercised in-browser (muted defaults → touch transition → arm →
+  double-tap resistance → confirm-save), and the entry re-created by the save itself (5 picks: one 1-0,
+  four 0-0 defaults — verified in DB).

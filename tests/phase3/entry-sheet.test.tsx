@@ -106,23 +106,29 @@ function setScore(container: HTMLElement, side: "home" | "away", label: "increas
   for (let i = 0; i < times; i++) fireEvent.click(buttons[0]);
 }
 
+describe("zero-active-fixtures guard — Save is disabled rather than posting picks: []", () => {
+  it("with no active fixtures, Save is disabled and never issues a request", () => {
+    render(<EntrySheet viewerId="test-viewer" view={view({ fixtures: [] })} mirrorTargets={[]} />);
+    const saveButton = screen.getByRole("button", { name: /Enter for/ });
+    expect(saveButton).toBeDisabled();
+    fireEvent.click(saveButton);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("T-U12 — ScoreStepper clamps 0-9", () => {
-  it("clamps at 0: decrementing below 0 has no effect (the button disables itself at 0)", () => {
-    const { container } = render(<EntrySheet view={view()} mirrorTargets={[]} />);
+  it("clamps at 0: the decrease button is disabled at the untouched 0-0 default", () => {
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
     const homeButtons = within(container).getAllByLabelText("Decrease home score");
-    // value starts null -> displayed as 0 for clamp purposes; the first fixture's decrease button
-    // must already be disabled since a null pick renders as the "·" placeholder, not an active 0.
-    // Set it to 0 explicitly first, then assert the decrease button disables.
-    fireEvent.click(within(container).getAllByLabelText("Increase home score")[0]);
-    fireEvent.click(within(container).getAllByLabelText("Decrease home score")[0]);
+    // Every pick now defaults to 0-0 (not null), so the decrease button is already disabled at
+    // its floor on first render — no setup click needed to reach 0.
     expect(homeButtons[0]).toBeDisabled();
   });
 
   it("clamps at 9: incrementing above 9 has no effect (the button disables itself at 9)", () => {
-    const { container } = render(<EntrySheet view={view()} mirrorTargets={[]} />);
-    // First click takes value from null -> 0; each click after that increments by one, so 10
-    // clicks land on 9.
-    setScore(container, "home", "increase", 10);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
+    // The default is already 0, so 9 clicks land exactly on 9.
+    setScore(container, "home", "increase", 9);
     const homeButtons = within(container).getAllByLabelText("Increase home score");
     expect(homeButtons[0]).toBeDisabled();
     const display = within(container).getAllByText("9");
@@ -130,40 +136,113 @@ describe("T-U12 — ScoreStepper clamps 0-9", () => {
   });
 });
 
-describe("T-U19 — progress line (C22) counts only fully-set fixtures", () => {
-  it("shows '0 of 2 set' with no picks, '1 of 2 set' once one fixture has both scores", () => {
-    const { container } = render(<EntrySheet view={view()} mirrorTargets={[]} />);
-    expect(screen.getByText("0 of 2 set")).toBeTruthy();
+describe("T-U19 — progress line (ENTRY_SHEET_COPY.chosenProgress) counts touched fixtures", () => {
+  it("shows '0/2 chosen' with no interaction, '1/2 chosen' once one fixture has been touched", () => {
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
+    expect(screen.getByText("0/2 chosen")).toBeTruthy();
     const fixtures = container.querySelectorAll(".divide-y > div");
-    setScore(fixtures[0] as HTMLElement, "home", "increase", 2);
-    setScore(fixtures[0] as HTMLElement, "away", "increase", 1);
-    expect(screen.getByText("1 of 2 set")).toBeTruthy();
+    // Touching either side of a fixture marks the whole pick "touched" — the guard cares about
+    // decisions made, not individual score cells filled in.
+    setScore(fixtures[0] as HTMLElement, "home", "increase", 1);
+    expect(screen.getByText("1/2 chosen")).toBeTruthy();
   });
 });
 
-describe("T-U13/T-U20 — save disabled until the entry is complete", () => {
-  it("the save button stays disabled and the incomplete hint shows until every fixture has both scores", () => {
-    const { container } = render(<EntrySheet view={view()} mirrorTargets={[]} />);
+describe("T-U13/T-U20 — the 0-0 confirm guard arms on save instead of blocking it", () => {
+  it("with every fixture still at the untouched default, save is never disabled but the first tap arms the guard instead of posting", () => {
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
     const saveButton = screen.getByRole("button", { name: /Enter for/ });
-    expect(saveButton).toBeDisabled();
-    expect(screen.getByText("Set every scoreline to continue.")).toBeTruthy();
+    expect(saveButton).not.toBeDisabled();
+    fireEvent.click(saveButton);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByText("2 picks left at 0-0")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tap again to save 2 picks at 0-0" })).toBeTruthy();
+  });
+
+  it("a second tap after arming saves through even though picks are still untouched, posting predHome/predAway 0 for every fixture", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, {}));
+    render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: /Enter for/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Tap again to save 2 picks at 0-0" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.picks).toHaveLength(2);
+    for (const pick of body.picks) {
+      expect(pick.predHome).toBe(0);
+      expect(pick.predAway).toBe(0);
+    }
+  });
+
+  it("double-tapping the Save button alone (without ever tapping the confirm bar's button) never submits", () => {
+    render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
+    const saveButton = screen.getByRole("button", { name: /Enter for/ });
+    fireEvent.click(saveButton);
+    fireEvent.click(saveButton);
+    fireEvent.click(saveButton);
+    expect(fetchMock).not.toHaveBeenCalled();
+    // the guard stays armed, showing the same distinct confirm control rather than having
+    // submitted through repeated taps on the original button.
+    expect(screen.getByRole("button", { name: "Tap again to save 2 picks at 0-0" })).toBeTruthy();
+  });
+
+  it("once every fixture has been touched, the guard never arms — a single tap saves immediately", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, {}));
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
-      setScore(el as HTMLElement, "away", "increase", 1);
     }
-    expect(saveButton).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Enter for/ }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe("untouched -> touched pick transitions clear the muted 0-0 default styling", () => {
+  it("clicking a stepper on an untouched fixture marks it touched and drops its 'DEFAULT 0–0' tag", () => {
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
+    expect(screen.getAllByText("DEFAULT 0–0")).toHaveLength(2);
+    const fixtures = container.querySelectorAll(".divide-y > div");
+    setScore(fixtures[0] as HTMLElement, "home", "increase", 1);
+    expect(screen.getAllByText("DEFAULT 0–0")).toHaveLength(1);
+  });
+
+  it("clicking a quick-score chip also marks the fixture touched, same as using the stepper", () => {
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
+    const fixtures = container.querySelectorAll(".divide-y > div");
+    const chip = within(fixtures[0] as HTMLElement).getByRole("button", { name: "1-1" });
+    fireEvent.click(chip);
+    expect(screen.getAllByText("DEFAULT 0–0")).toHaveLength(1);
+    // the chip itself now reflects the fixture's actual pick.
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("an already-entered fixture (existing viewer pick) starts touched even if its saved pick is 0-0 — the muted default is about an undecided pick, not the literal score", () => {
+    render(
+      <EntrySheet
+        viewerId="test-viewer"
+        view={view({
+          viewerEntry: { id: "e1", status: "entered" },
+          viewerPicks: [
+            { fixtureId: "f1", predHome: 0, predAway: 0 },
+            { fixtureId: "f2", predHome: 2, predAway: 1 },
+          ],
+        })}
+        mirrorTargets={[]}
+      />,
+    );
+    expect(screen.queryByText("DEFAULT 0–0")).toBeNull();
+    expect(screen.getByText("2/2 chosen")).toBeTruthy();
   });
 });
 
 describe("T-U14 — first save vs. edit save hit different endpoints, exactly once", () => {
   async function completeAndSave(container: HTMLElement) {
-    // 2 clicks per side: click 1 takes null -> 0, click 2 takes 0 -> 1 — landing on a real
-    // non-zero value so the payload assertion below can tell "picked" apart from "clamped-to-zero".
+    // The default is already 0, so 1 click per side lands on a real non-zero value (1), letting
+    // the payload assertion below tell "picked" apart from the untouched 0-0 default.
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
-      setScore(el as HTMLElement, "home", "increase", 2);
-      setScore(el as HTMLElement, "away", "increase", 2);
+      setScore(el as HTMLElement, "home", "increase", 1);
+      setScore(el as HTMLElement, "away", "increase", 1);
     }
     const saveButton = screen.getByRole("button", { name: /Save picks|Enter for/ });
     fireEvent.click(saveButton);
@@ -172,7 +251,7 @@ describe("T-U14 — first save vs. edit save hit different endpoints, exactly on
 
   it("no existing entry: EXACTLY ONE POST to /api/gw/enter with the full pick payload, never /api/gw/picks", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, {}));
-    const { container } = render(<EntrySheet view={view({ viewerEntry: null })} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view({ viewerEntry: null })} mirrorTargets={[]} />);
     await completeAndSave(container);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0];
@@ -185,7 +264,7 @@ describe("T-U14 — first save vs. edit save hit different endpoints, exactly on
   it("with an existing entry: POST goes to /api/gw/picks, not /api/gw/enter", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, {}));
     const { container } = render(
-      <EntrySheet view={view({ viewerEntry: { id: "e1", status: "entered" } })} mirrorTargets={[]} />,
+      <EntrySheet viewerId="test-viewer" view={view({ viewerEntry: { id: "e1", status: "entered" } })} mirrorTargets={[]} />,
     );
     await completeAndSave(container);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -201,7 +280,7 @@ describe("B4/F8 regression — deadline-passed mapping is keyed on message text,
     // snapshot (the whole reason firstSave alone was unsafe). Queue that second response.
     fetchMock.mockResolvedValueOnce(jsonResponse(false, 400, { error: "The deadline has passed for this gameweek" }));
     fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, { myEntry: null }));
-    const { container } = render(<EntrySheet view={view({ viewerEntry: null })} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view({ viewerEntry: null })} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
@@ -231,7 +310,7 @@ describe("B4/F8 regression — deadline-passed mapping is keyed on message text,
     // the page-load snapshot — it must win.
     fetchMock.mockResolvedValueOnce(jsonResponse(false, 400, { error: "The deadline has passed for this gameweek" }));
     fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, { myEntry: { id: "e9", status: "entered" } }));
-    const { container } = render(<EntrySheet view={view({ viewerEntry: null })} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view({ viewerEntry: null })} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
@@ -253,7 +332,7 @@ describe("B4/F8 regression — deadline-passed mapping is keyed on message text,
     // would be wrong for a stake that was never actually placed.
     fetchMock.mockResolvedValueOnce(jsonResponse(false, 400, { error: "The deadline has passed for this gameweek" }));
     fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, { myEntry: { id: "e9", status: "invalid" } }));
-    const { container } = render(<EntrySheet view={view({ viewerEntry: null })} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view({ viewerEntry: null })} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
@@ -276,7 +355,7 @@ describe("B4/F8 regression — deadline-passed mapping is keyed on message text,
     // so it must fall back to C55, not default to the stronger, riskier C55b claim.
     fetchMock.mockResolvedValueOnce(jsonResponse(false, 400, { error: "The deadline has passed for this gameweek" }));
     fetchMock.mockResolvedValueOnce(jsonResponse(false, 500, {}));
-    const { container } = render(<EntrySheet view={view({ viewerEntry: null })} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view({ viewerEntry: null })} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
@@ -294,7 +373,7 @@ describe("B4/F8 regression — deadline-passed mapping is keyed on message text,
   it("edit save (existing entry): the same server message maps to C55 — the entrant's last saved picks stand", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(false, 400, { error: "The deadline has passed for this gameweek" }));
     const { container } = render(
-      <EntrySheet view={view({ viewerEntry: { id: "e1", status: "entered" } })} mirrorTargets={[]} />,
+      <EntrySheet viewerId="test-viewer" view={view({ viewerEntry: { id: "e1", status: "entered" } })} mirrorTargets={[]} />,
     );
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
@@ -316,7 +395,7 @@ describe("B4/F8 regression — deadline-passed mapping is keyed on message text,
 describe("M7/F5 regression — raw server prose never renders; every message maps through the C-ID table (C56 fallback), reload keyed on the mapped rule", () => {
   it("a message unmatched by any entry rule shows the C56 fallback copy, never the raw server string, but still flags the referenced fixture invalid", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(false, 400, { error: "picks.0: score must be between 0 and 9" }));
-    const { container } = render(<EntrySheet view={view()} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
@@ -335,7 +414,7 @@ describe("M7/F5 regression — raw server prose never renders; every message map
     fetchMock.mockResolvedValueOnce(
       jsonResponse(false, 400, { error: "prediction is missing for 1 of 2 fixtures — please reload" }),
     );
-    const { container } = render(<EntrySheet view={view()} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
@@ -348,7 +427,7 @@ describe("M7/F5 regression — raw server prose never renders; every message map
 
   it("a message that only SAYS 'reload' but doesn't match a reload-flagged rule does NOT show the reload button — proving reload comes from the mapped rule, not a 'reload' substring", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(false, 400, { error: "please reload" }));
-    const { container } = render(<EntrySheet view={view()} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
@@ -364,7 +443,7 @@ describe("T-U21 — network/5xx failure maps to C56, with a retry that re-posts 
   it("a 500 response shows C56; clicking save again re-issues the same payload", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(false, 500, {}));
     fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, {}));
-    const { container } = render(<EntrySheet view={view()} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
@@ -382,7 +461,7 @@ describe("T-U21 — network/5xx failure maps to C56, with a retry that re-posts 
 
   it("a thrown network error (fetch rejects) also maps to C56", async () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
-    const { container } = render(<EntrySheet view={view()} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
@@ -396,24 +475,52 @@ describe("T-U21 — network/5xx failure maps to C56, with a retry that re-posts 
 describe("T-U16/T-U17 — sessionStorage draft key is cleared on a successful save, never shown as a label", () => {
   it("cf-gw-draft:<contestId> is written while editing and removed after a successful save", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, {}));
-    const { container } = render(<EntrySheet view={view()} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     setScore(fixtures[0] as HTMLElement, "home", "increase", 1);
-    await waitFor(() => expect(window.sessionStorage.getItem("cf-gw-draft:contest1")).not.toBeNull());
+    await waitFor(() => expect(window.sessionStorage.getItem("cf-gw-draft:contest1:test-viewer")).not.toBeNull());
     // never rendered anywhere as a "draft" label.
     expect(screen.queryByText(/draft/i)).toBeNull();
     setScore(fixtures[0] as HTMLElement, "away", "increase", 1);
     setScore(fixtures[1] as HTMLElement, "home", "increase", 1);
     setScore(fixtures[1] as HTMLElement, "away", "increase", 1);
     fireEvent.click(screen.getByRole("button", { name: /Enter for/ }));
-    await waitFor(() => expect(window.sessionStorage.getItem("cf-gw-draft:contest1")).toBeNull());
+    await waitFor(() => expect(window.sessionStorage.getItem("cf-gw-draft:contest1:test-viewer")).toBeNull());
+  });
+});
+
+describe("stale sessionStorage draft regression — a deployed null-score draft format never restores a blank, wrongly-touched pick", () => {
+  it("a cached draft in the old {home: number|null, away: number|null} shape (no `touched`) is dropped, leaving the fixture at its untouched 0-0 default rather than a null score", async () => {
+    window.sessionStorage.setItem(
+      "cf-gw-draft:contest1:test-viewer",
+      JSON.stringify({ f1: { home: null, away: null }, f2: { home: 2, away: 1 } }),
+    );
+    fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, {}));
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view()} mirrorTargets={[]} />);
+    // f1's stale null draft was dropped, so it stays untouched (default tag shown) while f2's
+    // valid draft restored as touched.
+    await waitFor(() => expect(screen.getAllByText("DEFAULT 0–0")).toHaveLength(1));
+    const homeDecrease = within(container.querySelectorAll(".divide-y > div")[0] as HTMLElement).getByLabelText(
+      "Decrease home score",
+    );
+    expect(homeDecrease).toBeDisabled();
+    // Saving must never POST a null score for f1 — the guard arms (1 pick still untouched) rather
+    // than silently sending predHome: null.
+    fireEvent.click(screen.getByRole("button", { name: /Enter for/ }));
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Tap again to save 1 pick at 0-0" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    const f1 = body.picks.find((p: { fixtureId: string }) => p.fixtureId === "f1");
+    expect(f1.predHome).toBe(0);
+    expect(f1.predAway).toBe(0);
   });
 });
 
 describe("U22 — the mirror prompt gates on having at least one target league", () => {
   it("with zero mirror targets, a successful first save navigates away instead of showing MirrorPrompt", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, {}));
-    const { container } = render(<EntrySheet view={view({ viewerEntry: null })} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view({ viewerEntry: null })} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
@@ -427,7 +534,7 @@ describe("U22 — the mirror prompt gates on having at least one target league",
   it("with a mirror target and a first save, MirrorPrompt renders instead of navigating immediately", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(true, 200, {}));
     const targets: MirrorTarget[] = [{ leagueId: "l2", leagueName: "PES Bois", acceptedStakeInr: 100 }];
-    const { container } = render(<EntrySheet view={view({ viewerEntry: null })} mirrorTargets={targets} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view({ viewerEntry: null })} mirrorTargets={targets} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);
@@ -657,7 +764,7 @@ describe("HANG-PROOF (R4-5) — a verification GET that never settles must not s
     // disabled sheet right away regardless of whether the GET ever comes back.
     fetchMock.mockResolvedValueOnce(jsonResponse(false, 400, { error: "The deadline has passed for this gameweek" }));
     fetchMock.mockReturnValueOnce(new Promise(() => {})); // the verification GET: never settles
-    const { container } = render(<EntrySheet view={view({ viewerEntry: null })} mirrorTargets={[]} />);
+    const { container } = render(<EntrySheet viewerId="test-viewer" view={view({ viewerEntry: null })} mirrorTargets={[]} />);
     const fixtures = container.querySelectorAll(".divide-y > div");
     for (const el of Array.from(fixtures)) {
       setScore(el as HTMLElement, "home", "increase", 1);

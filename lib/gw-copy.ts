@@ -189,7 +189,9 @@ export const C1 = (number: number) => `${gameweekName(number)} is open`;
 export const C2 = (deadline: string) => `Deadline ${deadline}`;
 export const C2Prefix = "Deadline";
 export const C3 = (stakeInr: number) => `Enter for ₹${stakeInr.toLocaleString("en-IN")}`;
-export const C4 = "You’ll predict all 10 scorelines. You can edit until the deadline.";
+/** C4 takes the gameweek's real fixture count — it is per-gameweek, never a hardcoded 10. */
+export const C4 = (fixtureCount: number) =>
+  `You’ll predict all ${fixtureCount} scorelines. You can edit until the deadline.`;
 export const C5 = (potInr: number, entered: number, eligible: number) =>
   `Pot ₹${potInr.toLocaleString("en-IN")} · ${entered} entered of ${eligible}`;
 export const C5b = (potInr: number, lockedIn: number, eligible: number) =>
@@ -211,7 +213,6 @@ export const C19 = "3 points for an exact scoreline, 1 for the right result.";
 export const C20 =
   "Tied on points? Most exact scorelines wins, then closest on goals, then the pot splits.";
 export const C21 = (number: number) => `Your picks — ${gameweekName(number)}`;
-export const C22 = (set: number, total: number) => `${set} of ${total} set`;
 export const C23 = "Save picks";
 export const C24 = C3;
 export const C25 = "Likely scores";
@@ -301,7 +302,6 @@ export const GW_UI_COPY = {
   previousGameweek: "Previous gameweek",
   nextGameweek: "Next gameweek",
   competitionArchived: "ARCHIVED",
-  entryIncomplete: "Set every scoreline to continue.",
   entryRequiresJs: "Turn on JavaScript to save picks.",
   brandName: C84,
   buildVersion: C85,
@@ -459,6 +459,26 @@ export const GW_CREATE_COPY = {
   copyCode: "Copy code",
   shareWhatsApp: "Share on WhatsApp",
   openLeague: "Open league",
+} as const;
+
+/** Entry & Create reference frame — 0-0 default picks, muted until touched, quick-score
+ * shortcuts, and the confirm guard for saving with picks still at their untouched default. */
+export const ENTRY_SHEET_COPY = {
+  tapHint: "Tap a likely scoreline",
+  oneTapBadge: "ONE TAP PICKS",
+  defaultTag: "DEFAULT 0–0",
+  realPickLabel: "REAL PICK",
+  homeLabel: "Home",
+  awayLabel: "Away",
+  chosenProgress: (touched: number, total: number) => `${touched}/${total} chosen`,
+  quickScoresAria: (home: string, away: string) => `Common scores for ${home} versus ${away}`,
+  picksLeftAtZero: (count: number) =>
+    count === 1 ? "1 pick left at 0-0" : `${count} picks left at 0-0`,
+  confirmHint: "Use a shortcut for a likely score, or leave 0–0 as your real prediction.",
+  confirmAgain: (count: number) =>
+    count === 1
+      ? "Tap again to save 1 pick at 0-0"
+      : `Tap again to save ${count} picks at 0-0`,
 } as const;
 
 export const GW_JOIN_COPY = {

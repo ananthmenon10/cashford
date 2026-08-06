@@ -166,7 +166,7 @@ export default function NewLeaguePage() {
             <button
               type="button"
               onClick={() => copyText(league.shortCode, "code")}
-              className="w-full rounded-cs2-md border border-cs2-line bg-cs2-paper-2 py-2.5 text-[14px] font-semibold"
+              className="w-full rounded-cs2-md border border-cs2-line bg-cs2-line-2 py-2.5 text-[14px] font-semibold"
             >
               {copied === "code" ? GW_CREATE_COPY.copied : GW_CREATE_COPY.copyCode}
             </button>
@@ -214,7 +214,7 @@ export default function NewLeaguePage() {
             onChange={setCompetition}
             unavailable={competitionError}
           />
-          {competitions?.find((item) => item.slug === competition) ? <div className="-mt-2 rounded-cs2-md bg-cs2-paper-2 p-3 text-[12px] text-cs2-ink-2"><p className="font-bold">{competitions.find((item) => item.slug === competition)?.name}</p><p className="mt-1">{createConsequenceCopy(stakeResult.ok ? stakeResult.value : 0)}</p>{competitions.find((item) => item.slug === competition)?.nextGameweekNumber && competitions.find((item) => item.slug === competition)?.nextDeadlineAt ? <p className="mt-1">{firstDeadlinePrefix(competitions.find((item) => item.slug === competition)!.nextGameweekNumber!)}{" "}<LocalTime iso={competitions.find((item) => item.slug === competition)!.nextDeadlineAt!} relative={false} /></p> : null}</div> : null}
+          {competitions?.find((item) => item.slug === competition) ? <div className="-mt-2 rounded-cs2-md bg-cs2-line-2 p-3 text-[12px] text-cs2-ink-2"><p className="font-bold">{competitions.find((item) => item.slug === competition)?.name}</p><p className="mt-1">{createConsequenceCopy(stakeResult.ok ? stakeResult.value : 0)}</p>{competitions.find((item) => item.slug === competition)?.nextGameweekNumber && competitions.find((item) => item.slug === competition)?.nextDeadlineAt ? <p className="mt-1">{firstDeadlinePrefix(competitions.find((item) => item.slug === competition)!.nextGameweekNumber!)}{" "}<LocalTime iso={competitions.find((item) => item.slug === competition)!.nextDeadlineAt!} /></p> : null}</div> : null}
 
           <label className="text-xs font-semibold text-cs2-ink-2">
             {GW_UI_COPY.leagueName}
@@ -242,7 +242,7 @@ export default function NewLeaguePage() {
                   onClick={() => setStake(String(chip))}
                   className={`flex-1 rounded-pill border py-1.5 text-[13px] font-semibold ${
                     stake === String(chip)
-                      ? "border-cs2-green bg-cs2-mint text-cs2-green"
+                      ? "border-cs2-green bg-mint text-cs2-green"
                       : "border-cs2-line bg-cs2-paper"
                   }`}
                 >
