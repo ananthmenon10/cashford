@@ -87,7 +87,8 @@
     { "path": "components/dues/SettlePlan.tsx", "mode": "jsx", "note": "Phase 5 settle-up plan" },
     { "path": "components/gw/CaptainAdoptionSheet.tsx", "mode": "jsx", "note": "Phase 5 Premier League adoption sheet" },
     { "path": "components/gw/CompetitionSheet.tsx", "mode": "jsx", "note": "Phase 5 competition sheet" },
-    { "path": "components/matches/CompetitionTable.tsx", "mode": "jsx", "note": "Phase 5 competition table" }
+    { "path": "components/matches/CompetitionTable.tsx", "mode": "jsx", "note": "Phase 5 competition table" },
+    { "path": "components/AnalyticsFeed.tsx", "mode": "jsx", "note": "Step 8 analytics feed (structure A / cross-comp B / my-form A) — all copy routed through lib/analytics-copy.ts" }
   ],
   "excluded": [
     "app/leagues/[slug]/_cup/CupLeagueView.tsx",

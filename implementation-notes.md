@@ -2310,4 +2310,119 @@ active.
 
 `npm run typecheck && npx vitest run && npm run build` (smoke skipped per team-lead — they run
 full `verify-all.sh` themselves): typecheck clean, 865 vitest tests passing, `next build` clean.
+
+## Step 8 (2026-08-06) — Analytics: structure A, cross-comp B, my-form A
+
+Locked decisions per brief: **structure A** (sticky filter row + one aggregate feed, no
+sub-tabs), **cross-comp B** (per-season sections, live before archive, each with per-league net
+lines), **my-form A** (my-form scoped to one league at a time, driven by the filter row — no
+"All leagues" blend).
+
+**Root problem confirmed first.** `leagueNetByUser` (`lib/gameweek-db.ts`) sums `contest_results`
++ `gameweek_entry_results` scoped only by `league_id`, blending competitions for any league with
+both live PL and archived WC history — the exact bug cross-comp B exists to avoid. The old
+`AnalyticsTab`/`loadAnalyticsView` (`lib/home-analytics.ts`) has the same blending problem at the
+query level. `AnalyticsTab.tsx` itself is dead (superseded by `AnalyticsFeed.tsx`), but
+**`loadAnalyticsView` is not** — `lib/home-page-load.ts` still calls it to compute
+`analyticsVisible` (`analyticsViewHasHistory(analyticsView)` gates whether the tab shows at all,
+pre-GW1). Correction from the original entry, which wrongly claimed both stayed "unused."
+Follow-up flagged in the backlog below: swap that full load for a cheap existence-only count,
+since the visibility gate only needs a boolean, not the whole blended view.
+
+**New files.** `lib/analytics-copy.ts` (copy home, plain-object convention per `lib/match-copy.ts`)
+· `lib/analytics-feed.ts` (pure: `buildAnalyticsSections` groups (league, competition) rows into
+per-competition sections, live-first, reusing `lib/analytics.ts`'s `accuracy`/`netTotal` for the
+archive my-form record; `buildLiveMyForm`/`buildArchiveMyForm`) · `lib/analytics-feed-load.ts`
+(server loader: enumerates every `league_competitions` row for the viewer's leagues — broader
+than `matches-tab-load.ts`'s `resolveViewerCompetitionScopes`, which drops archived rows;
+live nets come from `loadSeasonView`, archive nets/entries from a new viewer-scoped query
+mirroring `loadArchivedCardFacts`'s shape but filtered to `user_id = viewerId`) ·
+`components/AnalyticsFeed.tsx` (the feed UI, cs2- design tokens matching `components/gw/LeagueCard.tsx`).
+
+**My-form resolution.** Reuses `resolveLeagueParticipation` (the same rule `loadLeagueIdentity`
+uses: active wins over archived, most recent by `joined_at`) per league, rather than inventing a
+second resolution rule — a league with both live and archived history shows my-form for its
+currently-relevant competition, matching the canon's Option A frame.
+
+**N+1 guard.** `loadSeasonView` runs once per distinct (league, gameweek-competition) pair
+(cached in `seasonViewByPair`); the my-form loop reuses that cache instead of re-querying when a
+league's resolved participation is the same pair already computed for its section.
+
+**Wiring.** `lib/home-page-load.ts` adds `analyticsFeed`, loaded only when `analyticsVisible` is
+true (same #14 gate, no new query cost pre-GW1). `app/page.tsx` swaps `<AnalyticsTab>` for
+`<AnalyticsFeed>`. `components/HomeTabs.tsx` needed no change — panels already render via
+`hidden={active !== i}`, never unmounted, so "tab switches never reload" was already satisfied.
+
+**Tests.** `tests/phase6/analytics-feed.test.ts` (pure grouping/my-form builders, incl. a test
+pinning that the two competitions never merge into one section) · `tests/phase6/analytics-copy.test.ts`
+(style governance over `lib/analytics-copy.ts`, mirroring `payment-copy.test.ts` since `lib/` files
+sit outside the AST copy-scan's `app|components` regex) · `tests/phase6/analytics-feed-components.test.tsx`
+(render test, style of `wc-archive-components.test.tsx`; added to `vitest.config.ts`'s
+`environmentMatchGlobs` for jsdom). `components/AnalyticsFeed.tsx` added to
+`copy-scan-manifest.json`'s `files` (mode `jsx`) — all its copy routes through
+`ANALYTICS_COPY`, so no in-place literals to flag.
+
+`bash scripts/verify-all.sh` → `ALL GREEN (typecheck · vitest · build · smoke)`.
+
+**Fix round (2026-08-06).** Opus review flagged 3 must-fix + 3 nits + 1 doc-nit; all landed on the
+same tree, no commits:
+1. Live my-form's `sampleNote` mislabeled gameweeks as fixture-picks — added
+   `ANALYTICS_COPY.gameweekNote(n)`, used only on the live side; archive keeps `sampleNote`.
+2. Fabricated ₹0 when the viewer has no entries in a competition — section league-lines and
+   archive net now null-safe via `SeasonMemberTotal.hasEntries` (live) and a zero-row check in
+   `loadArchiveNetAndCount` (archive, renamed from `loadArchiveNet`), same principle as the 7B gap
+   3 fix.
+3. Added the all-time strip (cross-comp B's anchor per the canon frame): `buildAllTimeStrip` in
+   `lib/analytics-feed.ts` sums net/leagues/competitions/settled-rounds straight from the already-
+   loaded participation rows (no extra query), rendered above the filter row in
+   `AnalyticsFeed.tsx`. Null-safe when nothing anywhere is settled. This also retires the "no
+   all-time strip" deviation logged in the original round below.
+4. Deleted dead copy keys `settledOnly`/`netLabel`; `liveThrough` extended to
+   `(leagueCount, gameweek)` and wired into the live `SectionCard`'s sub-line ("2 leagues · through
+   GW6"), using `season.rows[0]?.gwNumber` (already fetched) for the gameweek marker.
+5. `AnalyticsMyForm.record` changed from a `""` sentinel to `string | null`; component's null-check
+   needed no change (falsy-check behaves the same either way).
+6. Added an interaction test: `fireEvent.change` on the league filter, asserts the my-form
+   sub-line switches to the newly selected league.
+7. This implementation-notes entry corrected (see above) and the Analytics backlog below added.
+
+**Analytics backlog** — product backlog, not step-8 scope, kept findable here:
+- Canon modules 02–07 not built: You vs the room, Receipts, Weekly labels, Rivalry, Club reads,
+  Prediction habits (only my-form, module 01, is built — see Deviations below).
+- No sparkline/net-trend chart in my-form (canon's Option A frame has one; not built this step).
+- Live-side my-form record is data-limited: `lib/analytics.ts`'s `Entry` type has no void-fixture
+  path, so a live-side W–L–V record can't be derived the way the archive side's can from
+  `accuracy()`. Archive's void count is hardcoded `0` for the same reason.
+- `loadSeasonView` computes ALL members' totals just to extract the viewer's one row for my-form
+  and the section net — a per-viewer-only totals query would get this off the home page's critical
+  path.
+- `loadAnalyticsView`'s full blended-view load for the `analyticsVisible` boolean (see the root-
+  problem note above) — replace with a cheap existence-only query.
+
+### Deviations
+- **Only the my-form module, not the other six** (You vs the room, Receipts, Weekly labels,
+  Rivalry, Club reads, Prediction habits). Brief requirement 3 names my-form specifically as the
+  scoped module to build; the others are out of scope for this step.
+- **No sparkline/trend chart in my-form.** The canon's Option A my-form frame includes a 6-point
+  spark line and a bar-run trend; the brief's requirement 3 asks for the my-form module scoped
+  correctly, not a specific chart. Built net + record + sample note (the load-bearing numbers);
+  logging the chart as a gap for a follow-up round rather than inventing chart data shapes not
+  named in the brief.
+- **Archived my-form's "record" is correct–incorrect–void, not a full-standings rank.** The
+  canon's Option A frame shows a plain W–L–V-style record for the my-form module (not a rank,
+  which only appears in the season-panel league-lines, already covered by the section net). Using
+  the shared `accuracy()` engine's `correct`/`graded` avoids re-deriving grading rules; void count
+  is always 0 today (no void-fixture path exists yet in `lib/analytics.ts`'s `Entry`) — left as a
+  literal `0` rather than fabricating a signal the engine doesn't produce.
+- **Archived (non-selected) leagues' section net is a plain summed query, not the full
+  `buildWcFinalStandings` pipeline.** Sections only need the viewer's own net per league line
+  (confirmed from the canon markup — league-lines show each league's own net, not full member
+  standings), so `loadArchiveNetAndCount` sums `contest_results.net_inr` directly rather than
+  building full standings per league just to discard everyone else's row.
+- **Gameweek-format `league_competitions` rows with `status: "archived"` are still shown as a
+  "live" section.** The brief ties section kind to competition `format` (gameweek era = live,
+  cup/WC = archive) since format is the only axis the app has ever archived visually; a league
+  that lapsed out of a still-active gameweek competition (no such case exists in the data today)
+  would read as live rather than archived. Flagging rather than building a third kind for a case
+  with no current real-world instance.
 No commits, no migrations applied, no DB writes, no settlement/scoring logic touched.

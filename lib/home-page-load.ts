@@ -7,6 +7,7 @@ import {
   type HomeLeagueCard,
 } from "./gw-home";
 import type { AnalyticsView } from "./analytics";
+import { loadAnalyticsFeed, type AnalyticsFeedView } from "./analytics-feed-load";
 
 type CashfordClient = SupabaseClient<any, "cashford", any>;
 
@@ -19,6 +20,7 @@ export type HomePageLoad = {
   analyticsView: AnalyticsView;
   homeLeagueCards: HomeLeagueCard[];
   analyticsVisible: boolean;
+  analyticsFeed: AnalyticsFeedView;
 };
 
 /** The server-side read path used by app/page.tsx. */
@@ -42,5 +44,10 @@ export async function loadHomePage(
   const analyticsVisible =
     analyticsVisibleForHomeCards(homeLeagueCards) ||
     analyticsViewHasHistory(analyticsView);
-  return { leagues, analyticsView, homeLeagueCards, analyticsVisible };
+  // Step 8: the new feed is loaded whenever analytics is visible at all (same #14 gate) — no
+  // extra query cost when the tab is hidden pre-GW1.
+  const analyticsFeed = analyticsVisible
+    ? await loadAnalyticsFeed(supabase, admin, leagues, userId)
+    : { leagueOptions: [], sections: [], myFormByLeague: {}, allTimeStrip: null };
+  return { leagues, analyticsView, homeLeagueCards, analyticsVisible, analyticsFeed };
 }

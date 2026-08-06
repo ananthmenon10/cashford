@@ -7,7 +7,7 @@ import { GW_UI_COPY } from "@/lib/gw-copy";
 import { logout } from "./actions";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { HomeTabs } from "@/components/HomeTabs";
-import { AnalyticsTab } from "@/components/AnalyticsTab";
+import { AnalyticsFeed } from "@/components/AnalyticsFeed";
 import { HomeHub } from "@/components/gw/HomeHub";
 import { APP_VERSION } from "@/lib/version";
 import { MATCH_COPY } from "@/lib/match-copy";
@@ -29,7 +29,7 @@ export default async function Home() {
     user?.email?.split("@")[0] ??
     "you";
 
-  const { leagues, analyticsView, homeLeagueCards, analyticsVisible } = await loadHomePage(
+  const { homeLeagueCards, analyticsVisible, analyticsFeed } = await loadHomePage(
     supabase,
     admin,
     user!.id,
@@ -98,7 +98,7 @@ export default async function Home() {
     ? {
         analytics: (
           <div className="px-4 py-4">
-            <AnalyticsTab view={analyticsView} />
+            <AnalyticsFeed feed={analyticsFeed} />
           </div>
         ),
       }
