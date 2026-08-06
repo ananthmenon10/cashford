@@ -4,6 +4,7 @@ import {
   type ViewerParticipation,
 } from "./gw-state";
 import { calendarDateKey } from "./datetime";
+import { toEspnClubName } from "./club-name-alias";
 
 export type LeagueRef = { id: string; slug: string; name: string };
 export type Cta = { label: string; href: string };
@@ -270,6 +271,10 @@ export function groupFixturesByLocalDay(
     .map(({ firstKickoffMs: _firstKickoffMs, ...day }) => day);
 }
 
+// One chip per competition the viewer currently has a live (non-archived) link into — dedupe and
+// ordering come from lib/gw-home.ts's homeCompetitionScopes, the same helper the home hub uses.
+export type MatchesTabScope = { slug: string; name: string };
+
 export type MatchesTabView = {
   competition: {
     id: string;
@@ -277,6 +282,11 @@ export type MatchesTabView = {
     name: string;
     archived: boolean;
   };
+  // Every competition the viewer has an active link into (first-seen order); the chip row above
+  // the segment control only renders when there's more than one. selectedScope is this view's
+  // competition.slug, repeated here so the client can mark the active chip without re-deriving it.
+  scopes: MatchesTabScope[];
+  selectedScope: string;
   gw: {
     id: string;
     number: number;
@@ -303,6 +313,42 @@ export type MatchesTabView = {
   winnersRecap: WinnersRecapView[] | null;
   fixtures: FixtureRowView[];
 };
+
+// A live fixture's `state` label is built by matches-tab-load.ts's fixtureLabel() as
+// `${minute ?? ""}' · LIVE` — the only state string that ever contains "LIVE" (finished/void/
+// postponed/scheduled labels never do), so a substring check is a safe, loader-shape-preserving
+// way to ask "is this fixture live right now" without adding a second boolean field.
+export function isLiveFixtureState(state: string): boolean {
+  return state.includes("LIVE");
+}
+
+// Pulls the leading minute off a live state label ("63′ · LIVE" -> 63). Returns null when the
+// minute is unknown (fixture.minute was null) — callers render a minute-less "LIVE" badge then.
+// Accepts either the ASCII apostrophe or the canonical U+2032 prime so pure-helper callers that
+// build state strings by hand (tests) keep working alongside the loader's real output.
+export function liveMinuteFromState(state: string): number | null {
+  const match = /^(\d+)['′]/.exec(state);
+  return match ? Number(match[1]) : null;
+}
+
+// Club name -> current live minute (null if live but the minute is unknown), for every club
+// playing in `fixtures`. Fed by the SAME fixture list the fixture list/table already load for the
+// gameweek, so the competition table's "live row" highlight needs no extra query — it's the same
+// gameweek's fixtures the table's clubs are drawn from. Keyed by ESPN displayName (via
+// toEspnClubName) since the table this feeds is joined against ESPN-sourced standings rows, not
+// the FPL-sourced fixture names.
+export function liveClubMinutes(
+  fixtures: readonly FixtureRowView[],
+): Map<string, number | null> {
+  const minutes = new Map<string, number | null>();
+  for (const fixture of fixtures) {
+    if (!isLiveFixtureState(fixture.state)) continue;
+    const minute = liveMinuteFromState(fixture.state);
+    minutes.set(toEspnClubName(fixture.home.name), minute);
+    minutes.set(toEspnClubName(fixture.away.name), minute);
+  }
+  return minutes;
+}
 
 export function sharedHeaderPoints(rows: readonly LeagueRowView[]): number | null {
   const pointRows = rows.filter(

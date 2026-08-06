@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { MATCH_COPY } from "@/lib/match-copy";
-import { groupFixturesByLocalDay } from "@/lib/matches-tab";
-import type {
-  LeagueRowView,
-  MatchesTabView,
-  WinnersRecapView,
-  FixtureDay,
+import {
+  groupFixturesByLocalDay,
+  isLiveFixtureState,
+  liveClubMinutes,
+  liveMinuteFromState,
 } from "@/lib/matches-tab";
+import type { LeagueRowView, MatchesTabView, WinnersRecapView } from "@/lib/matches-tab";
 import type { StandingsView } from "@/lib/standings-view";
+import { formatFriendlyDate } from "@/lib/datetime";
 import { LocalTime } from "@/components/LocalTime";
+import { CompetitionTable } from "@/components/matches/CompetitionTable";
 
 const card =
   "rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]";
@@ -127,29 +129,37 @@ function Winners({ recap }: { recap: WinnersRecapView[] }) {
   );
 }
 
-function Standings({ view }: { view: StandingsView | null }) {
+// All 20 rows, always — the "…N more" summary row this replaced (Step 6B) is gone for good.
+// Delegates to the shared CompetitionTable (matches variant) so the sticky club column, the
+// LIVE-badge placement, and the GD sign all come from one implementation instead of a second
+// hand-rolled copy (Step 6B round 2, must-fix 6).
+function Standings({
+  view,
+  competitionName,
+  playedMeta,
+  liveMinutes,
+}: {
+  view: StandingsView | null;
+  competitionName: string;
+  playedMeta: string;
+  liveMinutes: Map<string, number | null>;
+}) {
   if (!view) {
     return <div className={card}>{MATCH_COPY.noTableData}</div>;
   }
   return (
     <section className={card}>
-      <div className="mb-3 text-xs text-muted">{view.sourceLine}</div>
-      <div className="grid grid-cols-[2rem_1fr_repeat(3,2.5rem)] gap-2 border-b border-border pb-2 text-[10px] font-bold text-muted">
-        <span>#</span><span>{MATCH_COPY.club}</span><span>{MATCH_COPY.played}</span><span>{MATCH_COPY.goalDifference}</span><span>{MATCH_COPY.points}</span>
+      <div className="mb-3 flex items-center justify-between text-xs text-muted">
+        <span>{view.sourceLine}</span>
+        <span className="font-mono font-bold">{MATCH_COPY.tableRowsTotal(view.rows.length)}</span>
       </div>
-      {view.rows.map((row) => (
-        <div
-          key={row.club_id}
-          className="grid grid-cols-[2rem_1fr_repeat(3,2.5rem)] gap-2 border-b border-border py-2.5 text-[13px] last:border-0"
-        >
-          <span>{row.rank}</span>
-          <span className="font-semibold">{row.club}</span>
-          <span>{row.played}</span>
-          <span>{row.gd}</span>
-          <span className="font-bold">{row.points}</span>
-        </div>
-      ))}
-      {view.note && <div className="mt-3 text-xs text-muted">{view.note}</div>}
+      <CompetitionTable
+        view={view}
+        variant="matches"
+        competitionName={competitionName}
+        playedMeta={playedMeta}
+        liveMinutes={liveMinutes}
+      />
     </section>
   );
 }
@@ -171,7 +181,18 @@ export function Phase4MatchesPage({
     () => (timeZone ? groupFixturesByLocalDay(view.fixtures, timeZone) : []),
     [timeZone, view.fixtures],
   );
-  const displayed = useMemo(() => limitDays(days, 7), [days]);
+  const totalFixtures = view.fixtures.length;
+  const liveMinutes = useMemo(() => liveClubMinutes(view.fixtures), [view.fixtures]);
+  // Every day loads expanded (frame decision: no pagination, the day header is the only collapse
+  // handle) — this set holds only the days a viewer has actively chosen to collapse.
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
+  const toggleDay = (dayKey: string) =>
+    setCollapsedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dayKey)) next.delete(dayKey);
+      else next.add(dayKey);
+      return next;
+    });
 
   return (
     <main className="min-h-screen bg-bg">
@@ -187,6 +208,33 @@ export function Phase4MatchesPage({
             {MATCH_COPY.home}
           </Link>
         </div>
+
+        {view.scopes.length > 1 && (
+          <div
+            role="tablist"
+            aria-label={MATCH_COPY.competitionScope}
+            className="mb-4 flex gap-2 overflow-x-auto"
+          >
+            {view.scopes.map((scope) => {
+              const active = scope.slug === view.selectedScope;
+              return (
+                <Link
+                  key={scope.slug}
+                  href={`/matches?comp=${scope.slug}`}
+                  role="tab"
+                  aria-selected={active}
+                  className={`shrink-0 rounded-pill border px-3 py-1.5 text-xs font-extrabold whitespace-nowrap ${
+                    active
+                      ? "border-primary bg-primary/10 text-primary-press"
+                      : "border-border text-muted"
+                  }`}
+                >
+                  {scope.name}
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
         <nav className="mb-4 grid grid-cols-2 rounded-control bg-subtle p-1">
           <Link
@@ -218,7 +266,18 @@ export function Phase4MatchesPage({
         </div>
 
         {segment === "table" ? (
-          <Standings view={standings} />
+          <Standings
+            view={standings}
+            competitionName={view.competition.name}
+            playedMeta={MATCH_COPY.tablePlayedMeta(
+              standings?.rows.length
+                ? Math.max(...standings.rows.map((row) => row.played))
+                : 0,
+              view.gw.number,
+              view.gw.state === "live" ? "live" : view.gw.state === "settled" ? "settled" : "open",
+            )}
+            liveMinutes={liveMinutes}
+          />
         ) : (
           <div className="space-y-4">
             {view.picker.futureCaveat && (
@@ -276,66 +335,129 @@ export function Phase4MatchesPage({
               </section>
             )}
             {view.winnersRecap && <Winners recap={view.winnersRecap} />}
-            {displayed.days.map((day) => (
-              <section key={day.dayKey}>
-                <h2 className="mb-2 text-xs font-extrabold uppercase tracking-wide text-muted">
-                  {day.dateAt ? <LocalTime iso={day.dateAt} variant="date" includeYear={false} relative={false} /> : MATCH_COPY.dateTbc}
-                </h2>
-                <div className="space-y-2">
-                  {day.fixtures.map((fixture) => (
-                    <Link key={fixture.id} href={fixture.matchHref} className={`block ${card}`}>
-                      <div className="mb-2 flex items-center justify-between text-xs text-muted">
-                        <span>{fixture.scheduled && fixture.kickoffAt ? <LocalTime iso={fixture.kickoffAt} variant="time" relative={false} /> : fixture.state}</span>
-                        {fixture.insightsMark && <span>{MATCH_COPY.insightsMark}</span>}
-                      </div>
-                      <div className="grid grid-cols-[1fr_auto] gap-y-2 text-[15px]">
-                        <span className="font-semibold">{fixture.home.name}</span>
-                        <span className="font-mono font-bold">
-                          {fixture.score?.[0] ?? "—"}
-                        </span>
-                        <span className="font-semibold">{fixture.away.name}</span>
-                        <span className="font-mono font-bold">
-                          {fixture.score?.[1] ?? "—"}
-                        </span>
-                      </div>
-                      {fixture.yourCall.kind === "same" && (
-                        <div className="mt-3 border-t border-border pt-2 text-xs text-muted">
-                          {MATCH_COPY.sameCall(
-                            fixture.yourCall.score[0],
-                            fixture.yourCall.score[1],
-                          )} · {fixture.yourCall.leagues.map((league) => league.name).join(", ")}
-                          {" · "}
-                          {fixture.score
-                            ? `${fixture.yourCall.points} pts${fixture.yourCall.verdict ? ` · ${verdictCopy(fixture.yourCall.verdict)}` : ""}`
-                            : MATCH_COPY.pointsPending}
-                        </div>
+            {days.length > 0 && (
+              <div className="flex items-center justify-between text-xs text-muted">
+                <span className="font-bold uppercase tracking-wide">
+                  {MATCH_COPY.fixturesAndResults}
+                </span>
+                <span className="font-mono font-bold">{MATCH_COPY.fixturesTotal(totalFixtures)}</span>
+              </div>
+            )}
+            {days.length > 0 && (
+              <div className="flex items-start gap-2 rounded-control bg-subtle p-2 text-xs text-muted">
+                <span aria-hidden>⌄</span>
+                <span>{MATCH_COPY.fixturesCallout}</span>
+              </div>
+            )}
+            {days.map((day) => {
+              const collapsed = collapsedDays.has(day.dayKey);
+              const dayLabel = day.dateAt
+                ? formatFriendlyDate(day.dateAt, {
+                    timeZone: timeZone ?? undefined,
+                    includeYear: false,
+                  })
+                : MATCH_COPY.dateTbc;
+              return (
+                <section key={day.dayKey} className={`${card} !p-0 overflow-hidden`}>
+                  <button
+                    type="button"
+                    onClick={() => toggleDay(day.dayKey)}
+                    aria-expanded={!collapsed}
+                    aria-label={
+                      collapsed
+                        ? MATCH_COPY.expandDay(dayLabel)
+                        : MATCH_COPY.collapseDay(dayLabel)
+                    }
+                    className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+                  >
+                    <span className="text-xs font-extrabold uppercase tracking-wide text-muted">
+                      {day.dateAt ? (
+                        <LocalTime iso={day.dateAt} variant="date" includeYear={false} relative={false} />
+                      ) : (
+                        MATCH_COPY.dateTbc
                       )}
-                      {fixture.yourCall.kind === "varies" && (
-                        <div className="mt-3 border-t border-border pt-2 text-xs text-muted">
-                          {MATCH_COPY.twoWays} ·{" "}
-                          {fixture.yourCall.calls
-                            .map(
-                              (call) =>
-                                `${call.league.name} ${call.score[0]}–${call.score[1]}${
-                                  fixture.score
-                                    ? ` · ${call.points} pts${call.verdict ? ` · ${verdictCopy(call.verdict)}` : ""}`
-                                    : ` · ${MATCH_COPY.pointsPending}`
-                                }`,
-                            )
-                            .join(" · ")}
-                        </div>
-                      )}
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            ))}
-            {displayed.overflow && (
-              <div className="text-center text-xs text-muted">
-                {MATCH_COPY.overflow(
-                  displayed.overflow.count,
-                  displayed.overflow.label,
-                )}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-muted">
+                        {MATCH_COPY.dayFixtureCount(day.fixtures.length)}
+                      </span>
+                      <span aria-hidden className="text-xs text-muted">
+                        {collapsed ? "⌄" : "⌃"}
+                      </span>
+                    </span>
+                  </button>
+                  {!collapsed && (
+                    <div className="space-y-2 border-t border-border p-4">
+                      {day.fixtures.map((fixture) => {
+                        const live = isLiveFixtureState(fixture.state);
+                        return (
+                          <Link
+                            key={fixture.id}
+                            href={fixture.matchHref}
+                            className={`block ${card}`}
+                          >
+                            <div className="mb-2 flex items-center justify-between text-xs text-muted">
+                              <span
+                                className={live ? "font-bold text-live" : undefined}
+                              >
+                                {fixture.scheduled && fixture.kickoffAt ? (
+                                  <LocalTime iso={fixture.kickoffAt} variant="time" relative={false} />
+                                ) : live ? (
+                                  MATCH_COPY.liveMinute(liveMinuteFromState(fixture.state))
+                                ) : (
+                                  fixture.state
+                                )}
+                              </span>
+                              {fixture.insightsMark && <span>{MATCH_COPY.insightsMark}</span>}
+                            </div>
+                            <div className="grid grid-cols-[1fr_auto] gap-y-2 text-[15px]">
+                              <span className="font-semibold">{fixture.home.name}</span>
+                              <span className="font-mono font-bold">
+                                {fixture.score?.[0] ?? "—"}
+                              </span>
+                              <span className="font-semibold">{fixture.away.name}</span>
+                              <span className="font-mono font-bold">
+                                {fixture.score?.[1] ?? "—"}
+                              </span>
+                            </div>
+                            {fixture.yourCall.kind === "same" && (
+                              <div className="mt-3 border-t border-border pt-2 text-xs text-muted">
+                                {MATCH_COPY.sameCall(
+                                  fixture.yourCall.score[0],
+                                  fixture.yourCall.score[1],
+                                )} · {fixture.yourCall.leagues.map((league) => league.name).join(", ")}
+                                {" · "}
+                                {fixture.score
+                                  ? `${fixture.yourCall.points} pts${fixture.yourCall.verdict ? ` · ${verdictCopy(fixture.yourCall.verdict)}` : ""}`
+                                  : MATCH_COPY.pointsPending}
+                              </div>
+                            )}
+                            {fixture.yourCall.kind === "varies" && (
+                              <div className="mt-3 border-t border-border pt-2 text-xs text-muted">
+                                {MATCH_COPY.twoWays} ·{" "}
+                                {fixture.yourCall.calls
+                                  .map(
+                                    (call) =>
+                                      `${call.league.name} ${call.score[0]}–${call.score[1]}${
+                                        fixture.score
+                                          ? ` · ${call.points} pts${call.verdict ? ` · ${verdictCopy(call.verdict)}` : ""}`
+                                          : ` · ${MATCH_COPY.pointsPending}`
+                                      }`,
+                                  )
+                                  .join(" · ")}
+                              </div>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+            {days.length > 0 && (
+              <div className="text-center text-xs font-semibold text-muted">
+                {MATCH_COPY.fixturesScrollFoot(totalFixtures)}
               </div>
             )}
           </div>
@@ -343,40 +465,6 @@ export function Phase4MatchesPage({
       </div>
     </main>
   );
-}
-
-function limitDays(
-  days: readonly FixtureDay[],
-  limit: number,
-): {
-  days: FixtureDay[];
-  overflow: { count: number; label: string } | null;
-} {
-  const visible: FixtureDay[] = [];
-  const hiddenLabels: string[] = [];
-  let remaining = limit;
-  let hidden = 0;
-  for (const day of days) {
-    const visibleFixtures = day.fixtures.slice(0, remaining);
-    if (visibleFixtures.length) {
-      visible.push({ ...day, fixtures: visibleFixtures });
-      remaining -= visibleFixtures.length;
-    }
-    const hiddenHere = day.fixtures.length - visibleFixtures.length;
-    if (hiddenHere > 0) {
-      hidden += hiddenHere;
-      hiddenLabels.push(day.dayKey);
-    }
-  }
-  const labels = [...new Set(hiddenLabels)];
-  const label =
-    labels.length <= 1
-      ? (labels[0] ?? "")
-      : `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
-  return {
-    days: visible,
-    overflow: hidden > 0 ? { count: hidden, label } : null,
-  };
 }
 
 function verdictCopy(verdict: "exact" | "result" | "miss") {

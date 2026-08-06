@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function MatchesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ gw?: string; view?: string }>;
+  searchParams: Promise<{ gw?: string; view?: string; comp?: string }>;
 }) {
   const query = await searchParams;
   const session = await createClient();
@@ -25,6 +25,7 @@ export default async function MatchesPage({
     user.id,
     Number.isInteger(requestedGw) ? requestedGw : undefined,
     query.view,
+    query.comp,
   );
   if (!loaded) notFound();
 

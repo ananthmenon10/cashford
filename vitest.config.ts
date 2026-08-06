@@ -17,6 +17,7 @@ export default defineConfig({
       ["tests/phase3/entry-sheet.test.ts", "jsdom"],
       ["tests/phase3/entry-sheet.test.tsx", "jsdom"],
       ["tests/phase3/state-header-copy.test.tsx", "jsdom"],
+      ["tests/phase4/matches-page.test.tsx", "jsdom"],
     ],
   },
 });

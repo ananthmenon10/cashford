@@ -1663,4 +1663,184 @@ committed or pushed.
   said "Entered". S6/S7 now key the primary, badge, and rail on VP2 (edit primary + ENTERED badge,
   same secondary strip). Two pinning tests added (entered and not-entered variants). Pre-existing
   step-4 gap, surfaced by the 6A hub sitting next to the card.
+
+## Step 6B (2026-08-06) — Matches: day-accordion fixture list, full table, live highlighting
+
+Canon: fixture list B (day accordions, all expanded by default, complete list — no pagination);
+table A (all 20 rows, live rows highlighted). Both frames read from
+`docs/design/2026-08-05-feedback-r1-reference.html`.
+
+**Fixture list.** `Phase4MatchesPage.tsx`'s `limitDays(days, 7)` mechanism and its "…N more"
+summary row are gone. Every day the current gameweek's fixtures span now renders as a `<section>`
+with a clickable header (`LocalTime` friendly date, match count, caret) and `aria-expanded` +
+`aria-label` (`MATCH_COPY.expandDay`/`collapseDay`); the day starts expanded, and collapsing hides
+its fixtures but never removes them from the underlying list. A header row above the accordion
+shows the true total (`MATCH_COPY.fixturesTotal`) so completeness is visible, not just implied.
+
+**Live fixtures.** Three pure functions added to `lib/matches-tab.ts` —
+`isLiveFixtureState`, `liveMinuteFromState`, `liveClubMinutes` — read the live/minute signal off
+the fixture `state` string `matches-tab-load.ts` already builds (`` `${minute}' · LIVE` `` is the
+only state shape containing "LIVE"). No new query, no loader signature change. A live finish in
+the fixture row shows `LIVE 63′` (U+2032 prime, matching the frame) in place of the kickoff time.
+
+**Table.** `Standings` in `Phase4MatchesPage.tsx` now renders through `components/TableStandard.tsx`
+(sticky first column, flex rows — already built for exactly this) instead of its own markup, with
+all `view.rows.length` rows always rendered. A club is tinted `tone: "live"` with a `LIVE {minute}′`
+badge when a fixture in the same gameweek's fixture list has that club playing right now, matched
+by **team display name** (not id) — ESPN-sourced standings carry ESPN's own team id in `club_id`,
+not this app's internal `teams.id`, so an id join would silently miss every ESPN-sourced row;
+`club` (standings) and `home.name`/`away.name` (fixtures) both trace back to the same ESPN
+`displayName` field, so a name match is the safe join here.
+
+**Copy.** Eight new `MATCH_COPY` entries (`fixturesTotal`, `dayFixtureCount`, `collapseDay`,
+`expandDay`, `liveMinute`, `fullTable`, `tableRowsTotal`, `pos`); the now-dead `overflow` entry
+(the old summary row's only caller) removed. No new component files, so no copy-scan-manifest
+changes — `Phase4MatchesPage.tsx` and `TableStandard.tsx` were already registered.
+
+**Tests.** `lib/matches-tab.test.ts` gained a 23-fixture/9+-day completeness guard (asserts the
+grouped total equals the input count — fails the moment a truncation cap comes back) plus unit
+tests for the three new live-state helpers. `tests/phase4/matches-page.test.tsx` is new (jsdom,
+added to `vitest.config.ts`'s `environmentMatchGlobs`): renders the real component with 9
+fixtures across 9 days and asserts every one is in the DOM, that no "more" text exists anywhere,
+that collapsing one day removes only that day's fixtures, that a live fixture shows its minute
+badge, and that a 20-row standings view renders all 20 club names plus the live badge on a
+matching club.
+
+### Deviations
+
+- **Scope chips (item 3) not built.** The brief's condition — "when the viewer's leagues span >1
+  competition" — cannot fire today: `loadMatchesTab` hard-codes `slug: "pl-2026-27"`, and a
+  repo-wide grep turns up exactly one competition anywhere in the data model. 6A's scope-chip
+  model (`lib/gw-home.ts`) is built around `HomeLeagueCard[]`, a shape the single-competition
+  `MatchesTabView` doesn't have and that Matches's loader doesn't produce. Building the switcher
+  now means inventing plumbing for a condition with no real data to exercise or test against —
+  speculative code the project rules argue against. Deferred until a second competition exists;
+  flagging this back to the team lead rather than guessing at scope.
+- **No viewer-club tinting in the table.** The frame's "your club" row style (distinct from the
+  live-row style) has no data path today — nothing links a viewer's picks to a specific club in
+  `StandingsView`. Only the live-row highlight (which does have a data path) is implemented.
+- **Table's decorative footnote/callout text from the accordion frame** (the "10 of 10 fixtures ·
+  scroll to collapse or review" footer, the callout box) was left out — the header total row
+  covers the same "nothing is hidden" signal without adding more copy surface for a first pass.
+
+### Verification
+
+`npm run typecheck` — clean. `npx vitest run` — 71 files, 811 tests, all passing (12 new: 5 pure
+live-helper/completeness tests in `lib/matches-tab.test.ts`, 4 new component tests, 3 already
+counted in matches-tab-load). `npm run build` — clean, same route set, `/matches` unchanged at
+6.23 kB. `node --env-file=.env.local scripts/smoke/route-smoke.mjs` — 0 failures across all four
+leagues including `matches` for each. Nothing committed or pushed.
 - **`yourGameweekSubtitle` pluralization**: "1 leagues" → "1 league" (count-aware).
+
+## Step 6B round 2 (2026-08-06) — viewer-scoped competitions, sticky-club table, name-alias fix
+
+Fixed all 7 must-fixes from the round-2 review plus nice-to-haves 9, 11, 12. Skipped 8 and 10 as
+uneconomic for this round (below).
+
+**Must-fix 1 — viewer-scoped competition resolution.** `loadMatchesTab` no longer hard-codes
+`slug: "pl-2026-27"`. New `resolveViewerCompetitionScopes()` (`lib/matches-tab-load.ts`) reads the
+viewer's `league_competitions` rows (`status <> 'archived'`), joins `competitions`, drops rows
+where `member_competitions.left_at` marks the viewer as gone from that league's competition, and
+feeds the result through `lib/gw-home.ts`'s existing `homeCompetitionScopes` for dedupe/ordering —
+the same helper 6A's home hub already uses. A viewer with zero active scopes (Solid Yenne Boys, KK
+Bois, PES Bois — their only link is the archived WC2026) gets `null` back, and
+`app/matches/page.tsx` 404s rather than falling back to another competition's fixtures. The active
+scope comes from `?comp=<slug>` (new `MatchesPage` search param, threaded through
+`loadMatchesPage`/`loadMatchesTab`), defaulting to the first scope. `MatchesTabView` gained
+`scopes` and `selectedScope`; `Phase4MatchesPage` renders a chip row (`role="tablist"`, plain
+`<Link href="/matches?comp=<slug>">` per chip) above the segment control, only when
+`scopes.length > 1`. Confirmed against the ZZ-P1 case the brief called out: `zz-p1-test-league`'s
+active link is `zzp1-mock-pl`, not `pl-2026-27` — that member now sees Mock fixtures, not PL.
+
+**Must-fix 2/3/5 — sticky club column, LIVE badge placement, GD sign.** Not fixed as three separate
+patches — fixed once, by must-fix 6's consolidation (below). `CompetitionTable` already put the
+club in column 0 (TableStandard's sticky slot), already appends `liveLabel` after the club name
+(TableStandard only ever injects it into the first cell), and already formats GD with `+`/`−`
+(U+2212). Moving `Phase4MatchesPage`'s table onto `CompetitionTable` inherited all three for free.
+
+**Must-fix 4 — club name alias.** New `lib/club-name-alias.ts`: one map, 8 entries (Bournemouth,
+Brighton, Leeds, Man City, Man Utd, Newcastle, Nott'm Forest, Spurs → their ESPN displayNames), one
+`toEspnClubName()` helper. Used by both `lib/matches-tab.ts`'s `liveClubMinutes` (keys the map by
+ESPN name before matching the standings table) and `CompetitionTable.tsx` (aliases `liveClubs`
+before joining). `lib/club-name-alias.test.ts` checks all 20 real 2026-27 Premier League clubs
+join. **Deviation:** the 20-club list came from the brief's text, not repo fixtures —
+`tests/fixtures/fpl/bootstrap.json` has stale 2025-26-or-earlier clubs (Coventry, Hull, Ipswich)
+and `tests/fixtures/espn-standings/table.json` only has 2 sample rows. Did not touch the
+`teams.external_id` backfill migration, per the brief.
+
+**Must-fix 6 — consolidation.** `CompetitionTable` gained a `variant` prop (`"league"` default,
+unchanged for its one other call site in `LeaguePanes.tsx`; `"matches"` drops the Record column and
+swaps in the matches-tab table-card-head). `Phase4MatchesPage`'s hand-rolled `TABLE_COLUMNS`/table
+JSX is gone — `Standings()` now delegates to `<CompetitionTable variant="matches">`, keeping only
+its own outer header (`sourceLine` + row count) so the existing "20 rows" test still passes. A new
+`liveMinutes` prop on `CompetitionTable` (a `Map<club, minute|null>`) takes precedence over the
+existing `liveClubs` prop, so the matches page's per-minute badge and the league screen's static
+"LIVE" badge share one rendering path.
+
+**Must-fix 7 — completeness copy.** Added `MATCH_COPY.fixturesCallout` and
+`fixturesScrollFoot(n)`, byte-exact from the canon frame (`docs/design/2026-08-05-feedback-r1-reference.html:7399,7408`)
+— the callout sits above the day list, the footer below it, both gated on `days.length > 0`. Also
+added the table-card-head (`competitionName` / `MATCH_COPY.tablePlayedMeta(played, gw, state)` /
+`fullTableBadge`) inside `CompetitionTable`'s `"matches"` variant. The your-club footnote/tint
+stays deferred — no data path links a viewer's picks to a club yet, same reason 6B round 1 gave.
+
+**Nice-to-haves done.** #9: `lib/matches-tab-load.fixture-label.test.ts` pins `fixtureLabel`'s
+live-branch output to `isLiveFixtureState`'s acceptance shape. #11:
+`tests/phase4/matches-page.test.tsx` gained a day-order test (out-of-order fixture array still
+renders headers oldest-to-newest). #12: a regression test asserting the LIVE badge lands inside the
+same `role="cell"` as the club name, not clipped into a bare rank slot. #10 (ASCII vs U+2032 prime)
+was also fixed: `fixtureLabel`'s live branch now emits U+2032, matching the client's own
+`MATCH_COPY.liveMinute`; `liveMinuteFromState`'s regex was widened to accept either glyph so the
+existing ASCII-apostrophe test fixtures in `lib/matches-tab.test.ts` keep passing.
+
+**Skipped.** #8 (live-snapshot vs GW-scoped badge mismatch in `lib/matches-page-load.ts`) — left
+alone. The brief flagged it as "if cheap"; fixing it means changing the live-fixtures probe query's
+scope (competition-wide vs GW-scoped) which touches a query already covered by the route-smoke
+harness and by `tests/phase4/matches-tab-load.test.ts` — didn't want to risk that for a nice-to-have
+with no reported real-world symptom yet. Flagging back rather than guessing at the right scope.
+
+### Deviations — round 2
+
+- **Scope chip label omits the GW number.** The canon frame's home-hub chip example shows
+  "Premier League · GW4"; computing an accurate current-GW number for a scope that *isn't* the
+  active one means running the full `resolveAppGameweek` lifecycle pipeline per competition — too
+  expensive to justify for a chip label. Chips show just the competition name.
+- **Scope switch uses plain `<Link>` navigation, not client state or `router.replace`.** The brief
+  allowed either; a full-page `Link` to `/matches?comp=<slug>` matches the existing GW-picker and
+  segment-control pattern already in this file, so it was the lighter option that still worked.
+- **`resolveViewerCompetitionScopes` batches instead of reusing `loadLeagueIdentity` per league.**
+  `lib/gw-view.ts`'s `loadLeagueIdentity` already resolves one league's competition participation,
+  but calling it once per league is N+1 queries; a single batched `league_competitions` read is
+  fewer round-trips and still honors the brief's literal spec (read `league_competitions`, join
+  `competitions`).
+- **`tests/phase4/matches-tab-load.test.ts`'s mock query builder gained a `.neq()` stub** and its
+  `league_competitions`/`member_competitions` fixture rows gained `competition_id`, `joined_at`,
+  and a nested `competitions` object — the new scope-resolution query needed shapes the old
+  hard-coded-slug query never touched.
+
+### Verification — round 2
+
+`npm run typecheck` — clean. `npx vitest run` — 73 files, 817 tests, all passing (6 new: 3 in
+`club-name-alias.test.ts`, 3 in `matches-tab-load.fixture-label.test.ts`; existing suites'
+diffs are 2 new tests in `matches-page.test.tsx` net of test-helper fixture updates). `npm run
+build` — clean, `/matches` at 9.45 kB (up from the round-1 6.23 kB — scope chips + consolidated
+table + completeness copy). `node --env-file=.env.local scripts/smoke/route-smoke.mjs` — 0
+failures across all four leagues' `matches` case, including the three archived-only real leagues
+now correctly returning `null` (404) rather than another competition's data. Nothing committed or
+pushed.
+
+### Orchestrator QC + inline fix (2026-08-06)
+
+Browser QC as testa on localhost: /matches now scopes to ZZ Mock Premier League (5 fixtures,
+one day accordion, callout + "5 of 5 fixtures" footer byte-exact); collapse/expand toggles
+client-side with no reload; table view renders the matches variant (head card, club-pinned
+column with nested rank, GD +/− with U+2212, all rows) in light and dark themes. Scope chips
+can't be browser-verified yet: `one_active_competition_per_league` means multi-scope needs one
+viewer across two leagues on different competitions — stays on the deferred list.
+
+Inline fix: the day accordion's aria-label used the raw `dayKey` ("Collapse 2026-08-10"); it now
+formats through `formatFriendlyDate` ("Collapse Mon 10 Aug"), matching the visible header.
+
+QC seed: `competition_standings` gained a `source='derived'` snapshot for zzp1-mock-pl (10 mock
+clubs, mixed GD signs) so the ZZ table view has data. Left in place — it only affects the test
+competition.

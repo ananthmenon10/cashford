@@ -6,6 +6,7 @@ function query(data: unknown[]) {
   return {
     select: () => query(data),
     eq: () => query(data),
+    neq: () => query(data),
     in: () => query(data),
     not: () => query(data),
     gt: () => query(data),
@@ -33,10 +34,29 @@ describe("matches tab loader", () => {
       ],
       leagues: [{ id: "league", slug: "friends", name: "Friends", status: "active" }],
       league_competitions: [
-        { league_id: "league", status: "active", eligible_from_gameweek_id: "gw3" },
+        {
+          league_id: "league",
+          competition_id: "comp",
+          status: "active",
+          eligible_from_gameweek_id: "gw3",
+          joined_at: "2026-01-01T00:00:00.000Z",
+          competitions: {
+            id: "comp",
+            slug: "pl-2026-27",
+            name: "Premier League",
+            status: "active",
+            format: "league",
+          },
+        },
       ],
       member_competitions: [
-        { league_id: "league", eligible_from_gameweek_id: "gw3", left_at: null },
+        {
+          league_id: "league",
+          competition_id: "comp",
+          user_id: "viewer",
+          eligible_from_gameweek_id: "gw3",
+          left_at: null,
+        },
       ],
       gameweeks: [
         {

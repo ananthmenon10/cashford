@@ -16,7 +16,6 @@ export const MATCH_COPY = {
   miss: "Miss",
   pointsPending: "— pts",
   tiebreak: (value: string) => `Tiebreak · ${value}`,
-  overflow: (count: number, label: string) => `…${count} more · ${label}`,
   lockRule: (gw: number) =>
     `Your picks lock at the GW${gw} deadline, not at kickoff.`,
   yourCalls: "Your calls",
@@ -109,6 +108,22 @@ export const MATCH_COPY = {
     `One more ${club} goal takes you to ${points} pts and ${ordinal} of ${fieldSize}.`,
   standing: (ordinal: string, fieldSize: number, points: number) =>
     `${ordinal} of ${fieldSize} · ${points} pts`,
+  fixturesTotal: (n: number) => `${n} total`,
+  dayFixtureCount: (n: number) => `${n} ${n === 1 ? "match" : "matches"}`,
+  collapseDay: (day: string) => `Collapse ${day}`,
+  expandDay: (day: string) => `Expand ${day}`,
+  liveMinute: (minute: number | null) =>
+    minute == null ? "LIVE" : `LIVE ${minute}′`,
+  fullTable: "Full table",
+  fullTableBadge: "FULL TABLE",
+  tableRowsTotal: (n: number) => `${n} rows`,
+  tablePlayedMeta: (played: number, gw: number, state: string) =>
+    `Played ${played} · GW${gw} ${state}`,
+  pos: "Pos",
+  fixturesCallout:
+    "All expanded by default. No pagination—everything remains in the page.",
+  fixturesScrollFoot: (n: number) => `${n} of ${n} fixtures · scroll to collapse or review`,
+  competitionScope: "Competition scope",
   retrospectiveModel: (
     actual: string,
     actualChance: number | null,

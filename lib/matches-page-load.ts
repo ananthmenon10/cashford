@@ -28,8 +28,15 @@ export async function loadMatchesPage(
   userId: string,
   requestedGw?: number,
   requestedView?: string,
+  requestedScopeSlug?: string,
 ): Promise<MatchesPageLoad | null> {
-  const view = await loadMatchesTab(session as any, userId, requestedGw);
+  const view = await loadMatchesTab(
+    session as any,
+    userId,
+    requestedGw,
+    undefined,
+    requestedScopeSlug,
+  );
   if (!view) return null;
 
   const [{ data: standingRows, error }, { data: liveRows, error: liveError }] =

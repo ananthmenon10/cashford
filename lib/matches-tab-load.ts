@@ -8,6 +8,7 @@ import {
   sharedHeaderPoints,
   type FixtureRowView,
   type LeagueRef,
+  type MatchesTabScope,
   type MatchesTabView,
   type WinnersRecapView,
 } from "./matches-tab";
@@ -17,11 +18,87 @@ import { collapseGameweekFixtures } from "./gw-fixtures";
 import { rankGameweekScores } from "./gw-rank";
 import { ordinal } from "./view-format";
 import { MATCH_COPY } from "./match-copy";
+import { homeCompetitionScopes } from "./gw-home";
 
 type Client = Awaited<ReturnType<typeof import("./supabase/server").createClient>>;
 
 function one<T>(value: T | T[]): T {
   return Array.isArray(value) ? value[0] : value;
+}
+
+type ScopeCandidate = {
+  competitionId: string;
+  competitionSlug: string;
+  competitionName: string;
+  competitionStatus: string;
+};
+
+/**
+ * The viewer's active competition scopes, in first-seen order — dedupe/ordering is delegated to
+ * homeCompetitionScopes (the same helper the home hub's scope chips use) rather than reimplemented
+ * here. league_competitions is RLS-scoped through leagues, so this naturally only ever sees the
+ * viewer's own leagues; no explicit league_id filter is needed. A league_competitions row whose
+ * link (not the competition itself) is archived is excluded, as is any competition the viewer has
+ * fully left (member_competitions.left_at) via every league linking to it, and any non-"league"
+ * format competition (cup-format WC2026 has no gameweek/fixtures concept this tab understands).
+ */
+async function resolveViewerCompetitionScopes(
+  session: Client,
+  userId: string,
+): Promise<ScopeCandidate[]> {
+  const { data: leagueCompetitions, error } = await session
+    .from("league_competitions")
+    .select(
+      "league_id, competition_id, status, joined_at, competitions(id, slug, name, status, format)",
+    )
+    .neq("status", "archived")
+    .order("joined_at", { ascending: true });
+  if (error) throw new Error(`matches scopes: ${error.message}`);
+
+  const { data: memberScopes, error: memberError } = await session
+    .from("member_competitions")
+    .select("league_id, competition_id, left_at")
+    .eq("user_id", userId);
+  if (memberError) throw new Error(`matches member scopes: ${memberError.message}`);
+  const leftPairs = new Set(
+    (memberScopes ?? [])
+      .filter((row: any) => row.left_at)
+      .map((row: any) => `${row.league_id}:${row.competition_id}`),
+  );
+
+  const cards: Array<{
+    archived: boolean;
+    format: "cup" | "gameweek" | "none";
+    competitionSlug: string | null;
+    competitionName: string;
+    gameweekNumber: number | null;
+  }> = [];
+  const bySlug = new Map<string, ScopeCandidate>();
+  for (const row of leagueCompetitions ?? []) {
+    const competition: any = one((row as any).competitions);
+    if (!competition || competition.status === "archived") continue;
+    if (competition.format !== "league") continue;
+    if (leftPairs.has(`${(row as any).league_id}:${(row as any).competition_id}`)) continue;
+    cards.push({
+      archived: false,
+      format: "gameweek",
+      competitionSlug: competition.slug,
+      competitionName: competition.name,
+      gameweekNumber: null,
+    });
+    if (!bySlug.has(competition.slug)) {
+      bySlug.set(competition.slug, {
+        competitionId: competition.id,
+        competitionSlug: competition.slug,
+        competitionName: competition.name,
+        competitionStatus: competition.status,
+      });
+    }
+  }
+  return homeCompetitionScopes(cards).flatMap((scope) => {
+    const candidate = bySlug.get(scope.competitionSlug);
+    return candidate ? [candidate] : [];
+  });
 }
 
 function fixtureState(fixture: any) {
@@ -41,16 +118,27 @@ export async function loadMatchesTab(
   userId: string,
   requestedGw?: number,
   now = new Date(),
+  requestedScopeSlug?: string,
 ): Promise<MatchesTabView | null> {
-  const { data: competitions, error: competitionError } = await session
-    .from("competitions")
-    .select("id, slug, name, status")
-    .eq("slug", "pl-2026-27");
-  if (competitionError) {
-    throw new Error(`matches competition: ${competitionError.message}`);
-  }
-  const competition = competitions?.[0];
-  if (!competition) return null;
+  const scopeCandidates = await resolveViewerCompetitionScopes(session, userId);
+  // Never leak another competition's fixtures: a viewer with zero active competition scopes
+  // (e.g. a Solid Yenne Boys member, whose only link is the archived WC2026) gets nothing here —
+  // the caller 404s rather than falling back to some other competition's data.
+  if (!scopeCandidates.length) return null;
+  const activeScope =
+    (requestedScopeSlug
+      ? scopeCandidates.find((scope) => scope.competitionSlug === requestedScopeSlug)
+      : undefined) ?? scopeCandidates[0];
+  const competition = {
+    id: activeScope.competitionId,
+    slug: activeScope.competitionSlug,
+    name: activeScope.competitionName,
+    status: activeScope.competitionStatus,
+  };
+  const viewerScopes: MatchesTabScope[] = scopeCandidates.map((scope) => ({
+    slug: scope.competitionSlug,
+    name: scope.competitionName,
+  }));
 
   const [
     { data: leagues, error: leagueError },
@@ -536,6 +624,8 @@ export async function loadMatchesTab(
       name: competition.name,
       archived: competition.status === "archived",
     },
+    scopes: viewerScopes,
+    selectedScope: competition.slug,
     gw: {
       id: focusRef.id,
       number: focusRef.number,
@@ -616,7 +706,7 @@ function displayVerdict(
     : undefined;
 }
 
-function fixtureLabel(
+export function fixtureLabel(
   fixture: any,
   membershipVoid: boolean,
 ): { label: string; scheduled: boolean } {
@@ -627,7 +717,10 @@ function fixtureLabel(
     };
   }
   if (fixture.status === "live") {
-    return { label: `${fixture.minute ?? ""}' · LIVE`, scheduled: false };
+    // U+2032 (prime), matching MATCH_COPY.liveMinute's glyph on the client — the two must render
+    // the same "LIVE 63′" shape, whether it comes off the server label or the client's own
+    // minute-based badge.
+    return { label: `${fixture.minute ?? ""}′ · LIVE`, scheduled: false };
   }
   if (fixture.status === "finished") return { label: "FT", scheduled: false };
   if (fixture.status === "postponed") {
