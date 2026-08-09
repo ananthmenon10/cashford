@@ -176,6 +176,7 @@ export type GameweekViewDTO = {
   viewerPicks: { fixtureId: string; predHome: number; predAway: number }[];
   revealedPicks: {
     userId: string;
+    name: string | null;
     fixtureId: string;
     predHome: number;
     predAway: number;
@@ -944,12 +945,16 @@ export async function loadGameweekView(
       predHome: pick.pred_home,
       predAway: pick.pred_away,
     })),
-    revealedPicks: (revealQuery.data ?? []).map((pick: any) => ({
-      userId: one<any>(pick.gameweek_entries)?.user_id ?? "",
-      fixtureId: pick.fixture_id,
-      predHome: pick.pred_home,
-      predAway: pick.pred_away,
-    })),
+    revealedPicks: (revealQuery.data ?? []).map((pick: any) => {
+      const userId = one<any>(pick.gameweek_entries)?.user_id ?? "";
+      return {
+        userId,
+        name: names.get(userId) ?? "Player",
+        fixtureId: pick.fixture_id,
+        predHome: pick.pred_home,
+        predAway: pick.pred_away,
+      };
+    }),
     standings,
     result,
     enteredCount: entryNumbers.entered,

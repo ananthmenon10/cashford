@@ -2427,6 +2427,22 @@ same tree, no commits:
   with no current real-world instance.
 No commits, no migrations applied, no DB writes, no settlement/scoring logic touched.
 
+## Cashford-2 — revealed prediction pill names (2026-08-09)
+
+The gameweek matches list now carries the existing profile name from the loader into each
+deadline-gated revealed pick. `FixtureRow` renders that name in the UI font and keeps the score in
+mono/tabular type, with a truncated name and a neutral em-dash fallback. The component test covers
+both a named pick and a pick whose name is missing.
+
+No new database query or copy entry was needed. The viewer-specific pill highlight was skipped
+because the existing matches frame has no matching convention for it.
+
+## Deviations
+
+The required full verifier reached the smoke stage, but the read-only Supabase discovery request
+failed with `ENOTFOUND` in this environment. Typecheck, Vitest, and the build passed; no network or
+database workaround was used.
+
 ## Step 9 (2026-08-06) — Match-detail insight modules (#16) + gameweek /rules rewrite (#13)
 
 Item #16: replaced the raw JSON dumps on the pre-match section of `/m/[fixtureId]`

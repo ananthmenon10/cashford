@@ -40,9 +40,10 @@ export function FixtureRow({
           {fixturePicks.map((pick) => (
             <span
               key={pick.userId}
-              className="rounded-cs2-sm bg-cs2-line-2 px-2 py-1 font-mono text-[10px] font-bold tabular text-cs2-ink-2"
+              className="inline-flex max-w-full items-center gap-1.5 rounded-cs2-sm bg-cs2-line-2 px-2.5 py-1 text-[10px] font-bold text-cs2-ink-2"
             >
-              {pick.predHome}–{pick.predAway}
+              <span className="min-w-0 max-w-[8rem] truncate font-sans">{pick.name || "—"}</span>
+              <span className="shrink-0 font-mono tabular">{pick.predHome}–{pick.predAway}</span>
             </span>
           ))}
         </div>
