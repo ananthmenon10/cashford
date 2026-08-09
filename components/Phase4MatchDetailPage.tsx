@@ -3,6 +3,7 @@ import { MATCH_COPY } from "@/lib/match-copy";
 import type { MatchDetailView } from "@/lib/match-detail";
 import type { Sourced } from "@/lib/match-blocks";
 import { LocalTime } from "@/components/LocalTime";
+import { OddsModule, FormModule, H2HModule, TableModule } from "@/components/matches/MatchInsightModules";
 
 const card =
   "rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]";
@@ -179,25 +180,10 @@ export function Phase4MatchDetailPage({
                 {MATCH_COPY.insights}
               </div>
             )}
-            {view.odds && (
-              <Block title={MATCH_COPY.odds} block={view.odds} value={{
-                home: view.odds.home,
-                draw: view.odds.draw,
-                away: view.odds.away,
-                book: view.odds.book,
-              }} />
-            )}
-            {view.model && (
-              <Block title={MATCH_COPY.model} block={view.model} value={{
-                topScores: view.model.topScores,
-                btts: view.model.btts,
-                cleanSheets: view.model.cleanSheets,
-                pOver: view.model.pOver,
-              }} />
-            )}
-            {view.form && <Block title={MATCH_COPY.form} block={view.form} value={{ home: view.form.home, away: view.form.away }} />}
-            {view.h2h && <Block title={MATCH_COPY.headToHead} block={view.h2h} value={{ games: view.h2h.games, summary: view.h2h.summary }} />}
-            {view.table && <Block title={MATCH_COPY.tableWindow} block={view.table} value={view.table.window} />}
+            <OddsModule odds={view.odds} model={view.model} home={view.header.home} away={view.header.away} />
+            <FormModule form={view.form} home={view.header.home} away={view.header.away} />
+            <H2HModule h2h={view.h2h} home={view.header.home} away={view.header.away} />
+            <TableModule table={view.table} />
             {view.teamNews && <Block title={MATCH_COPY.teamNews} block={view.teamNews} value={{ home: view.teamNews.home, away: view.teamNews.away }} />}
             {view.predictedXi && <Block title={MATCH_COPY.predictedXi} block={view.predictedXi} value={{ home: view.predictedXi.home, away: view.predictedXi.away }} />}
           </>

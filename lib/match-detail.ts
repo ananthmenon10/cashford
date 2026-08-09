@@ -52,16 +52,20 @@ export type MatchDetailView = {
   } | null;
   whatIf?: { line: string };
   odds?: Sourced<{
-    home: number;
-    draw: number;
-    away: number;
+    pHome: number;
+    pDraw: number;
+    pAway: number;
+    mlHome: number;
+    mlDraw: number;
+    mlAway: number;
     book: string;
   }>;
   model?: Sourced<{
     topScores: ScoreProb[];
-    btts: number;
-    cleanSheets: [number, number];
-    pOver: number;
+    btts: number | null;
+    cleanSheets: [number | null, number | null];
+    pOver: number | null;
+    totalLine: number | null;
   }>;
   form?: Sourced<{ home: unknown[]; away: unknown[] }>;
   h2h?: Sourced<{ games: unknown[]; summary: string }>;
@@ -226,11 +230,17 @@ export function buildMatchDetailView(
     view.odds = sourcedBlock(
       insights.ml_home != null &&
         insights.ml_draw != null &&
-        insights.ml_away != null
+        insights.ml_away != null &&
+        insights.p_home != null &&
+        insights.p_draw != null &&
+        insights.p_away != null
         ? {
-            home: Number(insights.ml_home),
-            draw: Number(insights.ml_draw),
-            away: Number(insights.ml_away),
+            pHome: Number(insights.p_home),
+            pDraw: Number(insights.p_draw),
+            pAway: Number(insights.p_away),
+            mlHome: Number(insights.ml_home),
+            mlDraw: Number(insights.ml_draw),
+            mlAway: Number(insights.ml_away),
             book: insights.provider ?? "ESPN",
           }
         : null,
@@ -246,12 +256,13 @@ export function buildMatchDetailView(
       Array.isArray(insights.top_scores) && insights.top_scores.length
         ? {
             topScores: insights.top_scores,
-            btts: Number(insights.p_btts),
+            btts: insights.p_btts != null ? Number(insights.p_btts) : null,
             cleanSheets: [
-              Number(insights.p_cs_home),
-              Number(insights.p_cs_away),
+              insights.p_cs_home != null ? Number(insights.p_cs_home) : null,
+              insights.p_cs_away != null ? Number(insights.p_cs_away) : null,
             ],
-            pOver: Number(insights.p_over),
+            pOver: insights.p_over != null ? Number(insights.p_over) : null,
+            totalLine: insights.total_line != null ? Number(insights.total_line) : null,
           }
         : null,
       {
@@ -276,7 +287,13 @@ export function buildMatchDetailView(
       insights.h2h?.games?.length
         ? {
             games: insights.h2h.games,
-            summary: `${insights.h2h.tally?.w ?? 0} wins · ${insights.h2h.tally?.d ?? 0} draws`,
+            summary: MATCH_COPY.h2hSummary(
+              input.fixture.home.name,
+              insights.h2h.tally?.w ?? 0,
+              insights.h2h.tally?.d ?? 0,
+              input.fixture.away.name,
+              insights.h2h.tally?.l ?? 0,
+            ),
           }
         : null,
       {

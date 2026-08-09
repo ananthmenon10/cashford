@@ -2426,3 +2426,122 @@ same tree, no commits:
   would read as live rather than archived. Flagging rather than building a third kind for a case
   with no current real-world instance.
 No commits, no migrations applied, no DB writes, no settlement/scoring logic touched.
+
+## Step 9 (2026-08-06) — Match-detail insight modules (#16) + gameweek /rules rewrite (#13)
+
+Item #16: replaced the raw JSON dumps on the pre-match section of `/m/[fixtureId]`
+(`Phase4MatchDetailPage.tsx`) with four designed modules in a new
+`components/matches/MatchInsightModules.tsx` — `OddsModule` (1X2 probabilities + Poisson-model top
+scores/BTTS/clean-sheets/pOver), `FormModule` (last-five W/D/L chips), `H2HModule` (recent
+meetings), `TableModule` (reuses `CompetitionTable`, the app's one table standard, rather than a
+new component). All copy lives in `lib/match-copy.ts`. Every module returns `null` when its
+`Sourced<>` block is absent; a present block with a missing field falls back to an em dash, never
+`undefined`/`NaN` on screen.
+
+Item #13: rewrote `/rules` for the gameweek era. Copy lives in a new `lib/rules-copy.ts`; the page
+keeps its existing local `Step`/`Card` helpers and design tokens. Mechanics came from
+`lib/gameweek-points.ts` (scoring) and `lib/gameweek-settle.ts` (winners, money, void rules) — read
+only, never edited.
+
+### Deviations
+- **Odds module now reads `fixture_insights.p_home/p_draw/p_away`, not `ml_home/ml_draw/ml_away`.**
+  `lib/match-detail.ts`'s `view.odds` previously exposed only the raw american moneylines. The
+  de-vigged probabilities were already being computed and stored (`buildInsightsRow` in
+  `lib/espn-insights.ts`) and the legacy WC page's `mapInsightsView` already prefers them for its
+  win-probability bar. Brought `match-detail.ts` in line with that existing convention rather than
+  computing anything new: `view.odds` now carries `pHome/pDraw/pAway` as the primary field (used
+  for the 1X2 row) plus `mlHome/mlDraw/mlAway` for a "for guidance only" footnote, and `view.odds`
+  is now hidden whenever the probabilities are missing (even if moneylines are present) rather than
+  the old moneyline-only gate. No upstream write path touched.
+- **Brief named `lib/settlement.ts`/`lib/settle-contest.ts` as the mechanics source for #13; these
+  are actually the archived World Cup per-match cup-format engine, not the live gameweek game.**
+  Used `lib/gameweek-points.ts` (`scoreGameweek`: 3 pts exact, 1 pt correct result, 0 miss, void
+  fixtures pay 0 to everyone) and `lib/gameweek-settle.ts` (`settleGameweek`: winner tiebreak order
+  points → exacts → goal error → split; void rules `no_entrants` > `single_entrant` >
+  `all_fixtures_void`) as the authoritative source instead. Flagged to team-lead; not guessed at
+  silently.
+- **Brief said picks "lock at first kickoff"; the app's own copy says otherwise.**
+  `MATCH_COPY.lockRule` already states picks "lock at the GW{gw} deadline, not at kickoff" and
+  `deadline_at` is sourced from FPL's real gameweek deadline (`lib/sync-fpl.ts`). Wrote the rules
+  copy to match the app's own canon language (deadline-based lock), not the brief's literal
+  phrase. Flagged to team-lead.
+- **`app/rules/page.tsx` and `lib/rules-copy.ts` added to `tests/phase3/copy-scan-manifest.json`'s
+  `files` list** (the page, `jsx` mode) so the existing copy-governance scan covers the rewrite;
+  `lib/rules-copy.ts` itself is a copy-module producer, exempt from the strings-mode scan the same
+  way `lib/gw-copy.ts` is (not added to the manifest — the governance test's candidate scope is
+  `app/`/`components/` only, matching `lib/match-copy.ts`'s precedent of never being listed either).
+- New tests added under `tests/phase7/` (`match-detail-insights.test.ts` for the pure
+  `buildMatchDetailView` mapping, `match-insight-modules.test.tsx` for the four new components'
+  present/absent render states); the `.tsx` file added to `vitest.config.ts`'s
+  `environmentMatchGlobs` (jsdom).
+
+### Round 2 — review fixes (2026-08-06)
+
+Team-lead review found four accuracy errors in the `/rules` copy and five small #16 cleanups.
+Fixed all nine; re-ran the full suite; `verify-all.sh` still prints ALL GREEN.
+
+**Rules copy accuracy (`lib/rules-copy.ts`):**
+- `moneyLead` claimed the pot was "every loser's ante" splitting "evenly" among winners. The
+  gameweek screen's `Pot ₹X · N entered of M` (`entryPotNumbers` in `lib/gw-eligibility.ts`) is
+  stake × every entrant, winners included — not just losers' antes — and `buildTransfers`
+  (`lib/gameweek-settle.ts`) splits per loser, not evenly, so the old line contradicted both facts.
+  Rewrote to separate the two: the on-screen pot totals everyone's ante; only losers actually pay,
+  and each loser's ante splits among the winners.
+- `moneyOneWinner`/`moneyThreeWinners` said winners "take the pot" — false when the pot (all
+  entrants) is larger than what a winner actually collects (losers' antes only). Reworded to
+  "collect every loser's ante" / "each loser's ante splits three ways", never using "pot" for what
+  a winner receives.
+- `moneyRounding` kept the "splits evenly" framing being fixed above; reworded to "when an ante
+  won't split evenly, the spare rupee goes to a winner — never left over", matching
+  `buildTransfers`'s actual remainder rule (earliest winners by `userId` get the extra rupee per
+  loser — e.g. 2 losers/3 winners at ₹100 collect 68/66/66).
+- `archiveWhere` said the switcher badge reads "Archive"; the real badge text is "ARCHIVED". Fixed
+  to match.
+- `footer` said "Antes and rules are set by your captain" — only the ante is captain-set (fixture
+  lists, scoring, and tiebreaks are fixed game rules). Changed to "Your captain sets the ante."
+- Soft notes, both taken: `basicsInvalid` now has a second sentence noting an entry can also go
+  invalid if a fixture is added to the gameweek after you enter (ties to the existing
+  `needs_update` nudge, `C46` in `lib/gw-copy.ts`). `tiebreak2Body`'s "across the whole gameweek"
+  was scoped to "on the matches that finished" — `settleGameweek`'s `goalError` tiebreak sums only
+  over graded (`finals`) fixtures, excluding void ones.
+
+**#16 cleanups (`lib/match-detail.ts`, `lib/match-copy.ts`, `components/matches/MatchInsightModules.tsx`):**
+- H2H headline now runs through a new `MATCH_COPY.h2hSummary(home, w, d, away, l)` instead of an
+  inline template literal, and includes the away team's win count (previously omitted).
+- Removed the dead `MATCH_COPY.away` key (zero call sites).
+- `cleanSheetFor(short) => "${short} clean sheet"` risked overflowing the 10px caption row for long
+  club names. Removed it; the clean-sheet stats now sit under a `MATCH_COPY.cleanSheets` subheader
+  with each `Stat`'s caption as the plain club name.
+- `p_btts`/`p_cs_home`/`p_cs_away`/`p_over` were coerced with `Number(x)`, turning a genuinely
+  missing value into `0` (rendered as "0%" instead of "—"). `model`'s type widened to allow `null`
+  on those fields and each mapping now null-guards before calling `Number()`.
+- `TableModule` was hand-computing `championsLeagueAfterRank: 4` and
+  `relegationFromRank: rows.length - 2` inline and rendering a second, separate source/age footer
+  next to `CompetitionTable`'s own unused `note` slot. Rewrote it to call `buildStandingsView()` —
+  the one place those two ranks are canonically computed — and to fold the source/age string into
+  its `note` parameter instead of a duplicate footer.
+  - Judgment call: kept `variant="league"` rather than switching to `variant="matches"` (what the
+    matches tab uses for the same table). `variant="matches"` requires a `competitionName` prop
+    that isn't threaded through `MatchDetailView`/`buildMatchDetailView`'s loader anywhere, and
+    adding it would be a data-layer change the brief rules out. Flagging this back to team-lead
+    rather than deciding it silently.
+
+### Round 3 — final nits (2026-08-06)
+
+- `TableModule`'s footer was hand-building `${table.source} · ${table.age}`, printing the raw
+  lowercase `"espn"` (`CompetitionTable` never renders `view.sourceLine` itself, only `view.note`).
+  Now builds the `StandingsView` once, then folds `base.sourceLine` (buildStandingsView's own
+  properly-cased "ESPN · updated 2h ago") into `note` instead of reformatting the raw fields.
+- `h2hSummary`'s "Even so far" branch was unreachable: `match-detail.ts` only ever builds the h2h
+  block when `insights.h2h.games.length > 0`, so w/d/l always sum to at least 1 by the time the
+  function runs. Removed the branch.
+- `moneyRounding` said "the spare rupee" (singular); `buildTransfers` splits per loser, so with
+  more than one loser more than one rupee can go spare. Reworded to "any spare rupees".
+- Added three tests: `MATCH_COPY.h2hSummary` pinned directly (and cross-checked against
+  `buildMatchDetailView`'s wiring) in `tests/phase7/match-detail-insights.test.ts`; an
+  `OddsModule` render test asserting `p_btts: null` shows an em-dash, never "0%", in
+  `match-insight-modules.test.tsx`; a `TableModule` render test asserting the rendered footer
+  contains "ESPN · updated" — text that can only come from `buildStandingsView`'s `sourceLine`,
+  not a hand-built string.
+
+No commits, no migrations applied, no DB writes, no settlement/scoring logic touched.

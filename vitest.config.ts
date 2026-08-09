@@ -21,6 +21,7 @@ export default defineConfig({
       ["tests/phase4/matches-page.test.tsx", "jsdom"],
       ["tests/phase5/wc-archive-components.test.tsx", "jsdom"],
       ["tests/phase6/analytics-feed-components.test.tsx", "jsdom"],
+      ["tests/phase7/match-insight-modules.test.tsx", "jsdom"],
     ],
   },
 });

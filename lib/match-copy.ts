@@ -124,6 +124,25 @@ export const MATCH_COPY = {
     "All expanded by default. No pagination—everything remains in the page.",
   fixturesScrollFoot: (n: number) => `${n} of ${n} fixtures · scroll to collapse or review`,
   competitionScope: "Competition scope",
+  oneXTwo: "1X2",
+  draw: "Draw",
+  mostLikelyScore: "Most likely score",
+  bothScore: "Both score",
+  cleanSheets: "Clean sheet",
+  overGoals: (line: number) => `Over ${line} goals`,
+  overGoalsModel: "Over goals · model estimate",
+  guidanceOnly: "For guidance only",
+  noFormYet: "No recent matches.",
+  noMeetingsYet: "No recent meetings.",
+  // Only called when at least one past meeting exists (lib/match-detail.ts gates the whole h2h
+  // block on games.length), so w/d/l always sum to at least 1 — no empty-parts fallback needed.
+  h2hSummary: (home: string, w: number, d: number, away: string, l: number) => {
+    const parts: string[] = [];
+    if (w > 0) parts.push(`${home} ${w} ${w === 1 ? "win" : "wins"}`);
+    if (d > 0) parts.push(`${d} ${d === 1 ? "draw" : "draws"}`);
+    if (l > 0) parts.push(`${l} ${away} ${l === 1 ? "win" : "wins"}`);
+    return parts.join(" · ");
+  },
   retrospectiveModel: (
     actual: string,
     actualChance: number | null,
