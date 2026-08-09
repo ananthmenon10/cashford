@@ -2561,3 +2561,22 @@ Fixed all nine; re-ran the full suite; `verify-all.sh` still prints ALL GREEN.
   not a hand-built string.
 
 No commits, no migrations applied, no DB writes, no settlement/scoring logic touched.
+
+## Gap-7 adoption SQL — PARKED (2026-08-09, Ananth's call)
+
+Dual review done: Opus (reviewer of record, GREEN on the rewritten proposal) and Terra
+(APPLY-WITH-CHANGES). Decision: park until before the next season rollover — worst case today
+is a mislabeled ante on a one-time adoption click, self-revealing on the pot line, and the
+read-only audit (2026-08-09) found zero mismatched pots on real leagues (one known ZZ-P1 QA
+artifact, protected by the zzp1-review restore manifest).
+
+MUST land before the next rollover, with Terra's three changes folded in:
+1. Real forward migration (the throwaway file is fully commented — uncomment into
+   supabase/migrations/, paste-safe body confirmed complete).
+2. Null-safe ante checks (`is distinct from`), validated before both replay/no-op branches.
+3. The same three-way pot-fact check (competition_id, stake_inr, deadline_at) on both
+   adopted=false replay branches — or re-run the stale-pot audit immediately before applying.
+Also inherited (separate work, Terra): adopt takes competition-gate→league row while
+archive/remove take league→competition-gate — a re-adopt racing archive/remove can deadlock.
+Proposal file: docs/design/throwaway/7b-gap7-proposed-migration.sql. Audit query: see the
+2026-08-09 session (gameweek_contests vs active league_competitions fact comparison).
