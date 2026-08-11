@@ -2616,3 +2616,20 @@ Ananth's logged-in pass (batched for end of build).
   insetting the x-range to [4.5, 295.5]; feet keep justify-between (≤1.5% offset accepted).
 - Plan QC step claiming ZZ-P1 has void-fixture history was wrong (no void or dirty gameweeks
   exist in the DB today) — corrected in plan rev 5; void rendering carried by unit tests only.
+
+## Analytics backlog — Phase B (2026-08-11): live my-form record
+
+Plan: docs/plans/2026-08-11-010-analytics-backlog-plan.md (rev 5). The live my-form record now
+comes from the settled `per_fixture` snapshots already loaded by `loadSeasonView`. Running totals
+keep null for no usable snapshot, sum clean settled rows, and suppress all four counters when a
+member has a dirty gameweek. The live card passes measured correct–incorrect–void counts to the
+existing record copy. The archive path remains correct–incorrect–0.
+
+Verification: `npm run typecheck` passed. `npx vitest run` passed with 84 files and 964 tests.
+No commits, staging, migrations, database writes, or settlement/scoring changes were made.
+
+### Deviations
+- The Phase A `snapshotStats()` implementation returned four zeroes for an empty `per_fixture`
+  array. Phase B requires an empty snapshot to be unusable, so it now returns null for empty
+  arrays and for malformed array items; the existing whole-snapshot rejection for unknown verdicts
+  remains in place.

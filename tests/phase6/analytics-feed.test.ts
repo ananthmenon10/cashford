@@ -12,6 +12,31 @@ import {
 } from "../../lib/analytics-feed";
 import type { Entry } from "../../lib/analytics";
 
+type LiveTotal = {
+  netInr: number | "suppressed";
+  gameweeksEntered: number;
+  points: number | "suppressed";
+  hasEntries: boolean;
+  correctPicks: number | null | "suppressed";
+  incorrectPicks: number | null | "suppressed";
+  voidPicks: number | null | "suppressed";
+  countedFixtures: number | null | "suppressed";
+};
+
+function liveTotal(overrides: Partial<LiveTotal> = {}): LiveTotal {
+  return {
+    netInr: 0,
+    gameweeksEntered: 0,
+    points: 0,
+    hasEntries: false,
+    correctPicks: null,
+    incorrectPicks: null,
+    voidPicks: null,
+    countedFixtures: null,
+    ...overrides,
+  };
+}
+
 describe("buildLeagueOptions", () => {
   it("sorts by name regardless of input order", () => {
     const options = buildLeagueOptions([
@@ -58,36 +83,114 @@ describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
   it("returns null when the viewer has no entries this league (no fabricated zero card)", () => {
     expect(buildLiveMyForm("l1", "KK Bois", "Premier League 2026-27", null, [])).toBeNull();
     expect(
-      buildLiveMyForm("l1", "KK Bois", "Premier League 2026-27", {
-        netInr: 0,
-        gameweeksEntered: 0,
-        points: 0,
-        hasEntries: false,
-      }, []),
+      buildLiveMyForm(
+        "l1",
+        "KK Bois",
+        "Premier League 2026-27",
+        liveTotal(),
+        [],
+      ),
     ).toBeNull();
   });
 
   it("returns null when hasEntries is true but zero gameweeks are settled (no fabricated ₹0 · 0 card)", () => {
     expect(
-      buildLiveMyForm("l1", "KK Bois", "Premier League 2026-27", {
-        netInr: 0,
-        gameweeksEntered: 0,
-        points: 0,
-        hasEntries: true,
-      }, []),
+      buildLiveMyForm(
+        "l1",
+        "KK Bois",
+        "Premier League 2026-27",
+        liveTotal({ hasEntries: true }),
+        [],
+      ),
     ).toBeNull();
   });
 
   it("carries the league's own net through untouched, including suppressed", () => {
-    const form = buildLiveMyForm("l1", "KK Bois", "Premier League 2026-27", {
-      netInr: "suppressed",
-      gameweeksEntered: 3,
-      points: 10,
-      hasEntries: true,
-    }, []);
+    const form = buildLiveMyForm(
+      "l1",
+      "KK Bois",
+      "Premier League 2026-27",
+      liveTotal({
+        netInr: "suppressed",
+        gameweeksEntered: 3,
+        points: 10,
+        hasEntries: true,
+      }),
+      [],
+    );
     expect(form?.net).toBe("suppressed");
     expect(form?.kind).toBe("live");
     expect(form?.entered).toBe(3);
+    expect(form?.record).toBeNull();
+  });
+
+  it("sets the record from the settled snapshot totals", () => {
+    const form = buildLiveMyForm(
+      "l1",
+      "KK Bois",
+      "Premier League 2026-27",
+      liveTotal({
+        netInr: 1240,
+        gameweeksEntered: 1,
+        points: 13,
+        hasEntries: true,
+        correctPicks: 7,
+        incorrectPicks: 2,
+        voidPicks: 1,
+        countedFixtures: 9,
+      }),
+      [],
+    );
+    expect(form?.record).toBe("7–2–1");
+  });
+
+  it("keeps a real zero void count in the live record", () => {
+    const form = buildLiveMyForm(
+      "l1",
+      "KK Bois",
+      "Premier League 2026-27",
+      liveTotal({
+        gameweeksEntered: 2,
+        hasEntries: true,
+        correctPicks: 14,
+        incorrectPicks: 5,
+        voidPicks: 0,
+        countedFixtures: 19,
+      }),
+      [],
+    );
+    expect(form?.record).toBe("14–5–0");
+  });
+
+  it("does not render a record when all entered gameweeks have no usable snapshot", () => {
+    const form = buildLiveMyForm(
+      "l1",
+      "KK Bois",
+      "Premier League 2026-27",
+      liveTotal({ gameweeksEntered: 1, hasEntries: true }),
+      [],
+    );
+    expect(form).not.toBeNull();
+    expect(form?.record).toBeNull();
+  });
+
+  it("suppresses the record along with net while any gameweek is dirty", () => {
+    const form = buildLiveMyForm(
+      "l1",
+      "KK Bois",
+      "Premier League 2026-27",
+      liveTotal({
+        netInr: "suppressed",
+        gameweeksEntered: 2,
+        hasEntries: true,
+        correctPicks: "suppressed",
+        incorrectPicks: "suppressed",
+        voidPicks: "suppressed",
+        countedFixtures: "suppressed",
+      }),
+      [],
+    );
+    expect(form?.net).toBe("suppressed");
     expect(form?.record).toBeNull();
   });
 });

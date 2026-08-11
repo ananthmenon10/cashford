@@ -52,13 +52,21 @@ export function snapshotStats(
     outcome !== "settled" ||
     dirty ||
     !snapshot ||
-    !Array.isArray(snapshot.per_fixture)
+    !Array.isArray(snapshot.per_fixture) ||
+    snapshot.per_fixture.length === 0
   ) {
     return null;
   }
   const perFixture = snapshot.per_fixture as PerFixtureSnapshot[];
   const knownVerdicts = new Set(["exact", "result", "miss", "void"]);
-  if (perFixture.some((fixture) => !knownVerdicts.has(fixture.verdict as string))) {
+  if (
+    perFixture.some(
+      (fixture) =>
+        !fixture ||
+        typeof fixture !== "object" ||
+        !knownVerdicts.has(fixture.verdict as string),
+    )
+  ) {
     return null;
   }
   return {
@@ -102,10 +110,36 @@ export function buildRunningTotals(rows: readonly SeasonInputRow[]): {
   exacts: number;
   gameweeksEntered: number;
   netInr: number | "suppressed";
+  correctPicks: number | null | "suppressed";
+  incorrectPicks: number | null | "suppressed";
+  voidPicks: number | null | "suppressed";
+  countedFixtures: number | null | "suppressed";
 } {
   const pointsSuppressed = rows.some(
     (row) => rowIsDirty(row) && row.points == null,
   );
+  const snapshotSuppressed = rows.some((row) => rowIsDirty(row));
+  let correctPicks: number | null = null;
+  let incorrectPicks: number | null = null;
+  let voidPicks: number | null = null;
+  let countedFixtures: number | null = null;
+  if (!snapshotSuppressed) {
+    for (const row of rows) {
+      if (
+        row.outcome !== "settled" ||
+        row.countedFixtures == null ||
+        row.correctPicks == null ||
+        row.incorrectPicks == null ||
+        row.voidPicks == null
+      ) {
+        continue;
+      }
+      correctPicks = (correctPicks ?? 0) + row.correctPicks;
+      incorrectPicks = (incorrectPicks ?? 0) + row.incorrectPicks;
+      voidPicks = (voidPicks ?? 0) + row.voidPicks;
+      countedFixtures = (countedFixtures ?? 0) + row.correctPicks + row.incorrectPicks;
+    }
+  }
   const balances = rows.map((row) =>
     row.settledVersion == null
       ? row.netInr
@@ -125,6 +159,10 @@ export function buildRunningTotals(rows: readonly SeasonInputRow[]): {
     netInr: balances.some((balance) => balance === "suppressed")
       ? "suppressed"
       : balances.reduce<number>((sum, balance) => sum + Number(balance), 0),
+    correctPicks: snapshotSuppressed ? "suppressed" : correctPicks,
+    incorrectPicks: snapshotSuppressed ? "suppressed" : incorrectPicks,
+    voidPicks: snapshotSuppressed ? "suppressed" : voidPicks,
+    countedFixtures: snapshotSuppressed ? "suppressed" : countedFixtures,
   };
 }
 
@@ -137,6 +175,10 @@ export type SeasonMemberTotal = {
   exacts: number;
   gameweeksEntered: number;
   netInr: number | "suppressed";
+  correctPicks: number | null | "suppressed";
+  incorrectPicks: number | null | "suppressed";
+  voidPicks: number | null | "suppressed";
+  countedFixtures: number | null | "suppressed";
   isViewer: boolean;
   hasEntries: boolean;
 };

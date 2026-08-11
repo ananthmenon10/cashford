@@ -5,7 +5,7 @@
 // instead, since that loader already tracks per-gameweek points/net without re-deriving Entry[].
 import { accuracy, netTotal, type Entry } from "./analytics";
 import { ANALYTICS_COPY } from "./analytics-copy";
-import type { SeasonRow } from "./gw-season";
+import type { SeasonMemberTotal, SeasonRow } from "./gw-season";
 
 export type AnalyticsLeagueOption = { id: string; slug: string; name: string };
 
@@ -230,25 +230,41 @@ export function buildLiveMyForm(
   leagueId: string,
   leagueName: string,
   competitionName: string,
-  viewerTotal: {
-    netInr: number | "suppressed";
-    gameweeksEntered: number;
-    points: number | "suppressed";
-    hasEntries: boolean;
-  } | null,
+  viewerTotal: Pick<
+    SeasonMemberTotal,
+    | "netInr"
+    | "gameweeksEntered"
+    | "points"
+    | "hasEntries"
+    | "correctPicks"
+    | "incorrectPicks"
+    | "voidPicks"
+    | "countedFixtures"
+  > | null,
   rows: readonly SeasonRow[],
 ): AnalyticsMyForm | null {
   // hasEntries alone isn't enough: a viewer can have an un-settled "entered" row with zero
   // settled gameweeks, which would otherwise render a fabricated "₹0 · 0 settled gameweeks" card.
   // Section LINES still use hasEntries alone (unchanged) — this extra guard is my-form only.
   if (!viewerTotal || !viewerTotal.hasEntries || viewerTotal.gameweeksEntered === 0) return null;
+  const record =
+    typeof viewerTotal.correctPicks === "number" &&
+    typeof viewerTotal.incorrectPicks === "number" &&
+    typeof viewerTotal.voidPicks === "number" &&
+    typeof viewerTotal.countedFixtures === "number"
+      ? ANALYTICS_COPY.recordLine(
+          viewerTotal.correctPicks,
+          viewerTotal.incorrectPicks,
+          viewerTotal.voidPicks,
+        )
+      : null;
   return {
     leagueId,
     leagueName,
     competitionName,
     kind: "live",
     net: viewerTotal.netInr,
-    record: null,
+    record,
     entered: viewerTotal.gameweeksEntered,
     sampleNote: ANALYTICS_COPY.gameweekNote(viewerTotal.gameweeksEntered),
     trend: buildMyFormTrend(rows),

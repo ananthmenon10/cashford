@@ -36,6 +36,23 @@ function gwRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+type Verdict = "exact" | "result" | "miss" | "void";
+
+function snapshotRow(
+  gwNumber: number,
+  verdicts: readonly Verdict[],
+  overrides: Record<string, unknown> = {},
+) {
+  const snapshot = { per_fixture: verdicts.map((verdict) => ({ verdict })) };
+  const stats = snapshotStats(snapshot, "settled", false);
+  return gwRow({
+    gwNumber,
+    outcome: "settled",
+    ...(stats ?? {}),
+    ...overrides,
+  });
+}
+
 describe("buildSeasonRows — U25 departed members retained with history", () => {
   it("a departed member's historical rows are still returned, unaffected by their leave date", () => {
     const rows = buildSeasonRows([gwRow({ gwNumber: 1 })], "departed-user");
@@ -83,6 +100,153 @@ describe("buildRunningTotals — U26/U26a running totals + dirty suppression", (
   it("U26a: when a dirty gameweek's own points are not computable, its points cell is suppressed too, not carried from the superseded snapshot", () => {
     const totals = buildRunningTotals([gwRow({ gwNumber: 1, ...dirty(), points: null, netInr: 200 })]);
     expect(totals.points).not.toBe(6); // never the stale snapshot value
+  });
+
+  it("Phase B: aggregates correct, incorrect, void, and counted fixtures from one settled snapshot", () => {
+    const totals = buildRunningTotals([
+      snapshotRow(1, [
+        "exact",
+        "exact",
+        "exact",
+        "result",
+        "result",
+        "result",
+        "result",
+        "miss",
+        "miss",
+        "void",
+      ]),
+    ]);
+    expect(totals.correctPicks).toBe(7);
+    expect(totals.incorrectPicks).toBe(2);
+    expect(totals.voidPicks).toBe(1);
+    expect(totals.countedFixtures).toBe(9);
+  });
+
+  it("Phase B: sums the four snapshot counters across settled gameweeks", () => {
+    const totals = buildRunningTotals([
+      snapshotRow(1, ["exact", "result", "miss", "void"]),
+      snapshotRow(2, ["exact", "result", "result", "miss", "miss", "void"]),
+    ]);
+    expect(totals.correctPicks).toBe(5);
+    expect(totals.incorrectPicks).toBe(3);
+    expect(totals.voidPicks).toBe(2);
+    expect(totals.countedFixtures).toBe(8);
+  });
+
+  it("Phase B: keeps the score scale identity between points, exacts, and correct picks", () => {
+    const verdicts: Verdict[] = [
+      "exact",
+      "exact",
+      "exact",
+      "result",
+      "result",
+      "result",
+      "result",
+      "miss",
+      "miss",
+      "void",
+    ];
+    const snapshot = { per_fixture: verdicts.map((verdict) => ({ verdict })) };
+    const stats = snapshotStats(snapshot, "settled", false)!;
+    const totals = buildRunningTotals([
+      gwRow({
+        outcome: "settled",
+        ...stats,
+        points: 13,
+        exacts: 3,
+      }),
+    ]);
+    expect(totals.correctPicks).toBe(
+      (totals.points as number) - 2 * totals.exacts,
+    );
+  });
+
+  it("Phase B: a fully void gameweek contributes no snapshot data", () => {
+    const totals = buildRunningTotals([
+      gwRow({
+        outcome: "void",
+        countedFixtures: null,
+        correctPicks: null,
+        incorrectPicks: null,
+        voidPicks: null,
+      }),
+    ]);
+    expect(totals.correctPicks).toBeNull();
+    expect(totals.incorrectPicks).toBeNull();
+    expect(totals.voidPicks).toBeNull();
+    expect(totals.countedFixtures).toBeNull();
+  });
+
+  it("Phase B: counts partial voids separately from correct, incorrect, and counted picks", () => {
+    const totals = buildRunningTotals([
+      snapshotRow(1, ["exact", "result", "miss", "void", "void"]),
+    ]);
+    expect(totals.correctPicks).toBe(2);
+    expect(totals.incorrectPicks).toBe(1);
+    expect(totals.voidPicks).toBe(2);
+    expect(totals.countedFixtures).toBe(3);
+  });
+
+  it("Phase B: no entered rows keep all snapshot counters null", () => {
+    const totals = buildRunningTotals([]);
+    expect(totals.correctPicks).toBeNull();
+    expect(totals.incorrectPicks).toBeNull();
+    expect(totals.voidPicks).toBeNull();
+    expect(totals.countedFixtures).toBeNull();
+  });
+
+  it("Phase B: any dirty gameweek suppresses all snapshot counters and net", () => {
+    const totals = buildRunningTotals([
+      snapshotRow(1, ["exact", "result", "miss", "void"], {
+        ...dirty(),
+        netInr: 200,
+      }),
+    ]);
+    expect(totals.correctPicks).toBe("suppressed");
+    expect(totals.incorrectPicks).toBe("suppressed");
+    expect(totals.voidPicks).toBe("suppressed");
+    expect(totals.countedFixtures).toBe("suppressed");
+    expect(totals.netInr).toBe("suppressed");
+  });
+
+  it("Phase B: an empty per_fixture snapshot is unusable rather than a zero record", () => {
+    expect(snapshotStats({ per_fixture: [] }, "settled", false)).toBeNull();
+    const totals = buildRunningTotals([
+      gwRow({
+        outcome: "settled",
+        countedFixtures: null,
+        correctPicks: null,
+        incorrectPicks: null,
+        voidPicks: null,
+      }),
+    ]);
+    expect(totals.correctPicks).toBeNull();
+    expect(totals.incorrectPicks).toBeNull();
+    expect(totals.voidPicks).toBeNull();
+    expect(totals.countedFixtures).toBeNull();
+  });
+
+  it("Phase B: an unknown verdict makes the whole snapshot unusable", () => {
+    const stats = snapshotStats(
+      { per_fixture: [{ verdict: "exact" }, { verdict: "unknown" }] },
+      "settled",
+      false,
+    );
+    expect(stats).toBeNull();
+    const totals = buildRunningTotals([
+      gwRow({
+        outcome: "settled",
+        countedFixtures: stats?.countedFixtures ?? null,
+        correctPicks: stats?.correctPicks ?? null,
+        incorrectPicks: stats?.incorrectPicks ?? null,
+        voidPicks: stats?.voidPicks ?? null,
+      }),
+    ]);
+    expect(totals.correctPicks).toBeNull();
+    expect(totals.incorrectPicks).toBeNull();
+    expect(totals.voidPicks).toBeNull();
+    expect(totals.countedFixtures).toBeNull();
   });
 });
 
