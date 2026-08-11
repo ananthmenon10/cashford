@@ -2633,3 +2633,16 @@ No commits, staging, migrations, database writes, or settlement/scoring changes 
   array. Phase B requires an empty snapshot to be unusable, so it now returns null for empty
   arrays and for malformed array items; the existing whole-snapshot rejection for unknown verdicts
   remains in place.
+
+## Analytics backlog — Phase B QC + ship (2026-08-11)
+
+Staging QC (all four test logins on ZZ-P1): 10/10 clean cases PASS with exact matches —
+testa 13–2–0, testb 13–2–0 from 13 points vs testa's 23 (anti-derivation check), testc 5–10–0,
+testd 6–9–0 with −₹1,500 red net. PB-11 dirty-state protocol WON the pg_cron race this run:
+record absent + net ··· observed live, and Phase A's A-14/A-15 dirty-render assertions
+(GW2–GW3 window, red bars, "1 gameweek still recalculating." footnote) confirmed on a real
+screen for the first time. Clipping fix visually confirmed (circles at x 4.5/150/295.5).
+Protocol end state input_version = settled_version = 7; single-column write on the one mock
+contest only. PB-08 + PB-R01…R03 deferred to Ananth's batch. Terra review GREEN (1 optional
+nit skipped: the discriminating-pair unit test — covered structurally, by the drift guard,
+and now by live QC).
