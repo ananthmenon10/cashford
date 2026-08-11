@@ -154,7 +154,7 @@ export function AnalyticsFeed({ feed }: { feed: AnalyticsFeedView }) {
     <div className="flex flex-col gap-4">
       <AllTimeStripCard strip={feed.allTimeStrip} />
 
-      <div className="sticky top-0 z-10 -mx-4 flex items-center gap-2 bg-cs2-canvas px-4 py-2 dark:bg-cs2-ink">
+      <div className="sticky top-0 z-10 -mx-4 flex items-center gap-2 bg-cs2-canvas px-4 py-2">
         <label className="text-[11px] font-bold text-cs2-ink-3" htmlFor="analytics-league-filter">
           {ANALYTICS_COPY.filterLabel}
         </label>

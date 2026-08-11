@@ -2646,3 +2646,33 @@ Protocol end state input_version = settled_version = 7; single-column write on t
 contest only. PB-08 + PB-R01…R03 deferred to Ananth's batch. Terra review GREEN (1 optional
 nit skipped: the discriminating-pair unit test — covered structurally, by the drift guard,
 and now by live QC).
+
+## Analytics backlog — Phase C1 (2026-08-11): modules 02/05/07 + corpus + activation route
+
+Plan Phase C1 (rev 5). Commit cca489d + follow-ups. Suite 964 → 1,029 tests. Pipeline: Luna
+(max) built with three mid-flight decisions steered in; Terra (xhigh) review RED → Luna fixed →
+Terra re-check GREEN; staging QC 21/21 PASS (module numbers matched the QA plan's precomputed
+values exactly, including the PC-H09 raw route body).
+
+Decisions made this phase (recorded here as the deciding doc):
+- Rivalry won/lost/tied AND streak use the pairwise settlement tiebreak chain (points →
+  exacts → goal_error asc; tied only if all equal). Basis: GW2 testa/testb tie on points was
+  settled as a testb win with money moved — Rivalry may not contradict the Season tab.
+- Habits' against-the-crowd sentence suppresses below 5 against-crowd picks.
+- Client cache keyed on the (leagueId, competitionId) pair (three real cup leagues share one
+  competitionId).
+
+Terra's two blockers (both fixed pre-commit): habits keyed picks by bare fixtureId — a
+re-settled partly-void gameweek could contaminate a moved fixture's later gameweek (now keyed
+(gwNumber, fixtureId) end-to-end incl. consensus); You-vs-room bars all showed the whole-room
+rate (now per-member; measured 0% renders, null-data members omitted).
+
+QC extras: module 07 correctly hidden at 15 < 20 picks (boundary retest due when ZZ-P1's GW4
+settles at exactly 20); dark-mode bug found outside plan scope — the Analytics league filter
+bar wrapper carried a spurious dark:bg-cs2-ink override (ink is a text token; near-white in
+dark) — removed, the only such override in the codebase.
+
+Deferred to Ananth's logged-in batch: PC-R01…R06 (real-league absence assertions, cross-league
+scope switching, PC-R05 same-league-different-viewer silence check on ZZ-P1 as ananth).
+C2 (modules 04/06 + deferred clauses) and C3 (Receipts — recommendation: defer, Share doesn't
+exist) NOT started; paused on Ananth's instruction after C1 ships.
