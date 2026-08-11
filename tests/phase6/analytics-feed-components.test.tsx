@@ -37,6 +37,7 @@ function feed(overrides: Partial<AnalyticsFeedView> = {}): AnalyticsFeedView {
     myFormByLeague: {
       l1: {
         leagueId: "l1",
+        competitionId: "pl2627",
         leagueName: "KK Bois",
         competitionName: "Premier League 2026-27",
         kind: "live",
@@ -122,6 +123,7 @@ describe("AnalyticsFeed — my-form A (scoped to one league, driven by the filte
       myFormByLeague: {
         l1: {
           leagueId: "l1",
+          competitionId: "pl2627",
           leagueName: "KK Bois",
           competitionName: "Premier League 2026-27",
           kind: "live",
@@ -133,6 +135,7 @@ describe("AnalyticsFeed — my-form A (scoped to one league, driven by the filte
         },
         l2: {
           leagueId: "l2",
+          competitionId: "wc26",
           leagueName: "PES Bois",
           competitionName: "World Cup 2026",
           kind: "archive",

@@ -239,6 +239,7 @@ export async function loadAnalyticsFeed(
         const viewerTotal = season.totals.find((t) => t.isViewer) ?? null;
         myFormByLeague[league.id] = buildLiveMyForm(
           league.id,
+          participation.competitionId,
           league.name,
           participation.competitionName ?? "",
           viewerTotal,
@@ -248,6 +249,7 @@ export async function loadAnalyticsFeed(
         const entries = await loadArchiveEntries(admin, league.id, participation.competitionId!, viewerId);
         myFormByLeague[league.id] = buildArchiveMyForm(
           league.id,
+          participation.competitionId,
           league.name,
           participation.competitionName ?? "",
           entries,

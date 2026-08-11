@@ -8,7 +8,13 @@
 // gameweeks-entered counting void gameweeks; PR3b dirty suppression per U26a). A wrong guess
 // fails on import, which is the intended signal.
 import { describe, expect, it } from "vitest";
-import { buildRunningTotals, buildSeasonRows, snapshotStats } from "../../lib/gw-season";
+import {
+  buildRunningTotals,
+  buildSeasonRows,
+  projectMemberGameweeks,
+  snapshotStats,
+  type SeasonInputRow,
+} from "../../lib/gw-season";
 
 // Real version pair per R-1 (F2/F9): "dirty" is derived from inputVersion > settledVersion via
 // isGameweekResultDirty (lib/net-balance.ts), not an invented boolean. Default pair (1, 1) is
@@ -134,6 +140,14 @@ describe("buildRunningTotals — U26/U26a running totals + dirty suppression", (
     expect(totals.countedFixtures).toBe(8);
   });
 
+  it("C1: keeps the stored goal-error total alongside the snapshot counters", () => {
+    const totals = buildRunningTotals([
+      snapshotRow(1, ["result", "miss"], { goalError: 4 }),
+      snapshotRow(2, ["exact", "miss"], { goalError: 7 }),
+    ]);
+    expect(totals.goalError).toBe(11);
+  });
+
   it("Phase B: keeps the score scale identity between points, exacts, and correct picks", () => {
     const verdicts: Verdict[] = [
       "exact",
@@ -247,6 +261,59 @@ describe("buildRunningTotals — U26/U26a running totals + dirty suppression", (
     expect(totals.incorrectPicks).toBeNull();
     expect(totals.voidPicks).toBeNull();
     expect(totals.countedFixtures).toBeNull();
+  });
+});
+
+describe("projectMemberGameweeks — the slim analytics projection", () => {
+  it("keeps stored settled counters and goal error for a locked entrant", () => {
+    const row = snapshotRow(4, ["exact", "result", "miss"], {
+      points: 4,
+      exacts: 1,
+      goalError: 5,
+    }) as SeasonInputRow;
+    expect(projectMemberGameweeks(new Map([["u1", [row]]]))).toEqual([
+      {
+        userId: "u1",
+        gwNumber: 4,
+        entered: true,
+        settled: true,
+        points: 4,
+        exacts: 1,
+        correctPicks: 2,
+        goalError: 5,
+        countedFixtures: 3,
+      },
+    ]);
+  });
+
+  it("hides all snapshot values for a dirty or void gameweek instead of carrying stale numbers", () => {
+    const dirtyRow = snapshotRow(2, ["exact"], { ...dirty(), goalError: 1 }) as SeasonInputRow;
+    const voidRow = snapshotRow(3, ["void"], {
+      outcome: "void",
+      countedFixtures: null,
+      correctPicks: null,
+      goalError: null,
+    }) as SeasonInputRow;
+    const rows = projectMemberGameweeks(new Map([["u1", [dirtyRow, voidRow]]]));
+    expect(rows).toEqual([
+      expect.objectContaining({ gwNumber: 2, entered: true, settled: false, points: null, exacts: null, correctPicks: null, goalError: null, countedFixtures: null }),
+      expect.objectContaining({ gwNumber: 3, entered: true, settled: false, points: null, exacts: null, correctPicks: null, goalError: null, countedFixtures: null }),
+    ]);
+  });
+
+  it("marks a non-locked entry as not entered while retaining the settled gameweek boundary", () => {
+    const row = snapshotRow(5, ["result"], { entryStatus: "entered", points: 1, exacts: 0, goalError: 2 }) as SeasonInputRow;
+    expect(projectMemberGameweeks(new Map([["u1", [row]]]))[0]).toEqual({
+      userId: "u1",
+      gwNumber: 5,
+      entered: false,
+      settled: true,
+      points: null,
+      exacts: null,
+      correctPicks: 1,
+      goalError: 2,
+      countedFixtures: 1,
+    });
   });
 });
 

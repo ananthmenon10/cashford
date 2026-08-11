@@ -81,10 +81,11 @@ describe("buildAnalyticsSections — cross-comp B", () => {
 
 describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
   it("returns null when the viewer has no entries this league (no fabricated zero card)", () => {
-    expect(buildLiveMyForm("l1", "KK Bois", "Premier League 2026-27", null, [])).toBeNull();
+    expect(buildLiveMyForm("l1", "c1", "KK Bois", "Premier League 2026-27", null, [])).toBeNull();
     expect(
       buildLiveMyForm(
         "l1",
+        "c1",
         "KK Bois",
         "Premier League 2026-27",
         liveTotal(),
@@ -97,6 +98,7 @@ describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
     expect(
       buildLiveMyForm(
         "l1",
+        "c1",
         "KK Bois",
         "Premier League 2026-27",
         liveTotal({ hasEntries: true }),
@@ -108,6 +110,7 @@ describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
   it("carries the league's own net through untouched, including suppressed", () => {
     const form = buildLiveMyForm(
       "l1",
+      "c1",
       "KK Bois",
       "Premier League 2026-27",
       liveTotal({
@@ -120,6 +123,7 @@ describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
     );
     expect(form?.net).toBe("suppressed");
     expect(form?.kind).toBe("live");
+    expect(form?.competitionId).toBe("c1");
     expect(form?.entered).toBe(3);
     expect(form?.record).toBeNull();
   });
@@ -127,6 +131,7 @@ describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
   it("sets the record from the settled snapshot totals", () => {
     const form = buildLiveMyForm(
       "l1",
+      "c1",
       "KK Bois",
       "Premier League 2026-27",
       liveTotal({
@@ -147,6 +152,7 @@ describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
   it("keeps a real zero void count in the live record", () => {
     const form = buildLiveMyForm(
       "l1",
+      "c1",
       "KK Bois",
       "Premier League 2026-27",
       liveTotal({
@@ -165,6 +171,7 @@ describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
   it("does not render a record when all entered gameweeks have no usable snapshot", () => {
     const form = buildLiveMyForm(
       "l1",
+      "c1",
       "KK Bois",
       "Premier League 2026-27",
       liveTotal({ gameweeksEntered: 1, hasEntries: true }),
@@ -177,6 +184,7 @@ describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
   it("suppresses the record along with net while any gameweek is dirty", () => {
     const form = buildLiveMyForm(
       "l1",
+      "c1",
       "KK Bois",
       "Premier League 2026-27",
       liveTotal({
@@ -247,16 +255,17 @@ describe("buildArchiveMyForm — accuracy engine reuse", () => {
   });
 
   it("returns null on an empty sample rather than a fabricated zero record", () => {
-    expect(buildArchiveMyForm("l1", "KK Bois", "World Cup 2026", [])).toBeNull();
+    expect(buildArchiveMyForm("l1", "c1", "KK Bois", "World Cup 2026", [])).toBeNull();
   });
 
   it("derives correct/incorrect from the shared grading rules, not stored net", () => {
-    const form = buildArchiveMyForm("l1", "KK Bois", "World Cup 2026", [
+    const form = buildArchiveMyForm("l1", "c1", "KK Bois", "World Cup 2026", [
       entry({ net: 500 }),
       entry({ outcome: "away", net: -100 }),
     ]);
     expect(form?.record).toBe("1–1–0");
     expect(form?.net).toBe(400);
     expect(form?.kind).toBe("archive");
+    expect(form?.competitionId).toBe("c1");
   });
 });

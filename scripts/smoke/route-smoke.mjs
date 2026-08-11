@@ -45,6 +45,7 @@ const [
   { loadBracketPage },
   { loadLeagueIdentity, loadGameweekView, loadMirrorTargets },
   { loadSeasonView },
+  { loadSeasonPickCorpus },
   { loadDuesView },
   { loadMatchDetail },
   { loadLegacyMatchPage },
@@ -63,6 +64,7 @@ const [
   import("../../lib/bracket-page-load.ts"),
   import("../../lib/gw-view.ts"),
   import("../../lib/gw-season.ts"),
+  import("../../lib/analytics-corpus-load.ts"),
   import("../../lib/dues-view.ts"),
   import("../../lib/match-detail-load.ts"),
   import("../../lib/legacy-match-load.ts"),
@@ -347,6 +349,21 @@ function makeCases(loaders, context) {
         }),
     },
     {
+      name: "analytics-corpus",
+      run: (pair) =>
+        withIdentity(loaders, pair, context, async (identity) => {
+          const competitionId = identity.participation.competitionId;
+          if (!competitionId) return { skipped: "no competition" };
+          return loaders.loadSeasonPickCorpus(
+            pair.session,
+            pair.admin,
+            context.league.id,
+            competitionId,
+            context.viewerId,
+          );
+        }),
+    },
+    {
       name: "table",
       run: (pair) =>
         withIdentity(loaders, pair, context, async (identity) => {
@@ -605,6 +622,7 @@ async function main() {
     loadGameweekView,
     loadMirrorTargets,
     loadSeasonView,
+    loadSeasonPickCorpus,
     loadDuesView,
     loadMatchDetail,
     loadLegacyMatchPage,

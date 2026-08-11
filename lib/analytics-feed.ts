@@ -58,6 +58,7 @@ export type AnalyticsParticipationRow = {
 
 export type AnalyticsMyForm = {
   leagueId: string;
+  competitionId: string;
   leagueName: string;
   competitionName: string;
   kind: "live" | "archive";
@@ -228,6 +229,7 @@ export function buildMyFormTrend(rows: readonly SeasonRow[]): MyFormTrend | null
  * SeasonMemberTotal row, no Entry[] needed. */
 export function buildLiveMyForm(
   leagueId: string,
+  competitionId: string,
   leagueName: string,
   competitionName: string,
   viewerTotal: Pick<
@@ -260,6 +262,7 @@ export function buildLiveMyForm(
       : null;
   return {
     leagueId,
+    competitionId,
     leagueName,
     competitionName,
     kind: "live",
@@ -276,6 +279,7 @@ export function buildLiveMyForm(
  * record matches the same grading rules the rest of the app uses. */
 export function buildArchiveMyForm(
   leagueId: string,
+  competitionId: string,
   leagueName: string,
   competitionName: string,
   entries: readonly Entry[],
@@ -285,6 +289,7 @@ export function buildArchiveMyForm(
   const incorrect = stats.graded - stats.correct;
   return {
     leagueId,
+    competitionId,
     leagueName,
     competitionName,
     kind: "archive",

@@ -12,6 +12,7 @@ export type SeasonInputRow = {
   entryStatus: string | null;
   points: number | null;
   exacts: number | null;
+  goalError?: number | null;
   countedFixtures: number | null;
   correctPicks: number | null;
   incorrectPicks: number | null;
@@ -108,6 +109,7 @@ export function buildSeasonRows(
 export function buildRunningTotals(rows: readonly SeasonInputRow[]): {
   points: number | "suppressed";
   exacts: number;
+  goalError: number | null | "suppressed";
   gameweeksEntered: number;
   netInr: number | "suppressed";
   correctPicks: number | null | "suppressed";
@@ -123,8 +125,16 @@ export function buildRunningTotals(rows: readonly SeasonInputRow[]): {
   let incorrectPicks: number | null = null;
   let voidPicks: number | null = null;
   let countedFixtures: number | null = null;
+  let goalError: number | null = null;
+  let goalErrorIncomplete = false;
   if (!snapshotSuppressed) {
     for (const row of rows) {
+      if (row.outcome === "settled" && row.entryStatus === "locked_in" &&
+        (row.countedFixtures == null || row.correctPicks == null ||
+          row.incorrectPicks == null || row.voidPicks == null ||
+          typeof row.goalError !== "number")) {
+        goalErrorIncomplete = true;
+      }
       if (
         row.outcome !== "settled" ||
         row.countedFixtures == null ||
@@ -138,6 +148,9 @@ export function buildRunningTotals(rows: readonly SeasonInputRow[]): {
       incorrectPicks = (incorrectPicks ?? 0) + row.incorrectPicks;
       voidPicks = (voidPicks ?? 0) + row.voidPicks;
       countedFixtures = (countedFixtures ?? 0) + row.correctPicks + row.incorrectPicks;
+      if (typeof row.goalError === "number") {
+        goalError = (goalError ?? 0) + row.goalError;
+      }
     }
   }
   const balances = rows.map((row) =>
@@ -155,6 +168,7 @@ export function buildRunningTotals(rows: readonly SeasonInputRow[]): {
       ? "suppressed"
       : rows.reduce((sum, row) => sum + (row.points ?? 0), 0),
     exacts: rows.reduce((sum, row) => sum + (row.exacts ?? 0), 0),
+    goalError: snapshotSuppressed ? "suppressed" : goalErrorIncomplete ? null : goalError,
     gameweeksEntered: rows.filter((row) => row.entryStatus === "locked_in").length,
     netInr: balances.some((balance) => balance === "suppressed")
       ? "suppressed"
@@ -173,6 +187,7 @@ export type SeasonMemberTotal = {
   name: string;
   points: number | "suppressed";
   exacts: number;
+  goalError: number | null | "suppressed";
   gameweeksEntered: number;
   netInr: number | "suppressed";
   correctPicks: number | null | "suppressed";
@@ -183,9 +198,51 @@ export type SeasonMemberTotal = {
   hasEntries: boolean;
 };
 
+export type SeasonMemberGameweek = {
+  userId: string;
+  gwNumber: number;
+  entered: boolean;
+  settled: boolean;
+  points: number | null;
+  exacts: number | null;
+  correctPicks: number | null;
+  goalError: number | null;
+  countedFixtures: number | null;
+};
+
+export function projectMemberGameweeks(
+  byUser: ReadonlyMap<string, readonly SeasonInputRow[]>,
+): SeasonMemberGameweek[] {
+  return [...byUser.entries()]
+    .flatMap(([userId, rows]) =>
+      rows.map((row) => {
+        const dirty = rowIsDirty(row);
+        const settled = row.outcome === "settled" && !dirty;
+        const usableSnapshot =
+          settled &&
+          row.countedFixtures != null &&
+          row.correctPicks != null &&
+          row.goalError != null;
+        return {
+          userId,
+          gwNumber: row.gwNumber,
+          entered: row.entryStatus === "locked_in",
+          settled,
+          points: settled && row.entryStatus === "locked_in" ? row.points : null,
+          exacts: settled && row.entryStatus === "locked_in" ? row.exacts : null,
+          correctPicks: usableSnapshot ? row.correctPicks : null,
+          goalError: usableSnapshot ? row.goalError! : null,
+          countedFixtures: usableSnapshot ? row.countedFixtures : null,
+        };
+      }),
+    )
+    .sort((a, b) => a.gwNumber - b.gwNumber || a.userId.localeCompare(b.userId));
+}
+
 export type SeasonView = {
   rows: SeasonRow[];
   totals: SeasonMemberTotal[];
+  memberGameweeks: SeasonMemberGameweek[];
   viewerName: string | null;
 };
 
@@ -208,7 +265,7 @@ export async function loadSeasonView(
     identity.participation.format !== "gameweek" ||
     !identity.participation.competitionId
   ) {
-    return { rows: [], totals: [], viewerName: null };
+    return { rows: [], totals: [], memberGameweeks: [], viewerName: null };
   }
   const competitionId = identity.participation.competitionId;
   const [contestsQuery, gameweeksQuery, membersQuery] = await Promise.all([
@@ -234,7 +291,7 @@ export async function loadSeasonView(
   const contests = (contestsQuery.data ?? []) as any[];
   const gameweeks = (gameweeksQuery.data ?? []) as any[];
   const contestIds = contests.map((contest) => contest.id);
-  if (!contestIds.length) return { rows: [], totals: [], viewerName: null };
+  if (!contestIds.length) return { rows: [], totals: [], memberGameweeks: [], viewerName: null };
 
   const [resultsQuery, entriesQuery, entryResultsQuery] = await Promise.all([
     supabase
@@ -412,6 +469,11 @@ export async function loadSeasonView(
           ? liveStanding?.exacts ?? null
           : snapshot?.exacts ?? 0
         : null,
+      goalError: entry
+        ? dirty
+          ? liveStanding?.goalError ?? null
+          : snapshot?.goal_error ?? null
+        : null,
       countedFixtures: stats?.countedFixtures ?? null,
       correctPicks: stats?.correctPicks ?? null,
       incorrectPicks: stats?.incorrectPicks ?? null,
@@ -450,6 +512,7 @@ export async function loadSeasonView(
       entryStatus: entry.status,
       points: dirty ? liveStanding?.points ?? null : snapshot?.points ?? 0,
       exacts: dirty ? liveStanding?.exacts ?? null : snapshot?.exacts ?? 0,
+      goalError: dirty ? liveStanding?.goalError ?? null : snapshot?.goal_error ?? null,
       countedFixtures: stats?.countedFixtures ?? null,
       correctPicks: stats?.correctPicks ?? null,
       incorrectPicks: stats?.incorrectPicks ?? null,
@@ -492,5 +555,7 @@ export async function loadSeasonView(
       return Number(b.points) - Number(a.points) || b.exacts - a.exacts || a.name.localeCompare(b.name);
     });
 
-  return { rows: viewerRows, totals, viewerName };
+  const memberGameweeks = projectMemberGameweeks(byUser);
+
+  return { rows: viewerRows, totals, memberGameweeks, viewerName };
 }

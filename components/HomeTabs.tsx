@@ -3,9 +3,10 @@
 // Home dashboard tab shell. Leagues is the default. The server decides whether
 // Analytics is useful yet; this client shell only renders the tabs it receives.
 
-import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from "react";
 import { GW_UI_COPY } from "@/lib/gw-copy";
 import { SlideTrack } from "./motion";
+import { HomeTabsContext } from "./HomeTabsContext";
 
 const TABS = ["Leagues", "Matches", "Analytics"] as const;
 
@@ -27,6 +28,11 @@ export function HomeTabs({
   const tabs = analyticsVisible ? TABS : TABS.slice(0, 2);
   const panels = analyticsVisible ? [leagues, matches, analytics] : [leagues, matches];
   const tabCount = tabs.length;
+  const [analyticsActivated, setAnalyticsActivated] = useState(false);
+
+  useEffect(() => {
+    if (analyticsVisible && active === 2) setAnalyticsActivated(true);
+  }, [active, analyticsVisible]);
 
   const onKey = (e: KeyboardEvent, i: number) => {
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
@@ -73,13 +79,15 @@ export function HomeTabs({
         <SlideTrack count={tabCount} active={active} />
       </div>
 
-      <div className="mx-auto max-w-[480px]">
-        {panels.map((p, i) => (
-          <div key={i} role="tabpanel" id={`${id}-p-${i}`} aria-labelledby={`${id}-t-${i}`} hidden={active !== i}>
-            {p}
-          </div>
-        ))}
-      </div>
+      <HomeTabsContext.Provider value={{ activeIndex: active, analyticsActivated }}>
+        <div className="mx-auto max-w-[480px]">
+          {panels.map((p, i) => (
+            <div key={i} role="tabpanel" id={`${id}-p-${i}`} aria-labelledby={`${id}-t-${i}`} hidden={active !== i}>
+              {p}
+            </div>
+          ))}
+        </div>
+      </HomeTabsContext.Provider>
     </div>
   );
 }

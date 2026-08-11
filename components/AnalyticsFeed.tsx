@@ -9,6 +9,8 @@ import { useMemo, useState } from "react";
 import { NetValue } from "@/components/analytics/NetValue";
 import { MyFormTrend } from "@/components/analytics/MyFormTrend";
 import { ANALYTICS_COPY } from "@/lib/analytics-copy";
+import { useHomeTabsContext } from "@/components/HomeTabsContext";
+import { AnalyticsModules } from "@/components/analytics/AnalyticsModules";
 import type { AnalyticsFeedView } from "@/lib/analytics-feed-load";
 import type { AnalyticsSection, AnalyticsMyForm, AnalyticsAllTimeStrip } from "@/lib/analytics-feed";
 
@@ -131,6 +133,7 @@ function AllTimeStripCard({ strip }: { strip: AnalyticsAllTimeStrip | null }) {
 }
 
 export function AnalyticsFeed({ feed }: { feed: AnalyticsFeedView }) {
+  const { analyticsActivated } = useHomeTabsContext();
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(
     feed.leagueOptions[0]?.id ?? null,
   );
@@ -170,6 +173,12 @@ export function AnalyticsFeed({ feed }: { feed: AnalyticsFeedView }) {
       </div>
 
       <MyFormCard myForm={myForm} />
+
+      <AnalyticsModules
+        leagueId={myForm?.leagueId ?? null}
+        competitionId={myForm?.competitionId ?? null}
+        activated={analyticsActivated}
+      />
 
       {feed.sections.length === 0 ? (
         <div className="rounded-cs2-lg border border-cs2-line bg-cs2-paper p-5 text-center text-[13px] text-cs2-ink-3 dark:bg-white/[0.03]">

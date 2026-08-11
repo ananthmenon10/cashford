@@ -35,6 +35,19 @@ const SAMPLE_CALLS: Record<string, unknown[]> = {
   trendExcludedNotEntered: [2],
   trendExcludedDirty: [2],
   trendExcludedNoFixtures: [2],
+  youVsRoomWindow: [5, 3],
+  roomExcluded: ["GW3"],
+  roomAverage: [3],
+  roomSentence: ["exact rate", "ahead"],
+  rivalryFootnote: [7, 8],
+  rivalryExcluded: ["GW3"],
+  rivalryRun: ["rival", 2],
+  habitsPicks: [20],
+  habitsScoreline: [2, 1],
+  habitsMostCalledValue: [2, 1, 8, 20],
+  habitsGoalsSummary: ["2.7", "2.9"],
+  habitsAgainstSentence: [4, 5],
+  habitsExcluded: ["GW3 (void)"],
 };
 
 describe("lib/analytics-copy.ts — style rules over every exported string and function output", () => {
