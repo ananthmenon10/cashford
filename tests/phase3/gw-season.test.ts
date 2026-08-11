@@ -8,7 +8,7 @@
 // gameweeks-entered counting void gameweeks; PR3b dirty suppression per U26a). A wrong guess
 // fails on import, which is the intended signal.
 import { describe, expect, it } from "vitest";
-import { buildRunningTotals, buildSeasonRows } from "../../lib/gw-season";
+import { buildRunningTotals, buildSeasonRows, snapshotStats } from "../../lib/gw-season";
 
 // Real version pair per R-1 (F2/F9): "dirty" is derived from inputVersion > settledVersion via
 // isGameweekResultDirty (lib/net-balance.ts), not an invented boolean. Default pair (1, 1) is
@@ -24,6 +24,10 @@ function gwRow(overrides: Record<string, unknown> = {}) {
     entryStatus: "locked_in",
     points: 6,
     exacts: 2,
+    countedFixtures: 6,
+    correctPicks: 2,
+    incorrectPicks: 4,
+    voidPicks: 0,
     netInr: 200,
     inputVersion: 1,
     settledVersion: 1,
@@ -79,5 +83,62 @@ describe("buildRunningTotals — U26/U26a running totals + dirty suppression", (
   it("U26a: when a dirty gameweek's own points are not computable, its points cell is suppressed too, not carried from the superseded snapshot", () => {
     const totals = buildRunningTotals([gwRow({ gwNumber: 1, ...dirty(), points: null, netInr: 200 })]);
     expect(totals.points).not.toBe(6); // never the stale snapshot value
+  });
+});
+
+describe("snapshotStats — derives countedFixtures/correctPicks/incorrectPicks/voidPicks from per_fixture jsonb", () => {
+  it("counts a clean settled snapshot's per_fixture verdicts correctly", () => {
+    const stats = snapshotStats(
+      {
+        per_fixture: [
+          { verdict: "exact" },
+          { verdict: "result" },
+          { verdict: "miss" },
+          { verdict: "void" },
+        ],
+      },
+      "settled",
+      false,
+    );
+    expect(stats).toEqual({
+      countedFixtures: 3,
+      correctPicks: 2,
+      incorrectPicks: 1,
+      voidPicks: 1,
+    });
+  });
+
+  it("returns null (not zero) when per_fixture is null or missing", () => {
+    expect(snapshotStats({ per_fixture: null }, "settled", false)).toBeNull();
+    expect(snapshotStats({}, "settled", false)).toBeNull();
+  });
+
+  it("returns null when per_fixture is malformed jsonb (not an array)", () => {
+    expect(snapshotStats({ per_fixture: "not-an-array" }, "settled", false)).toBeNull();
+    expect(snapshotStats({ per_fixture: {} }, "settled", false)).toBeNull();
+  });
+
+  it("returns null for the whole snapshot when any verdict is outside the known union, not a partial count", () => {
+    const stats = snapshotStats(
+      { per_fixture: [{ verdict: "exact" }, { verdict: "pending" }] },
+      "settled",
+      false,
+    );
+    expect(stats).toBeNull();
+    expect(stats).not.toEqual({
+      countedFixtures: 2,
+      correctPicks: 1,
+      incorrectPicks: 0,
+      voidPicks: 0,
+    });
+  });
+
+  it("gates out a dirty row even with a valid per_fixture array", () => {
+    const stats = snapshotStats(
+      { per_fixture: [{ verdict: "exact" }, { verdict: "miss" }] },
+      "settled",
+      true,
+    );
+    expect(stats).toBeNull();
   });
 });

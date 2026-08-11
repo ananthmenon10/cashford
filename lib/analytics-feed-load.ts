@@ -242,6 +242,7 @@ export async function loadAnalyticsFeed(
           league.name,
           participation.competitionName ?? "",
           viewerTotal,
+          season.rows,
         );
       } else {
         const entries = await loadArchiveEntries(admin, league.id, participation.competitionId!, viewerId);

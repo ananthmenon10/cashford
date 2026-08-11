@@ -40,4 +40,16 @@ export const ANALYTICS_COPY = {
   noFormHistory: "No settled fixtures yet for this league.",
   allTimeStrip: (leagueCount: number, competitionCount: number, settledRounds: number) =>
     `${leagueCount} league${leagueCount === 1 ? "" : "s"} · ${competitionCount} competition${competitionCount === 1 ? "" : "s"} · ${settledRounds} settled round${settledRounds === 1 ? "" : "s"}`,
+  trendHead: (count: number) => `Last ${count} GWs · pts / fixture`,
+  trendRange: (first: number, last: number) => first === last ? `GW${first}` : `GW${first}–GW${last}`,
+  netTrendTitle: "Net trend",
+  netTrendSub: (count: number) => `Last ${count} GWs`,
+  netTrendSubStarted: (count: number, started: string) => `Last ${count} GWs · started ${started}`,
+  trendAria: (first: number, last: number, from: string, to: string) =>
+    `Points per fixture from GW${first} to GW${last}, ${from} to ${to}`,
+  trendExcludedVoid: (n: number) => `${n} void gameweek${n === 1 ? "" : "s"} left out.`,
+  trendExcludedNotEntered: (n: number) => `${n} gameweek${n === 1 ? "" : "s"} you sat out left out.`,
+  trendExcludedDirty: (n: number) => `${n} gameweek${n === 1 ? "" : "s"} still recalculating.`,
+  trendExcludedNoFixtures: (n: number) =>
+    `${n} gameweek${n === 1 ? "" : "s"} with no counted fixtures left out.`,
 } as const;

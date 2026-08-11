@@ -6,20 +6,11 @@
 // stays in place unused (excluded from copy-scan governance already — see
 // tests/phase3/copy-scan-manifest.json's _excludedNote).
 import { useMemo, useState } from "react";
-import { inr } from "@/components/ui";
+import { NetValue } from "@/components/analytics/NetValue";
+import { MyFormTrend } from "@/components/analytics/MyFormTrend";
 import { ANALYTICS_COPY } from "@/lib/analytics-copy";
 import type { AnalyticsFeedView } from "@/lib/analytics-feed-load";
 import type { AnalyticsSection, AnalyticsMyForm, AnalyticsAllTimeStrip } from "@/lib/analytics-feed";
-
-function NetValue({ net }: { net: number | "suppressed" | null }) {
-  if (net === "suppressed") return <span className="text-cs2-ink-3">···</span>;
-  if (net == null) return <span className="text-cs2-ink-3">—</span>;
-  return (
-    <span className={net < 0 ? "text-cs2-red" : net > 0 ? "text-cs2-green" : "text-cs2-ink-3"}>
-      {inr(net)}
-    </span>
-  );
-}
 
 function SectionCard({ section }: { section: AnalyticsSection }) {
   const isArchive = section.kind === "archive";
@@ -105,6 +96,7 @@ function MyFormCard({ myForm }: { myForm: AnalyticsMyForm | null }) {
           </div>
         ) : null}
       </div>
+      <MyFormTrend trend={myForm.trend} />
       <p className="mt-3 text-[11px] text-cs2-ink-3">{myForm.sampleNote}</p>
     </section>
   );

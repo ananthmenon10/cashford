@@ -5,6 +5,7 @@
 // instead, since that loader already tracks per-gameweek points/net without re-deriving Entry[].
 import { accuracy, netTotal, type Entry } from "./analytics";
 import { ANALYTICS_COPY } from "./analytics-copy";
+import type { SeasonRow } from "./gw-season";
 
 export type AnalyticsLeagueOption = { id: string; slug: string; name: string };
 
@@ -22,6 +23,21 @@ export type AnalyticsSection = {
    * gameweek numbering doesn't apply to a settled cup/WC competition. */
   throughGameweek: number | null;
   leagueLines: AnalyticsLeagueLine[];
+};
+
+export type MyFormTrendPoint = { gwNumber: number; ptsPerFixture: number };
+export type MyFormNetBar = { gwNumber: number; net: number };
+
+export type MyFormTrend = {
+  points: MyFormTrendPoint[];
+  bars: MyFormNetBar[];
+  rangeLabel: string;
+  netDelta: number;
+  startedAt: number | null;
+  excluded: {
+    gwNumber: number;
+    reason: "void" | "not_entered" | "recalculating" | "no_counted_fixtures";
+  }[];
 };
 
 /** One row per (league, competition) the viewer participates in — the raw input this module
@@ -49,6 +65,7 @@ export type AnalyticsMyForm = {
   record: string | null;
   entered: number;
   sampleNote: string;
+  trend: MyFormTrend | null;
 };
 
 export type AnalyticsAllTimeStrip = {
@@ -125,6 +142,88 @@ export function buildAllTimeStrip(rows: readonly AnalyticsParticipationRow[]): A
   };
 }
 
+export function buildMyFormTrend(rows: readonly SeasonRow[]): MyFormTrend | null {
+  const sortedRows = [...rows].sort((a, b) => a.gwNumber - b.gwNumber);
+  const excluded: MyFormTrend["excluded"] = [];
+  const usable: SeasonRow[] = [];
+
+  for (const row of sortedRows) {
+    if (row.outcome == null) continue;
+    let reason: MyFormTrend["excluded"][number]["reason"] | null = null;
+    if (row.outcome !== "settled" || row.isVoid) {
+      reason = "void";
+    } else if (row.entryStatus !== "locked_in") {
+      reason = "not_entered";
+    } else if (row.dirty) {
+      reason = "recalculating";
+    } else if (
+      row.points == null ||
+      row.countedFixtures == null ||
+      row.countedFixtures <= 0
+    ) {
+      reason = "no_counted_fixtures";
+    }
+
+    if (reason) {
+      excluded.push({ gwNumber: row.gwNumber, reason });
+    } else {
+      usable.push(row);
+    }
+  }
+
+  const window = usable.slice(-6);
+  if (window.length < 2) return null;
+
+  const points: MyFormTrendPoint[] = [];
+  const bars: MyFormNetBar[] = [];
+  let netDelta = 0;
+  for (const row of window) {
+    if (row.points == null || row.countedFixtures == null || row.countedFixtures <= 0) {
+      throw new Error("analytics-trend-invariant");
+    }
+    if (typeof row.displayNetInr !== "number") {
+      throw new Error("analytics-trend-suppressed-window");
+    }
+    points.push({
+      gwNumber: row.gwNumber,
+      ptsPerFixture: Math.round((row.points / row.countedFixtures) * 100) / 100,
+    });
+    bars.push({ gwNumber: row.gwNumber, net: row.displayNetInr });
+    netDelta += row.displayNetInr;
+  }
+
+  const first = window[0].gwNumber;
+  const last = window[window.length - 1].gwNumber;
+  let startedAt: number | null = 0;
+  let hasPriorMoneyData = false;
+  for (const row of sortedRows) {
+    if (row.gwNumber >= first) break;
+    if (row.dirty || row.displayNetInr === "suppressed") {
+      startedAt = null;
+      break;
+    }
+    if (row.outcome !== "settled" || row.isVoid) continue;
+    if (row.entryStatus === "locked_in") {
+      if (typeof row.displayNetInr !== "number") {
+        startedAt = null;
+        break;
+      }
+      hasPriorMoneyData = true;
+      startedAt += row.displayNetInr;
+    }
+  }
+  if (startedAt !== null && !hasPriorMoneyData) startedAt = null;
+
+  return {
+    points,
+    bars,
+    rangeLabel: ANALYTICS_COPY.trendRange(first, last),
+    netDelta,
+    startedAt,
+    excluded,
+  };
+}
+
 /** My-form for a league on the LIVE (gameweek) side — built straight from the viewer's
  * SeasonMemberTotal row, no Entry[] needed. */
 export function buildLiveMyForm(
@@ -137,6 +236,7 @@ export function buildLiveMyForm(
     points: number | "suppressed";
     hasEntries: boolean;
   } | null,
+  rows: readonly SeasonRow[],
 ): AnalyticsMyForm | null {
   // hasEntries alone isn't enough: a viewer can have an un-settled "entered" row with zero
   // settled gameweeks, which would otherwise render a fabricated "₹0 · 0 settled gameweeks" card.
@@ -151,6 +251,7 @@ export function buildLiveMyForm(
     record: null,
     entered: viewerTotal.gameweeksEntered,
     sampleNote: ANALYTICS_COPY.gameweekNote(viewerTotal.gameweeksEntered),
+    trend: buildMyFormTrend(rows),
   };
 }
 
@@ -175,5 +276,6 @@ export function buildArchiveMyForm(
     record: ANALYTICS_COPY.recordLine(stats.correct, incorrect, 0),
     entered: stats.graded,
     sampleNote: ANALYTICS_COPY.sampleNote(stats.graded),
+    trend: null,
   };
 }

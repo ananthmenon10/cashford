@@ -12,6 +12,10 @@ export type SeasonInputRow = {
   entryStatus: string | null;
   points: number | null;
   exacts: number | null;
+  countedFixtures: number | null;
+  correctPicks: number | null;
+  incorrectPicks: number | null;
+  voidPicks: number | null;
   netInr: number;
   inputVersion: number;
   settledVersion: number | null;
@@ -31,6 +35,41 @@ export type SeasonRow = SeasonInputRow & {
   dirty: boolean;
   displayNetInr: number | "suppressed";
 };
+
+type PerFixtureSnapshot = { verdict?: string };
+
+type SnapshotStats = Pick<
+  SeasonInputRow,
+  "countedFixtures" | "correctPicks" | "incorrectPicks" | "voidPicks"
+>;
+
+export function snapshotStats(
+  snapshot: any,
+  outcome: SeasonInputRow["outcome"],
+  dirty: boolean,
+): SnapshotStats | null {
+  if (
+    outcome !== "settled" ||
+    dirty ||
+    !snapshot ||
+    !Array.isArray(snapshot.per_fixture)
+  ) {
+    return null;
+  }
+  const perFixture = snapshot.per_fixture as PerFixtureSnapshot[];
+  const knownVerdicts = new Set(["exact", "result", "miss", "void"]);
+  if (perFixture.some((fixture) => !knownVerdicts.has(fixture.verdict as string))) {
+    return null;
+  }
+  return {
+    countedFixtures: perFixture.filter((fixture) => fixture.verdict !== "void").length,
+    correctPicks: perFixture.filter(
+      (fixture) => fixture.verdict === "exact" || fixture.verdict === "result",
+    ).length,
+    incorrectPicks: perFixture.filter((fixture) => fixture.verdict === "miss").length,
+    voidPicks: perFixture.filter((fixture) => fixture.verdict === "void").length,
+  };
+}
 
 function rowIsDirty(row: SeasonInputRow): boolean {
   return (
@@ -168,7 +207,7 @@ export async function loadSeasonView(
       .in("gameweek_contest_id", contestIds),
     supabase
       .from("gameweek_entry_results")
-      .select("entry_id, gameweek_contest_id, points, exacts, net_inr, is_winner, goal_error")
+      .select("entry_id, gameweek_contest_id, points, exacts, net_inr, is_winner, goal_error, per_fixture")
       .in("gameweek_contest_id", contestIds),
   ]);
   fail(resultsQuery.error, "season-results");
@@ -315,6 +354,7 @@ export async function loadSeasonView(
           (standing) => standing.userId === viewerId,
         )
       : null;
+    const stats = snapshotStats(snapshot, result?.outcome ?? null, dirty);
     rowsByGameweek.set(gameweek.number, {
       gwNumber: gameweek.number,
       gameweekName: gameweek.name,
@@ -330,6 +370,10 @@ export async function loadSeasonView(
           ? liveStanding?.exacts ?? null
           : snapshot?.exacts ?? 0
         : null,
+      countedFixtures: stats?.countedFixtures ?? null,
+      correctPicks: stats?.correctPicks ?? null,
+      incorrectPicks: stats?.incorrectPicks ?? null,
+      voidPicks: stats?.voidPicks ?? null,
       netInr: snapshot?.net_inr ?? 0,
       inputVersion: contest?.input_version ?? 0,
       settledVersion: result?.settled_version ?? null,
@@ -356,6 +400,7 @@ export async function loadSeasonView(
     const liveStanding = dirtyViews
       .get(gameweek.number)
       ?.standings.find((standing) => standing.userId === entry.user_id);
+    const stats = snapshotStats(snapshot, result?.outcome ?? null, dirty);
     const row: SeasonInputRow = {
       gwNumber: gameweek.number,
       gameweekName: gameweek.name,
@@ -363,6 +408,10 @@ export async function loadSeasonView(
       entryStatus: entry.status,
       points: dirty ? liveStanding?.points ?? null : snapshot?.points ?? 0,
       exacts: dirty ? liveStanding?.exacts ?? null : snapshot?.exacts ?? 0,
+      countedFixtures: stats?.countedFixtures ?? null,
+      correctPicks: stats?.correctPicks ?? null,
+      incorrectPicks: stats?.incorrectPicks ?? null,
+      voidPicks: stats?.voidPicks ?? null,
       netInr: snapshot?.net_inr ?? 0,
       inputVersion: contest.input_version,
       settledVersion: result?.settled_version ?? null,

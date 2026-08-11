@@ -88,6 +88,8 @@
     { "path": "components/gw/CaptainAdoptionSheet.tsx", "mode": "jsx", "note": "Phase 5 Premier League adoption sheet" },
     { "path": "components/gw/CompetitionSheet.tsx", "mode": "jsx", "note": "Phase 5 competition sheet" },
     { "path": "components/matches/CompetitionTable.tsx", "mode": "jsx", "note": "Phase 5 competition table" },
+    { "path": "components/analytics/NetValue.tsx", "mode": "jsx", "note": "Phase A shared net-value presentation" },
+    { "path": "components/analytics/MyFormTrend.tsx", "mode": "jsx", "note": "Phase A my-form sparkline and net-trend presentation" },
     { "path": "components/AnalyticsFeed.tsx", "mode": "jsx", "note": "Step 8 analytics feed (structure A / cross-comp B / my-form A) — all copy routed through lib/analytics-copy.ts" },
     { "path": "components/matches/MatchInsightModules.tsx", "mode": "jsx", "note": "Step 9 (#16) odds/form/H2H/table match-detail modules — all copy routed through lib/match-copy.ts" },
     { "path": "app/rules/page.tsx", "mode": "jsx", "note": "Step 9 (#13) gameweek-era rules rewrite — all copy routed through lib/rules-copy.ts" }

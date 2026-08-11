@@ -56,14 +56,14 @@ describe("buildAnalyticsSections — cross-comp B", () => {
 
 describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
   it("returns null when the viewer has no entries this league (no fabricated zero card)", () => {
-    expect(buildLiveMyForm("l1", "KK Bois", "Premier League 2026-27", null)).toBeNull();
+    expect(buildLiveMyForm("l1", "KK Bois", "Premier League 2026-27", null, [])).toBeNull();
     expect(
       buildLiveMyForm("l1", "KK Bois", "Premier League 2026-27", {
         netInr: 0,
         gameweeksEntered: 0,
         points: 0,
         hasEntries: false,
-      }),
+      }, []),
     ).toBeNull();
   });
 
@@ -74,7 +74,7 @@ describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
         gameweeksEntered: 0,
         points: 0,
         hasEntries: true,
-      }),
+      }, []),
     ).toBeNull();
   });
 
@@ -84,7 +84,7 @@ describe("buildLiveMyForm — my-form A (single league, never a blend)", () => {
       gameweeksEntered: 3,
       points: 10,
       hasEntries: true,
-    });
+    }, []);
     expect(form?.net).toBe("suppressed");
     expect(form?.kind).toBe("live");
     expect(form?.entered).toBe(3);

@@ -26,6 +26,15 @@ const SAMPLE_CALLS: Record<string, unknown[]> = {
   sampleNote: [30],
   gameweekNote: [6],
   allTimeStrip: [3, 2, 36],
+  trendHead: [6],
+  trendRange: [1, 6],
+  netTrendSub: [6],
+  netTrendSubStarted: [6, "+₹920"],
+  trendAria: [1, 6, "0.72", "0.94"],
+  trendExcludedVoid: [2],
+  trendExcludedNotEntered: [2],
+  trendExcludedDirty: [2],
+  trendExcludedNoFixtures: [2],
 };
 
 describe("lib/analytics-copy.ts — style rules over every exported string and function output", () => {
