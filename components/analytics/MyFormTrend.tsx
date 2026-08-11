@@ -35,8 +35,12 @@ export function MyFormTrend({ trend }: { trend: MyFormTrendData | null }) {
   const pad = valueRange * 0.1;
   const domainMin = min - pad;
   const domainRange = valueRange + pad * 2;
+  const edgeInset = 4.5; // = last-point circle radius; keeps edge circles from clipping on the viewBox bounds
   const coordinates = trend.points.map((point, index) => {
-    const x = trend.points.length === 1 ? 150 : (index / (trend.points.length - 1)) * 300;
+    const x =
+      trend.points.length === 1
+        ? 150
+        : edgeInset + (index / (trend.points.length - 1)) * (300 - edgeInset * 2);
     const y = valueRange === 0
       ? 41.5
       : 70 - ((point.ptsPerFixture - domainMin) / domainRange) * 57;

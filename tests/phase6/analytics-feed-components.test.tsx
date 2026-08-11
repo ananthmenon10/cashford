@@ -188,6 +188,16 @@ describe("MyFormTrend", () => {
     expect(screen.getByText("0.94")).toBeInTheDocument();
   });
 
+  it("insets the first and last point circles off the viewBox edges so they don't clip", () => {
+    const { container } = render(<MyFormTrend trend={trend()} />);
+    const circles = container.querySelectorAll("svg circle");
+    const firstCx = Number(circles[0].getAttribute("cx"));
+    const lastCx = Number(circles[circles.length - 1].getAttribute("cx"));
+    const maxRadius = 4.5; // solid last-point circle radius
+    expect(firstCx).toBeGreaterThanOrEqual(maxRadius);
+    expect(lastCx).toBeLessThanOrEqual(300 - maxRadius);
+  });
+
   it("uses the loss colour for negative bars and the neutral minimum bar for zero", () => {
     const { container } = render(
       <MyFormTrend

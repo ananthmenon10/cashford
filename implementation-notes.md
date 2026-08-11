@@ -2580,3 +2580,39 @@ Also inherited (separate work, Terra): adopt takes competition-gate→league row
 archive/remove take league→competition-gate — a re-adopt racing archive/remove can deadlock.
 Proposal file: docs/design/throwaway/7b-gap7-proposed-migration.sql. Audit query: see the
 2026-08-09 session (gameweek_contests vs active league_competitions fact comparison).
+
+## Analytics backlog — Phase A (2026-08-11): my-form sparkline + net trend
+
+Plan: docs/plans/2026-08-11-010-analytics-backlog-plan.md (rev 5). Pipeline: Opus planned,
+Sol reviewed (3 rounds: REJECT → APPROVE-WITH-CHANGES → clean diff check), Luna (max) built,
+Terra reviewed GREEN, Sonnet added test polish, Sonnet ran browser QC on staging.
+Commit 950e887 + clipping fix. verify-all ALL GREEN; suite 943 → 951 tests.
+
+What shipped: points-per-fixture sparkline (last 6 usable gameweeks) + net-trend bar run in
+the live my-form card. Data source: gameweek_entry_results.per_fixture (stored grading
+snapshots — no new query, no re-derived grading). gw-season.ts now exposes snapshotStats()
+verdict counts (Phase B consumes them). NetValue moved to components/analytics/.
+
+Key rules pinned during review (Sol/QA catches, all in the plan):
+- Fully-void gameweeks have NO entry results (finalize deletes them) — never assumed present.
+- Dirty gameweeks excluded whole from the window (no live numerator over stale denominator),
+  named in a footnote; open gameweeks dropped silently (no excluded entry).
+- startedAt null when no pre-window gameweek carries settled money (ZZ-P1's own first-load
+  state would otherwise have rendered "started ₹0" — caught by QA planning against real data).
+- Unknown verdict string in per_fixture → whole snapshot unusable (all-null), per plan; the
+  first implementation counted it toward the denominator — fixed before commit.
+
+QC (staging, testa on ZZ-P1): 12/14 clean-state cases PASS with exact number matches
+(feet 3.00/1.00/0.60, netDelta +₹500, en-dash range, aria-label, dark mode, 320px).
+A-14/A-15 (dirty render): TRANSIENT — the input_version bump was re-settled by pg_cron
+before the page load landed; dirty state confirmed in DB but never rendered. Covered by
+unit tests 9/10 + the netDelta suppression invariant. Protocol end state verified
+(input_version = settled_version = 6 on the mock GW1 contest; no other writes).
+A-16 NOT-EXERCISABLE (my-form selector exposes only ZZ-P1). A-08 + B-01…B-06 deferred to
+Ananth's logged-in pass (batched for end of build).
+
+### Deviations
+- Sparkline edge circles were half-clipped at viewBox x=0/300 (QC cosmetic find) — fixed by
+  insetting the x-range to [4.5, 295.5]; feet keep justify-between (≤1.5% offset accepted).
+- Plan QC step claiming ZZ-P1 has void-fixture history was wrong (no void or dirty gameweeks
+  exist in the DB today) — corrected in plan rev 5; void rendering carried by unit tests only.
