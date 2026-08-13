@@ -14,6 +14,7 @@ import type { StandingsView } from "@/lib/standings-view";
 import { formatFriendlyDate } from "@/lib/datetime";
 import { LocalTime } from "@/components/LocalTime";
 import { CompetitionTable } from "@/components/matches/CompetitionTable";
+import { verdictCopy } from "@/lib/matches-verdict";
 
 const card =
   "rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]";
@@ -465,12 +466,4 @@ export function Phase4MatchesPage({
       </div>
     </main>
   );
-}
-
-function verdictCopy(verdict: "exact" | "result" | "miss") {
-  return verdict === "exact"
-    ? MATCH_COPY.exact
-    : verdict === "result"
-      ? MATCH_COPY.result
-      : MATCH_COPY.miss;
 }

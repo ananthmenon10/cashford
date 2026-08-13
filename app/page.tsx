@@ -9,8 +9,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { HomeTabs } from "@/components/HomeTabs";
 import { AnalyticsFeed } from "@/components/AnalyticsFeed";
 import { HomeHub } from "@/components/gw/HomeHub";
+import { HomeMatchesTab } from "@/components/matches/HomeMatchesTab";
 import { APP_VERSION } from "@/lib/version";
-import { MATCH_COPY } from "@/lib/match-copy";
 
 function initials(name: string) {
   const clean = name.replace(/[^A-Za-z]/g, "");
@@ -136,14 +136,7 @@ export default async function Home() {
       <HomeTabs
         leagues={leaguesPanel}
         matches={
-          <div className="px-4 py-4">
-            <Link
-              href="/matches"
-              className="block rounded-card border border-border bg-surface p-5 text-center font-bold text-primary-press shadow-[0_2px_8px_rgba(15,23,42,.04)]"
-            >
-              {MATCH_COPY.viewMatches}
-            </Link>
-          </div>
+          <HomeMatchesTab />
         }
         matchesAlert={false}
         analyticsVisible={analyticsVisible}

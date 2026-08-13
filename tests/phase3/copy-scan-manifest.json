@@ -3,6 +3,7 @@
   "_baseRefNote": "Plan §4/T-U18c: baseRef is the fixed Phase 1+2 foundation commit ('feat: Phase 1 foundation + Phase 2 gameweek money engine'), recorded here rather than resolved at run time. Resolved per the fix round; verified to exist via `git cat-file -t`.",
   "files": [
     { "path": "app/page.tsx", "mode": "jsx", "note": "U27, U28 home Leagues panel (rewritten)" },
+    { "path": "app/api/matches/home-tab/route.ts", "mode": "strings", "note": "Plan 011 home Matches tab API" },
     { "path": "app/leagues/[slug]/page.tsx", "mode": "jsx", "note": "Gameweek tab + participation branch" },
     { "path": "app/leagues/[slug]/season/page.tsx", "mode": "jsx", "note": "Season tab" },
     { "path": "app/leagues/[slug]/dues/page.tsx", "mode": "jsx", "note": "Dues tab chrome (WC component untouched)" },
@@ -43,6 +44,7 @@
     { "path": "app/matches/page.tsx", "mode": "jsx", "note": "Phase 4 matches route" },
     { "path": "components/Phase4MatchDetailPage.tsx", "mode": "jsx", "note": "Phase 4 match detail page" },
     { "path": "components/Phase4MatchesPage.tsx", "mode": "jsx", "note": "Phase 4 matches page" },
+    { "path": "components/matches/HomeMatchesTab.tsx", "mode": "jsx", "note": "Plan 011 inline home Matches tab" },
     { "path": "app/layout.tsx", "mode": "jsx", "note": "global signed-in feedback widget mount" },
     { "path": "app/dev/feedback/actions.ts", "mode": "strings", "note": "feedback resolve action" },
     { "path": "app/dev/feedback/page.tsx", "mode": "jsx", "note": "unresolved feedback debug view" },

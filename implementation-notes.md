@@ -2676,3 +2676,41 @@ Deferred to Ananth's logged-in batch: PC-R01…R06 (real-league absence assertio
 scope switching, PC-R05 same-league-different-viewer silence check on ZZ-P1 as ananth).
 C2 (modules 04/06 + deferred clauses) and C3 (Receipts — recommendation: defer, Share doesn't
 exist) NOT started; paused on Ananth's instruction after C1 ships.
+
+## Plan 011 — Home Matches tab (2026-08-13)
+
+Implemented on `feature/cashford-2`, with no commit. The `/matches` loader now wraps a shared
+snapshot/focus context with explicit strict-scope and strict-read flags; the home loader adds
+active-pair-scoped next-gameweek status, receipt summaries, and lifecycle freshness. The new API
+route is dynamic, private/no-store on every path, and returns inline empty payloads. The home tab
+fetches only after Matches activation, uses selected/requested competition cache keys, keyed abort
+cleanup, freshness TTLs, visible unresolved polling, and cs2 rendering. Verdict copy is shared
+between the home and legacy matches components.
+
+Verification: baseline was 93 test files / 1,029 tests. Final `npm run typecheck` passed and
+`npx vitest run` passed with 96 test files / 1,094 tests. Luna's sandbox could not run the route
+smoke (network) or the rolling-open proof (no Docker socket); both were then run by the
+orchestrating session on the host: `bash scripts/verify-all.sh` → ALL GREEN (typecheck · vitest
+1,094 · build · smoke, home-loader case included), and the disposable-DB rolling-open proof
+passed all 19 assertions (`ALL PLAN 011 ROLLING-OPEN PROOFS PASSED`) on a fresh harness — GW n
+locked, both entries locked_in, original pot id preserved and locked, GW n+1 opened with exactly
+one open pot, exactly one open GW.
+
+### Deviations
+
+- No real-environment database writes were made. No migrations or settlement/scoring files were
+  changed.
+- Host lacks `psql`, so `scripts/disposable-db/up.sh` fails at the migration step; migrations were
+  applied via `docker exec -i cashford-disposable-db psql …` instead. Consider switching up.sh to
+  docker-exec psql so it works without a host Postgres client.
+- First proof run surfaced two bugs in the proof script itself (before-check subqueries used the
+  GW n+1 id where GW n was meant; pot deadline round-tripped through a JS Date and lost microsecond
+  precision). Fixed in the script; app behavior was unaffected — all "after" assertions passed on
+  both runs.
+- Terra review (three rounds): round 1 blocker (visibilitychange listener lost when a refresh
+  resolved while hidden) and stale lastDataRef key leak — both fixed and confirmed. Round 3 left
+  one accepted gap: the A→B→C jsdom test proves the user-visible invariant (C never renders B's
+  late payload) but does not isolate the lastDataRef key guard from the two other rejection layers
+  (render-time key check, per-key carry). Accepted as-is — the guard is one of three redundant
+  defenses and a layer-isolating test would be white-box brittle. Backlog: test-tightening if the
+  redundancy is ever removed.

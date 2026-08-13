@@ -8,6 +8,7 @@ import {
   sharedHeaderPoints,
   type FixtureRowView,
   type LeagueRef,
+  type LeagueRowView,
   type MatchesTabScope,
   type MatchesTabView,
   type WinnersRecapView,
@@ -31,6 +32,41 @@ type ScopeCandidate = {
   competitionSlug: string;
   competitionName: string;
   competitionStatus: string;
+};
+
+export type MatchesTabLoadFlags = {
+  strictScope: boolean;
+  strictReadErrors: boolean;
+};
+
+export type MatchesTabLoadContext = {
+  view: MatchesTabView;
+  scopeCandidates: ScopeCandidate[];
+  competition: {
+    id: string;
+    slug: string;
+    name: string;
+    status: string;
+  };
+  gameweeks: any[];
+  contests: any[];
+  contestWithCl: any[];
+  membershipByGw: Map<string, any[]>;
+  gwResults: any[];
+  resolution: ReturnType<typeof resolveAppGameweek>;
+  focusRef: any;
+  focusContests: any[];
+  focusEntries: any[];
+  focusEntryResults: any[];
+  focusPicks: any[];
+  leagueRefs: LeagueRef[];
+  leagueById: Map<string, LeagueRef>;
+  scopeByLeague: Map<string, any>;
+  memberScopeByLeague: Map<string, any>;
+  boundaryById: Map<string, number>;
+  resultByContest: Map<string, any>;
+  userId: string;
+  now: Date;
 };
 
 /**
@@ -120,15 +156,35 @@ export async function loadMatchesTab(
   now = new Date(),
   requestedScopeSlug?: string,
 ): Promise<MatchesTabView | null> {
+  const loaded = await loadMatchesTabInternal(
+    session,
+    userId,
+    requestedGw,
+    now,
+    requestedScopeSlug,
+    { strictScope: false, strictReadErrors: false },
+  );
+  return loaded?.view ?? null;
+}
+
+export async function loadMatchesTabInternal(
+  session: Client,
+  userId: string,
+  requestedGw?: number,
+  now = new Date(),
+  requestedScopeSlug?: string,
+  flags: MatchesTabLoadFlags = { strictScope: false, strictReadErrors: false },
+): Promise<MatchesTabLoadContext | null> {
   const scopeCandidates = await resolveViewerCompetitionScopes(session, userId);
   // Never leak another competition's fixtures: a viewer with zero active competition scopes
   // (e.g. a Solid Yenne Boys member, whose only link is the archived WC2026) gets nothing here —
   // the caller 404s rather than falling back to some other competition's data.
   if (!scopeCandidates.length) return null;
-  const activeScope =
-    (requestedScopeSlug
-      ? scopeCandidates.find((scope) => scope.competitionSlug === requestedScopeSlug)
-      : undefined) ?? scopeCandidates[0];
+  const requestedScope = requestedScopeSlug
+    ? scopeCandidates.find((scope) => scope.competitionSlug === requestedScopeSlug)
+    : undefined;
+  if (flags.strictScope && requestedScopeSlug && !requestedScope) return null;
+  const activeScope = requestedScope ?? scopeCandidates[0];
   const competition = {
     id: activeScope.competitionId,
     slug: activeScope.competitionSlug,
@@ -142,8 +198,8 @@ export async function loadMatchesTab(
 
   const [
     { data: leagues, error: leagueError },
-    { data: scopes },
-    { data: memberScopes },
+    { data: scopes, error: scopeError },
+    { data: memberScopes, error: memberScopeError },
   ] = await Promise.all([
       session.from("leagues").select("id, slug, name, status").order("name"),
       session
@@ -155,8 +211,14 @@ export async function loadMatchesTab(
         .select("league_id, eligible_from_gameweek_id, left_at")
         .eq("competition_id", competition.id)
         .eq("user_id", userId),
-    ]);
+  ]);
   if (leagueError) throw new Error(`matches leagues: ${leagueError.message}`);
+  if (flags.strictReadErrors && scopeError) {
+    throw new Error(`matches scope-links: ${scopeError.message}`);
+  }
+  if (flags.strictReadErrors && memberScopeError) {
+    throw new Error(`matches member-scopes: ${memberScopeError.message}`);
+  }
   const scopeIds = new Set((scopes ?? []).map((scope: any) => scope.league_id));
   const leagueRefs: LeagueRef[] = (leagues ?? [])
     .filter((league: any) => scopeIds.has(league.id))
@@ -320,7 +382,10 @@ export async function loadMatchesTab(
     focusRef.deadline_at ?? focusContests[0]?.deadline_at ?? null;
   if (!focusDeadline) return null;
   const contestIds = focusContests.map((contest: any) => contest.id);
-  const [{ data: entries }, { data: entryResults }] = contestIds.length
+  const [
+    { data: entries, error: entriesError },
+    { data: entryResults, error: entryResultsError },
+  ] = contestIds.length
     ? await Promise.all([
         session
           .from("gameweek_entries")
@@ -334,13 +399,22 @@ export async function loadMatchesTab(
           .in("gameweek_contest_id", contestIds),
       ])
     : [{ data: [] }, { data: [] }];
+  if (flags.strictReadErrors && entriesError) {
+    throw new Error(`matches focus-entries: ${entriesError.message}`);
+  }
+  if (flags.strictReadErrors && entryResultsError) {
+    throw new Error(`matches entry-results: ${entryResultsError.message}`);
+  }
   const entryIds = (entries ?? []).map((entry: any) => entry.id);
-  const { data: picks } = entryIds.length
+  const { data: picks, error: picksError } = entryIds.length
     ? await session
         .from("gameweek_picks")
         .select("entry_id, fixture_id, pred_home, pred_away")
         .in("entry_id", entryIds)
     : { data: [] };
+  if (flags.strictReadErrors && picksError) {
+    throw new Error(`matches picks: ${picksError.message}`);
+  }
   const picksByEntry = new Map<string, any[]>();
   for (const pick of picks ?? []) {
     const rows = picksByEntry.get(pick.entry_id) ?? [];
@@ -417,67 +491,20 @@ export async function loadMatchesTab(
     }
   }
 
-  const leagueRows = focusContests
-    .map((contest: any) => {
-      const league = leagueById.get(contest.league_id);
-      if (!league) return null;
-      const entry: any = myEntryByContest.get(contest.id);
-      const leagueScope: any = scopeByLeague.get(contest.league_id);
-      const memberScope: any = memberScopeByLeague.get(contest.league_id);
-      const participation = resolveViewerParticipation({
-        eligible: isEligible(
-          {
-            leagueEligibleFromNumber: leagueScope?.eligible_from_gameweek_id
-              ? boundaryById.get(leagueScope.eligible_from_gameweek_id) ?? null
-              : null,
-            memberEligibleFromNumber: memberScope?.eligible_from_gameweek_id
-              ? boundaryById.get(memberScope.eligible_from_gameweek_id) ?? null
-              : null,
-            leftAt: memberScope?.left_at ?? null,
-          },
-          focusRef.number,
-        ),
-        entryStatus: entry?.status ?? null,
-      });
-      const result: any = entry ? entryResultByEntry.get(entry.id) : null;
-      const live = entry
-        ? liveByContest
-            .get(contest.id)
-            ?.find((row) => row.userId === entry.user_id) ?? null
-        : null;
-      const lockedFieldSize = (entries ?? []).filter(
-        (row: any) =>
-          row.gameweek_contest_id === contest.id &&
-          row.status === "locked_in",
-      ).length;
-      return buildLeagueRow(contest.cl, participation, {
-        league,
-        raceHref: `/leagues/${league.slug}`,
-        cta:
-          contest.cl === "CL1" &&
-          ["VP1", "VP2", "VP3"].includes(participation)
-            ? {
-                label: participation === "VP1" ? "Enter GW" : "Edit picks",
-                href: `/leagues/${league.slug}/enter`,
-              }
-            : undefined,
-        points: live?.points ?? result?.points ?? null,
-        netInr: live?.netInr ?? result?.net_inr ?? null,
-        fieldSize: live?.fieldSize ?? lockedFieldSize,
-        ordinal: live
-          ? ordinal(live.rank)
-          : result
-            ? rankForEntry(
-                entry.id,
-                (entryResults ?? []).filter(
-                  (row: any) => row.gameweek_contest_id === contest.id,
-                ),
-              )
-            : null,
-        voidReason: resultByContest.get(contest.id)?.void_reason,
-      });
-    })
-    .filter((row): row is NonNullable<typeof row> => row !== null);
+  const leagueRows = buildLeagueRows({
+    contests: focusContests,
+    entries: entries ?? [],
+    entryResults: entryResults ?? [],
+    userId,
+    focusRef,
+    gameweeks,
+    leagueById,
+    scopeByLeague,
+    memberScopeByLeague,
+    boundaryById,
+    resultByContest,
+    liveByContest,
+  });
 
   const fixtureRows: FixtureRowView[] = (membershipByGw.get(focusRef.id) ?? [])
     .filter((membership: any) => membership.fixtures)
@@ -617,7 +644,7 @@ export async function loadMatchesTab(
           href: `/matches?gw=${latestSettled.number}`,
         }
       : undefined;
-  return {
+  const view: MatchesTabView = {
     competition: {
       id: competition.id,
       slug: competition.slug,
@@ -656,6 +683,116 @@ export async function loadMatchesTab(
     winnersRecap: recap.length ? recap : null,
     fixtures: fixtureRows,
   };
+  return {
+    view,
+    scopeCandidates,
+    competition,
+    gameweeks,
+    contests: contests ?? [],
+    contestWithCl,
+    membershipByGw,
+    gwResults: gwResults ?? [],
+    resolution,
+    focusRef,
+    focusContests,
+    focusEntries: entries ?? [],
+    focusEntryResults: entryResults ?? [],
+    focusPicks: picks ?? [],
+    leagueRefs,
+    leagueById,
+    scopeByLeague,
+    memberScopeByLeague,
+    boundaryById,
+    resultByContest,
+    userId,
+    now,
+  };
+}
+
+export function buildLeagueRows(input: {
+  contests: any[];
+  entries: any[];
+  entryResults: any[];
+  userId: string;
+  focusRef: { number: number };
+  gameweeks: any[];
+  leagueById: Map<string, LeagueRef>;
+  scopeByLeague: Map<string, any>;
+  memberScopeByLeague: Map<string, any>;
+  boundaryById: Map<string, number>;
+  resultByContest: Map<string, any>;
+  liveByContest: Map<string, ReturnType<typeof liveMoney>>;
+}): LeagueRowView[] {
+  const entryResultByEntry = new Map(
+    input.entryResults.map((result: any) => [result.entry_id, result]),
+  );
+  const myEntryByContest = new Map(
+    input.entries
+      .filter((entry: any) => entry.user_id === input.userId)
+      .map((entry: any) => [entry.gameweek_contest_id, entry]),
+  );
+
+  return input.contests
+    .map((contest: any) => {
+      const league = input.leagueById.get(contest.league_id);
+      if (!league) return null;
+      const entry: any = myEntryByContest.get(contest.id);
+      const leagueScope: any = input.scopeByLeague.get(contest.league_id);
+      const memberScope: any = input.memberScopeByLeague.get(contest.league_id);
+      const participation = resolveViewerParticipation({
+        eligible: isEligible(
+          {
+            leagueEligibleFromNumber: leagueScope?.eligible_from_gameweek_id
+              ? input.boundaryById.get(leagueScope.eligible_from_gameweek_id) ?? null
+              : null,
+            memberEligibleFromNumber: memberScope?.eligible_from_gameweek_id
+              ? input.boundaryById.get(memberScope.eligible_from_gameweek_id) ?? null
+              : null,
+            leftAt: memberScope?.left_at ?? null,
+          },
+          input.focusRef.number,
+        ),
+        entryStatus: entry?.status ?? null,
+      });
+      const result: any = entry ? entryResultByEntry.get(entry.id) : null;
+      const live = entry
+        ? input.liveByContest
+            .get(contest.id)
+            ?.find((row) => row.userId === entry.user_id) ?? null
+        : null;
+      const lockedFieldSize = input.entries.filter(
+        (row: any) =>
+          row.gameweek_contest_id === contest.id &&
+          row.status === "locked_in",
+      ).length;
+      return buildLeagueRow(contest.cl, participation, {
+        league,
+        raceHref: `/leagues/${league.slug}`,
+        cta:
+          contest.cl === "CL1" &&
+          ["VP1", "VP2", "VP3"].includes(participation)
+            ? {
+                label: participation === "VP1" ? MATCH_COPY.enterGw : MATCH_COPY.editPicks,
+                href: `/leagues/${league.slug}/enter`,
+              }
+            : undefined,
+        points: live?.points ?? result?.points ?? null,
+        netInr: live?.netInr ?? result?.net_inr ?? null,
+        fieldSize: live?.fieldSize ?? lockedFieldSize,
+        ordinal: live
+          ? ordinal(live.rank)
+          : result
+            ? rankForEntry(
+                entry.id,
+                input.entryResults.filter(
+                  (row: any) => row.gameweek_contest_id === contest.id,
+                ),
+              )
+            : null,
+        voidReason: input.resultByContest.get(contest.id)?.void_reason,
+      });
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
 }
 
 function rankForEntry(entryId: string, results: any[]) {

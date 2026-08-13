@@ -124,6 +124,52 @@ export const MATCH_COPY = {
     "All expanded by default. No pagination—everything remains in the page.",
   fixturesScrollFoot: (n: number) => `${n} of ${n} fixtures · scroll to collapse or review`,
   competitionScope: "Competition scope",
+  homeMatchesLoading: "Loading matches…",
+  homeMatchesError: "Matches could not be loaded.",
+  homeMatchesRetry: "Try again",
+  homeMatchesEmpty: "No gameweek matches to show yet.",
+  apiInvalidCompetition: "Invalid competition scope.",
+  apiUnavailable: "Matches are temporarily unavailable.",
+  homeMatchesKicker: "Matches hub",
+  allMatchesAndTable: "All matches & table →",
+  matchesDeadline: "Deadline",
+  locksIn: "Locks in",
+  matchesReceiptLabel: "Previous result",
+  matchesReceiptExpand: "Show league detail",
+  matchesNoFixtures: "No fixtures in this gameweek.",
+  moneyValue: (value: number) =>
+    `${value > 0 ? "+" : value < 0 ? "−" : ""}₹${Math.abs(value).toLocaleString("en-IN")}`,
+  nextGwOpen: (gw: number) => `GW${gw} open for entry`,
+  nextGwPicksIn: (gw: number) => `GW${gw} picks in`,
+  nextGwNotEntered: "Not entered",
+  nextGwNeedsUpdate: "Needs update",
+  nextGwEnter: "Enter picks",
+  nextGwUpdate: "Update picks",
+  locks: "locks",
+  receiptMultiple: (gw: number, leagues: number) => `GW${gw} · ${leagues} leagues`,
+  receiptMultipleNet: (gw: number, leagues: number, net: number) =>
+    `GW${gw} · ${leagues} leagues · net ${net > 0 ? "+" : net < 0 ? "−" : ""}₹${Math.abs(net).toLocaleString("en-IN")}`,
+  receiptRanked: (
+    gw: number,
+    ordinal: string | null,
+    fieldSize: number | null,
+    points: number | null,
+    net: number | null,
+  ) => {
+    const parts = [`GW${gw}`];
+    if (ordinal != null && fieldSize != null) parts.push(`${ordinal} of ${fieldSize}`);
+    if (points != null) parts.push(`${points} pts`);
+    if (net != null) {
+      parts.push(
+        `${net > 0 ? "+" : net < 0 ? "−" : ""}₹${Math.abs(net).toLocaleString("en-IN")}`,
+      );
+    }
+    return parts.join(" · ");
+  },
+  receiptVoid: (gw: number) => `GW${gw} · void — stakes returned`,
+  receiptEntryNotCounted: (gw: number, count: number) =>
+    `GW${gw} · ${count === 1 ? "entry" : "entries"} not counted`,
+  receiptSatOut: (gw: number) => `GW${gw} · sat out`,
   oneXTwo: "1X2",
   draw: "Draw",
   mostLikelyScore: "Most likely score",
