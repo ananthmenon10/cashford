@@ -2714,3 +2714,16 @@ one open pot, exactly one open GW.
   (render-time key check, per-key carry). Accepted as-is — the guard is one of three redundant
   defenses and a layer-isolating test would be white-box brittle. Backlog: test-tightening if the
   redundancy is ever removed.
+
+Staging QC (Sonnet, testa on ZZ-P1, cashford-staging): all eight cases pass — no fetch before
+activation, direct GW1 landing (10 PL fixtures, no pills, Enter CTA + deadline), instant cached
+re-activation, fixture tap → /m/[id], footer → /matches with identical content, both themes clean,
+full 10-pick entry submitted (pot went 2/5), no console errors. Post-entry the league row reads
+"Entry started" — plan §6 said "All picks in", but §3.3 scopes that copy to the next-GW banner
+only; the focus row keeps /matches parity copy by design (§3.2). Plan §6 wording slip, not a bug.
+QC side notes: back-nav from a match page lands on the Leagues tab (tab index not preserved —
+pre-existing, minor); Analytics tab hidden for testa (pre-existing `analyticsVisible` gating, no
+eligible data). Copy nit for later: "Entry started" undersells `entered` (which always means a
+complete pick set).
+
+Deferred to matchday (per plan §6): S2/S3/S4 live-state browser QC — covered now by unit fixtures.
