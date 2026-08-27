@@ -950,15 +950,17 @@ export function homeScopeChipsVisible(
   return homeCompetitionScopes(cards).length > 1;
 }
 
-/** Cards visible for a selected scope: archived and format:"none" cards always show; others filter by competitionSlug. */
+/** Cards visible for a selected scope: archived and format:"none" cards always show; archived cards render last. */
 export function homeCardsForScope<T extends Pick<HomeLeagueCard, "archived" | "format" | "competitionSlug">>(
   cards: readonly T[],
   scopeSlug: string | null,
 ): T[] {
-  if (!scopeSlug) return [...cards];
-  return cards.filter(
-    (card) => card.archived || card.format === "none" || card.competitionSlug === scopeSlug,
-  );
+  const visible = scopeSlug
+    ? cards.filter(
+        (card) => card.archived || card.format === "none" || card.competitionSlug === scopeSlug,
+      )
+    : [...cards];
+  return [...visible.filter((card) => !card.archived), ...visible.filter((card) => card.archived)];
 }
 
 // ── Home hub: GW navigator (Option A · segmented strip, jump to any GW) ─────────────
@@ -987,16 +989,15 @@ export type HomeEntryStatus =
   | { key: "live"; rank: number | null; total: number }
   | { key: "won"; rank: number; total: number; amountInr: number }
   | { key: "lost"; rank: number; total: number; amountInr: number }
-  /** Not in the frame's eight-state canon — CL5 (settled) with a net of exactly zero. See
-   * HOME_ENTRY_STATUS_COPY.brokeEven (lib/gw-copy.ts) for the copy convention judgment call. */
+  /** Not in the frame's eight-state canon — CL5 (settled) with a net of exactly zero. */
   | { key: "brokeEven"; rank: number; total: number }
   | { key: "void" }
   | { key: "syncIssue" };
 
 /**
  * Maps a league card's already-resolved lifecycle/participation facts onto the eight canonical
- * entry-status states (lib/gw-copy.ts EntryStatusKey / HOME_ENTRY_STATUS_COPY). Returns null when
- * no entry-status row applies (archived cards, or no contest yet for the current gameweek).
+ * entry-status states. Returns null when no entry-status state applies (archived cards, or no
+ * contest yet for the current gameweek).
  */
 export function resolveHomeEntryStatus(
   input: Pick<
@@ -1040,7 +1041,7 @@ export function resolveHomeEntryStatus(
   if (lifecycle === "CL2" || lifecycle === "CL3" || lifecycle === "CL4") {
     // Degrade gracefully rather than fall back to Locked: a live gameweek whose provisional
     // standing hasn't produced this viewer's rank yet still shows a live-state row, with the
-    // rank segment itself degraded (HOME_ENTRY_STATUS_COPY.live handles rank === null).
+    // rank segment itself degraded.
     if ((input.liveMatchCount ?? 0) > 0 && input.eligibleCount) {
       return { key: "live", rank: input.viewerRank, total: input.eligibleCount };
     }
@@ -1056,7 +1057,7 @@ export function resolveHomeEntryStatus(
       return { key: "lost", rank: input.viewerRank, total: input.eligibleCount, amountInr: input.viewerNetInr };
     }
     // net === 0: a settled contest where the viewer's stake exactly offset — not in the frame's
-    // eight-state canon. See HOME_ENTRY_STATUS_COPY.brokeEven for the copy judgment call.
+    // eight-state canon. Keep it explicit so a settled zero-net entry remains distinguishable.
     return { key: "brokeEven", rank: input.viewerRank, total: input.eligibleCount };
   }
 

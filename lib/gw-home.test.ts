@@ -24,7 +24,6 @@ import {
   C60,
   C66,
   C72,
-  HOME_ENTRY_STATUS_COPY,
   LEAGUE_CARD_COPY,
 } from "./gw-copy";
 
@@ -384,9 +383,30 @@ describe("homeCompetitionScopes / homeScopeChipsVisible", () => {
     const pl = scopeCard({ leagueId: "pl-league" });
     const laliga = scopeCard({ leagueId: "laliga-league", competitionSlug: "laliga" });
     const cards = [archived, none, pl, laliga];
-    expect(homeCardsForScope(cards, "pl").map((c) => c.leagueId)).toEqual(["archived", "none", "pl-league"]);
-    expect(homeCardsForScope(cards, "laliga").map((c) => c.leagueId)).toEqual(["archived", "none", "laliga-league"]);
-    expect(homeCardsForScope(cards, null).map((c) => c.leagueId)).toEqual(cards.map((c) => c.leagueId));
+    expect(homeCardsForScope(cards, "pl").map((c) => c.leagueId)).toEqual(["none", "pl-league", "archived"]);
+    expect(homeCardsForScope(cards, "laliga").map((c) => c.leagueId)).toEqual(["none", "laliga-league", "archived"]);
+    expect(homeCardsForScope(cards, null).map((c) => c.leagueId)).toEqual([
+      "none",
+      "pl-league",
+      "laliga-league",
+      "archived",
+    ]);
+  });
+
+  it("puts archived cards after non-archived cards while preserving each group's order", () => {
+    const archivedFirst = scopeCard({ leagueId: "archived-first", archived: true, competitionSlug: "wc2022" });
+    const activeBefore = scopeCard({ leagueId: "active-before" });
+    const none = scopeCard({ leagueId: "none", format: "none", competitionSlug: null as never });
+    const archivedLast = scopeCard({ leagueId: "archived-last", archived: true, competitionSlug: "wc2026" });
+    const activeAfter = scopeCard({ leagueId: "active-after" });
+
+    expect(homeCardsForScope([archivedFirst, activeBefore, none, archivedLast, activeAfter], "pl").map((c) => c.leagueId)).toEqual([
+      "active-before",
+      "none",
+      "active-after",
+      "archived-first",
+      "archived-last",
+    ]);
   });
 });
 
@@ -507,25 +527,5 @@ describe("resolveHomeEntryStatus — canonical eight-state mapping", () => {
   it("returns null for archived cards and for a blank CL0 lifecycle", () => {
     expect(resolveHomeEntryStatus({ ...base, archived: true })).toBeNull();
     expect(resolveHomeEntryStatus({ ...base, lifecycle: "CL0" })).toBeNull();
-  });
-});
-
-// Step 6A round 2 — item 17: exact-string and codepoint assertions for the home entry-status
-// copy builders (lib/gw-copy.ts HOME_ENTRY_STATUS_COPY), pinned separately from the style-rule
-// scan in tests/phase3/gw-copy.test.ts since these are nested function properties, not top-level
-// exports, and so aren't covered by that file's SAMPLE_CALLS registry.
-describe("HOME_ENTRY_STATUS_COPY — exact-string and codepoint pins (item 17)", () => {
-  it("live(3, 12) generates the exact ordinal string", () => {
-    expect(HOME_ENTRY_STATUS_COPY.live(3, 12)).toBe("Live · 3rd of 12");
-  });
-
-  it("live(null, 12) degrades the rank segment instead of throwing or omitting it", () => {
-    expect(HOME_ENTRY_STATUS_COPY.live(null, 12)).toBe("Live · rank pending");
-  });
-
-  it("lost(9, 12, -100) emits U+2212 (minus sign), not a hyphen, before the money amount", () => {
-    const out = HOME_ENTRY_STATUS_COPY.lost(9, 12, -100);
-    expect(out).toContain("−");
-    expect(out).not.toMatch(/[^−]-\d/); // no ASCII hyphen directly preceding a digit
   });
 });

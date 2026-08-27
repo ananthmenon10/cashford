@@ -1,0 +1,188 @@
+<title>Gameweek Access Options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=Geist+Mono:wght@500;600;700&display=swap">
+<style>
+:root{--paper:#fff;--canvas:#f4f5f3;--ink:#14171a;--ink2:#4a5257;--ink3:#868f95;--line:#e5e8e4;--line2:#eff1ee;--green:#12805c;--green-soft:#e8f4ee;--green-line:#bfe0cf;--amber:#a86b12;--amber-soft:#fdf3e3;--amber-line:#f0dfc0;--red:#a6382f;--red-soft:#fbecea}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#131922;--canvas:#0b0f14;--ink:#e6eaf0;--ink2:#cbd5e1;--ink3:#8b98a9;--line:#2b3542;--line2:#232b36;--green:#34d399;--green-soft:rgba(18,128,92,.22);--green-line:rgba(52,211,153,.34);--amber:#e8b864;--amber-soft:rgba(168,107,18,.22);--amber-line:rgba(232,184,100,.34);--red:#f28b82;--red-soft:rgba(166,56,47,.22)}}
+:root[data-theme="dark"]{--paper:#131922;--canvas:#0b0f14;--ink:#e6eaf0;--ink2:#cbd5e1;--ink3:#8b98a9;--line:#2b3542;--line2:#232b36;--green:#34d399;--green-soft:rgba(18,128,92,.22);--green-line:rgba(52,211,153,.34);--amber:#e8b864;--amber-soft:rgba(168,107,18,.22);--amber-line:rgba(232,184,100,.34);--red:#f28b82;--red-soft:rgba(166,56,47,.22)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:"Hanken Grotesk",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.mono{font-family:"Geist Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding:36px 20px 64px}
+h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0 0 6px;text-wrap:balance}
+.lede{color:var(--ink2);max-width:62ch;margin:0 0 6px;line-height:1.5;font-size:15px}
+.note{color:var(--ink3);font-size:13px;margin:0 0 28px}
+h2{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin:34px 0 14px;display:flex;gap:10px;align-items:center}
+h2::after{content:"";flex:1;height:1px;background:var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:20px}
+.opt{display:flex;flex-direction:column;gap:10px}
+.opt h3{margin:0;font-size:15px;font-weight:800;letter-spacing:-.01em}
+.opt h3 span{color:var(--ink3);font-weight:600;margin-right:6px}
+.opt p{margin:0;color:var(--ink2);font-size:13px;line-height:1.45}
+.opt .pc{display:flex;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--ink3)}
+.opt .pc b{color:var(--green);font-weight:700}.opt .pc i{color:var(--amber);font-style:normal;font-weight:700}
+.phone{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:12px;min-height:250px;display:flex;flex-direction:column;gap:9px;box-shadow:0 2px 10px rgba(15,23,42,.04)}
+.card{border:1px solid var(--line);border-radius:14px;background:var(--paper);padding:10px 12px}
+.card.soft{background:var(--canvas);border-color:var(--line2)}
+.ttl{font-size:14px;font-weight:800}
+.sub{font-size:11px;color:var(--ink3);font-weight:600}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;font-size:10px;font-weight:700;border:1px solid var(--line);color:var(--ink2);background:var(--paper)}
+.pill.on{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+.pill.amb{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+.pill.ghost{border-style:dashed;color:var(--ink3)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.dot{animation:none}}
+.btn{display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid var(--line);padding:6px 10px;font-size:12px;font-weight:700;color:var(--ink2)}
+.btn.pri{background:var(--green);border-color:var(--green);color:#fff}
+.sq{width:30px;height:30px;padding:0}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg div{flex:1;text-align:center;padding:7px 4px;font-size:11px;font-weight:700;color:var(--ink3)}
+.seg .on{background:var(--green-soft);color:var(--green)}
+.strip{display:flex;gap:6px;overflow:hidden}
+.strip .pill{flex:0 0 auto}
+.rail{position:relative;display:flex;justify-content:space-between;padding:6px 4px 0}
+.rail::before{content:"";position:absolute;left:8px;right:8px;top:12px;height:2px;background:var(--line)}
+.rail div{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:10px;font-weight:700;color:var(--ink3)}
+.rail i{width:12px;height:12px;border-radius:50%;background:var(--paper);border:2px solid var(--line);display:block}
+.rail .done i{background:var(--ink3);border-color:var(--ink3)}
+.rail .now i{background:var(--green);border-color:var(--green);box-shadow:0 0 0 4px var(--green-soft)}
+.rail .now{color:var(--green)}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs div{padding:7px 10px;font-size:12px;font-weight:700;color:var(--ink3)}
+.tabs .on{color:var(--ink);border-bottom:2px solid var(--green)}
+.fx{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-top:1px solid var(--line2)}
+.fx:first-of-type{border-top:0}
+.money{font-weight:700}.money.up{color:var(--green)}.money.dn{color:var(--red)}
+.lg{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.hdr{display:flex;justify-content:space-between;align-items:center;padding:0 2px}
+.hdr .brand{font-weight:800;font-size:15px}
+.chev{color:var(--ink3);font-weight:700}
+.rec{border-left:3px solid var(--green);padding-left:9px}
+.hint{font-size:10px;color:var(--ink3)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rank{display:inline-block;min-width:18px;text-align:center}
+</style>
+<div class="wrap">
+<h1>Gameweek Access Options</h1>
+<p class="lede">Eight throwaway sketches of how a player reaches the gameweek that's on now and the one that just finished. Four for the league page, four for the home page. Everything uses the live cs2 tokens; toggle your OS theme to check dark.</p>
+<p class="note">Sample state: GW 3 live (Sat–Mon), GW 2 settled (you won ₹200 in Solid Yenne Boys), GW 4 opens Tuesday. What's current today: ‹ GW 3 › arrows on home; <span class="mono">?gw=</span> tabs on the league page.</p>
+
+<h2>League page</h2>
+<div class="grid">
+
+<div class="opt">
+<h3><span>L1</span>Now / Last segmented switch</h3>
+<div class="phone">
+ <div class="hdr"><span class="brand">Solid Yenne Boys</span><span class="chev">⋯</span></div>
+ <div class="seg"><div class="on">GW 3 · Live</div><div>GW 2 · Settled</div><div>All</div></div>
+ <div class="card"><div class="row"><span class="ttl">GW 3</span><span class="pill on"><i class="dot"></i>2 of 10 played</span></div>
+  <div class="fx"><span>ARS 2–1 MUN</span><span class="mono">+3</span></div>
+  <div class="fx"><span>LIV – CHE · Sun 21:00</span><span class="hint">your 2–1</span></div></div>
+</div>
+<p>Two named states, always visible. "All" opens the full season list. Zero scrolling to reach the last receipt.</p>
+<div class="pc"><b>+</b> one tap, no numbers to decode <i>–</i> mid-week both segments look similar until labels update</div>
+</div>
+
+<div class="opt">
+<h3><span>L2</span>Season rail</h3>
+<div class="phone">
+ <div class="hdr"><span class="brand">Solid Yenne Boys</span><span class="chev">⋯</span></div>
+ <div class="card soft"><div class="rail"><div class="done"><i></i>1</div><div class="done"><i></i>2</div><div class="now"><i></i>3</div><div><i></i>4</div><div><i></i>5</div><div><i></i>6</div></div>
+  <div class="row" style="margin-top:8px"><span class="hint">Tap a dot · swipe for more</span><span class="hint mono">3 / 38</span></div></div>
+ <div class="card"><div class="row"><span class="ttl">GW 3 <span class="pill on" style="margin-left:4px"><i class="dot"></i>Live</span></span><span class="mono">2/10</span></div>
+  <div class="fx"><span>ARS 2–1 MUN</span><span class="mono">+3</span></div></div>
+</div>
+<p>The season as a timeline. Filled dots are settled, pulsing dot is live, hollow are ahead. Scrolls horizontally once the season is long.</p>
+<div class="pc"><b>+</b> shows where you are in the season <i>–</i> 38 dots is a lot; needs auto-centre on current</div>
+</div>
+
+<div class="opt">
+<h3><span>L3</span>Receipt strip above the live pot</h3>
+<div class="phone">
+ <div class="hdr"><span class="brand">Solid Yenne Boys</span><span class="chev">⋯</span></div>
+ <div class="card soft rec"><div class="row"><span><span class="sub">LAST · GW 2</span><br><span class="money up mono">+₹200</span> <span class="hint">2nd of 3</span></span><span class="btn">Receipt ›</span></div></div>
+ <div class="card"><div class="row"><span class="ttl">GW 3 <span class="pill on" style="margin-left:4px"><i class="dot"></i>Live</span></span><span class="chev">›</span></div>
+  <div class="fx"><span>ARS 2–1 MUN</span><span class="mono">+3</span></div>
+  <div class="fx"><span>LIV – CHE · Sun 21:00</span><span class="hint">your 2–1</span></div></div>
+ <div class="row"><span class="hint">Older gameweeks</span><span class="chev">›</span></div>
+</div>
+<p>Previous GW is a one-line receipt pinned above the live card, not a tab. The live pot stays the page's centre of gravity.</p>
+<div class="pc"><b>+</b> money outcome is the first thing seen <i>–</i> GW n–2 and older need a second screen</div>
+</div>
+
+<div class="opt">
+<h3><span>L4</span>Sticky footer navigator</h3>
+<div class="phone">
+ <div class="hdr"><span class="brand">Solid Yenne Boys</span><span class="chev">⋯</span></div>
+ <div class="card"><div class="row"><span class="ttl">GW 3</span><span class="pill on"><i class="dot"></i>Live</span></div>
+  <div class="fx"><span>ARS 2–1 MUN</span><span class="mono">+3</span></div>
+  <div class="fx"><span>LIV – CHE · Sun 21:00</span><span class="hint">your 2–1</span></div>
+  <div class="fx"><span>TOT – NEW · Mon 01:30</span><span class="hint">your 1–1</span></div></div>
+ <div style="flex:1"></div>
+ <div class="card row" style="border-radius:999px;padding:6px 8px"><span class="btn sq">‹</span><span style="text-align:center"><span class="ttl">GW 3</span><br><span class="hint">‹ GW 2 · +₹200 &nbsp;·&nbsp; GW 4 opens Tue ›</span></span><span class="btn sq">›</span></div>
+</div>
+<p>Same ‹ › control as home, but pinned to the bottom of the league page so it never scrolls away. Each arrow tells you what it leads to.</p>
+<div class="pc"><b>+</b> consistent with home; thumb-reachable <i>–</i> eats 52px of viewport permanently</div>
+</div>
+</div>
+
+<h2>Home page</h2>
+<div class="grid">
+
+<div class="opt">
+<h3><span>H1</span>Two hero tiles</h3>
+<div class="phone">
+ <div class="hdr"><span class="brand">Cashford</span><span class="pill">v142</span></div>
+ <div class="two">
+  <div class="card"><span class="sub">NOW</span><br><span class="lg">GW 3</span><br><span class="pill on" style="margin-top:6px"><i class="dot"></i>Live · 2/10</span></div>
+  <div class="card soft"><span class="sub">LAST</span><br><span class="lg">GW 2</span><br><span class="money up mono" style="font-size:13px">+₹200</span> <span class="hint">· 3 leagues</span></div>
+ </div>
+ <div class="card"><div class="row"><span class="ttl">Solid Yenne Boys</span><span class="money up mono">+₹124</span></div><div class="sub">GW 3 · Entry in · 2nd</div></div>
+ <div class="card"><div class="row"><span class="ttl">PES Bois</span><span class="money up mono">+₹5,000</span></div><div class="sub">GW 3 · Entry in · 1st</div></div>
+</div>
+<p>Replaces the removed "Your gameweek" block with two tappable tiles. Now → the Matches tab; Last → a cross-league receipt.</p>
+<div class="pc"><b>+</b> answers "what's on / what happened" instantly <i>–</i> only works while the player is in one competition</div>
+</div>
+
+<div class="opt">
+<h3><span>H2</span>Gameweek chips on every league card</h3>
+<div class="phone">
+ <div class="hdr"><span class="brand">Cashford</span><span class="pill">v142</span></div>
+ <div class="card"><div class="row"><span class="ttl">Solid Yenne Boys</span><span class="money up mono">+₹124</span></div>
+  <div class="strip" style="margin-top:8px"><span class="pill on"><i class="dot"></i>GW 3</span><span class="pill">GW 2 · <span class="money up">+200</span></span><span class="pill ghost">GW 4 · Tue</span></div></div>
+ <div class="card"><div class="row"><span class="ttl">PES Bois</span><span class="money up mono">+₹5,000</span></div>
+  <div class="strip" style="margin-top:8px"><span class="pill on"><i class="dot"></i>GW 3</span><span class="pill">GW 2 · <span class="money up">+2,000</span></span><span class="pill ghost">GW 4 · Tue</span></div></div>
+ <div class="card"><div class="row"><span class="ttl">KK Bois</span><span class="pill amb">Not started</span></div></div>
+</div>
+<p>Each league card carries its own three chips: live, last (with your result), next. Deep-links straight into that league's gameweek.</p>
+<div class="pc"><b>+</b> per-league truth; works with mixed competitions <i>–</i> repeats across cards; taller list</div>
+</div>
+
+<div class="opt">
+<h3><span>H3</span>Matches tab with a GW switcher</h3>
+<div class="phone">
+ <div class="hdr"><span class="brand">Cashford</span><span class="pill">v142</span></div>
+ <div class="tabs"><div>Leagues</div><div class="on">Matches</div><div>Analytics</div></div>
+ <div class="seg"><div>GW 2 · Settled</div><div class="on">GW 3 · Live</div><div>GW 4 · Tue</div></div>
+ <div class="card"><div class="fx"><span>ARS 2–1 MUN · FT</span><span class="mono">+3</span></div><div class="fx"><span>LIV – CHE · Sun 21:00</span><span class="hint">2–1</span></div><div class="fx"><span>TOT – NEW · Mon 01:30</span><span class="hint">1–1</span></div></div>
+ <div class="row"><span class="hint">Leagues tab keeps cards only</span></div>
+</div>
+<p>Home Leagues tab stays about leagues; all gameweek navigation moves to the Matches tab, which already shows the live GW. Adds a three-way switch there.</p>
+<div class="pc"><b>+</b> one place for "which GW"; no duplicate navigator <i>–</i> two taps from landing (tab, then segment)</div>
+</div>
+
+<div class="opt">
+<h3><span>H4</span>Season ledger row</h3>
+<div class="phone">
+ <div class="hdr"><span class="brand">Cashford</span><span class="pill">v142</span></div>
+ <div class="card soft"><div class="row"><span class="sub">PREMIER LEAGUE 2026–27</span><span class="hint mono">GW 3 of 38</span></div>
+  <div class="strip" style="margin-top:8px"><span class="pill"><span class="rank mono">1</span> <span class="money dn">−100</span></span><span class="pill"><span class="rank mono">2</span> <span class="money up">+200</span></span><span class="pill on"><i class="dot"></i><span class="rank mono">3</span></span><span class="pill ghost"><span class="rank mono">4</span></span><span class="pill ghost"><span class="rank mono">5</span></span></div></div>
+ <div class="card"><div class="row"><span class="ttl">Solid Yenne Boys</span><span class="money up mono">+₹124</span></div><div class="sub">GW 3 · Entry in</div></div>
+ <div class="card"><div class="row"><span class="ttl">PES Bois</span><span class="money up mono">+₹5,000</span></div><div class="sub">GW 3 · Entry in</div></div>
+</div>
+<p>One compact ledger per competition: every past GW is a chip with your net across leagues; live is green; future is dashed. Scrolls sideways, auto-centred on now.</p>
+<div class="pc"><b>+</b> history and current in one row; scales to 38 <i>–</i> a cross-league net needs a definition players trust</div>
+</div>
+</div>
+</div>

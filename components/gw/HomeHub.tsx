@@ -1,12 +1,8 @@
 "use client";
 
-// Home hub controls (step 6A): competition scope chips + GW navigator (Option A ·
-// segmented strip) + entry-status summary rows (Option A · text badges, canonical
-// eight-state copy) + the league-card detail stack for the selected scope. Scope
-// switching is local state — it never reloads the page, and the same scope now
-// drives the whole hub: the your-card status rows AND the league cards below it
-// (round-2 fix: these were previously double-rendered and only the status rows
-// were scope-filtered).
+// Home hub controls: competition scope chips + GW navigator (Option A · segmented strip) + the
+// league-card detail stack for the selected scope. Scope switching is local state — it never
+// reloads the page, and the same scope drives the whole hub.
 //
 // The navigator's chevrons are real links to the league screen for that gameweek;
 // jumping to ANY gameweek opens a sheet (round-2 fix: replaces a sr-only <select>
@@ -15,8 +11,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Countdown, LocalTime } from "@/components/LocalTime";
-import { GW_BADGE_COPY, HOME_ENTRY_STATUS_COPY, HOME_HUB_COPY, moneyCopy, C60 } from "@/lib/gw-copy";
+import { Countdown } from "@/components/LocalTime";
+import { GW_BADGE_COPY, HOME_HUB_COPY } from "@/lib/gw-copy";
 import { useBottomSheet } from "@/lib/use-bottom-sheet";
 import {
   homeCardsForScope,
@@ -28,28 +24,8 @@ import {
 } from "@/lib/gw-home";
 import { LeagueCard } from "@/components/gw/LeagueCard";
 
-function entryStatusCopy(status: NonNullable<HomeLeagueCard["entryStatus"]>): string {
-  switch (status.key) {
-    case "live":
-      return HOME_ENTRY_STATUS_COPY.live(status.rank, status.total);
-    case "won":
-      return HOME_ENTRY_STATUS_COPY.won(status.rank, status.total, status.amountInr);
-    case "lost":
-      return HOME_ENTRY_STATUS_COPY.lost(status.rank, status.total, status.amountInr);
-    case "brokeEven":
-      return HOME_ENTRY_STATUS_COPY.brokeEven(status.rank, status.total);
-    case "void":
-      return HOME_ENTRY_STATUS_COPY.void;
-    case "syncIssue":
-      return HOME_ENTRY_STATUS_COPY.syncIssue;
-    default:
-      return "";
-  }
-}
-
 /**
- * Shared by EntryStatusRow's badge and the navigator pill's state segment ("GW4 · OPEN") so the
- * two surfaces can never disagree about what word a given entry-status key maps to.
+ * Builds the navigator pill's state segment ("GW4 · OPEN") from the entry-status key mapping.
  */
 function entryStatusBadgeLabel(status: NonNullable<HomeLeagueCard["entryStatus"]>): string {
   switch (status.key) {
@@ -73,49 +49,6 @@ function entryStatusBadgeLabel(status: NonNullable<HomeLeagueCard["entryStatus"]
     default:
       return GW_BADGE_COPY.recalculating;
   }
-}
-
-function EntryStatusRow({ card }: { card: HomeLeagueCard }) {
-  const status = card.entryStatus;
-  if (!status) return null;
-  const isBadgeStyle = status.key === "live";
-  const badgeClass = isBadgeStyle
-    ? "border-cs2-red-line bg-cs2-red-soft text-cs2-red"
-    : status.key === "won"
-      ? "border-cs2-green-line bg-cs2-green-soft text-cs2-green"
-      : status.key === "lost" || status.key === "void" || status.key === "syncIssue"
-        ? "border-cs2-amber-line bg-cs2-amber-soft text-cs2-amber"
-        : "border-cs2-line bg-cs2-line-2 text-cs2-ink-3";
-  const label = entryStatusBadgeLabel(status);
-
-  return (
-    <Link
-      href={`/leagues/${card.slug}`}
-      className="flex items-center justify-between gap-2 border-b border-cs2-line-2 px-3.5 py-2.5 last:border-b-0 cf-press"
-    >
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-bold text-cs2-ink">{card.leagueName}</span>
-        <span className="mt-0.5 block truncate font-mono text-[10px] font-semibold text-cs2-ink-2">
-          {(status.key === "notEnteredOpen" || status.key === "enteredOpen" || status.key === "submittedLocked") &&
-          status.deadlineAt ? (
-            <>
-              {status.key === "notEnteredOpen"
-                ? HOME_ENTRY_STATUS_COPY.notEnteredOpenPrefix
-                : status.key === "enteredOpen"
-                  ? HOME_ENTRY_STATUS_COPY.enteredOpenPrefix
-                  : HOME_ENTRY_STATUS_COPY.submittedLockedPrefix}
-              <LocalTime iso={status.deadlineAt} variant="time" relative={false} includeWeekday />
-            </>
-          ) : (
-            entryStatusCopy(status)
-          )}
-        </span>
-      </span>
-      <span className={`shrink-0 rounded-cs2-sm border px-1.5 py-1 font-mono text-[9px] font-bold tracking-[.06em] ${badgeClass}`}>
-        {label}
-      </span>
-    </Link>
-  );
 }
 
 /** The "jump to any gameweek" sheet — reuses the focus-trap/scroll-lock behavior extracted from
@@ -281,40 +214,6 @@ function GwNavigator({ card, now }: { card: HomeLeagueCard; now?: string | numbe
   );
 }
 
-/** Counts entered vs. still-open cards for the your-card subtitle. void/syncIssue rows count as
- * neither — they are neither an open action nor a completed entry (judgment call, logged under
- * Step 6A Deviations). */
-function yourGameweekCounts(statusCards: readonly HomeLeagueCard[]): { entered: number; toGo: number } {
-  let entered = 0;
-  let toGo = 0;
-  for (const card of statusCards) {
-    const key = card.entryStatus?.key;
-    if (key === "notEnteredOpen") toGo += 1;
-    else if (
-      key === "enteredOpen" ||
-      key === "submittedLocked" ||
-      key === "live" ||
-      key === "won" ||
-      key === "lost" ||
-      key === "brokeEven"
-    ) {
-      entered += 1;
-    }
-  }
-  return { entered, toGo };
-}
-
-/** Total net position (won/lost) across the your-card's rows for this scope's gameweek — the
- * card-metric figure in the frame's your-card header. The frame doesn't specify the metric's
- * exact source; net position is what's already computed per card (judgment call, logged under
- * Step 6A Deviations). */
-function yourGameweekMetric(statusCards: readonly HomeLeagueCard[]): string {
-  if (statusCards.length === 0) return moneyCopy(0);
-  if (statusCards.some((card) => card.netInr === "suppressed")) return C60;
-  const total = statusCards.reduce((sum, card) => sum + (card.netInr as number), 0);
-  return moneyCopy(total);
-}
-
 export function HomeHub({ cards, now }: { cards: readonly HomeLeagueCard[]; now?: string | number }) {
   const scopes = useMemo(() => homeCompetitionScopes(cards), [cards]);
   const showChips = homeScopeChipsVisible(cards);
@@ -329,8 +228,6 @@ export function HomeHub({ cards, now }: { cards: readonly HomeLeagueCard[]; now?
   // gameweek position genuinely diverges from its competition-mates (logged under Step 6A
   // Deviations).
   const navigatorCard = scoped.find((c) => c.format === "gameweek" && c.gameweekNumber != null) ?? null;
-  const statusCards = scoped.filter((c) => c.entryStatus != null);
-  const { entered, toGo } = yourGameweekCounts(statusCards);
 
   if (cards.length === 0) return null;
 
@@ -361,29 +258,6 @@ export function HomeHub({ cards, now }: { cards: readonly HomeLeagueCard[]; now?
       ) : null}
 
       {navigatorCard ? <GwNavigator card={navigatorCard} now={now} /> : null}
-
-      {statusCards.length > 0 ? (
-        <section className="overflow-hidden rounded-cs2-lg border border-cs2-line bg-cs2-paper">
-          <div className="flex items-center justify-between gap-2 px-3.5 py-3">
-            <div className="min-w-0">
-              <div className="text-[15px] font-extrabold text-cs2-ink">
-                {HOME_HUB_COPY.yourGameweek(navigatorCard?.gameweekNumber ?? 0)}
-              </div>
-              <div className="mt-0.5 text-[11px] font-semibold text-cs2-ink-3">
-                {HOME_HUB_COPY.yourGameweekSubtitle(statusCards.length, entered, toGo)}
-              </div>
-            </div>
-            <span className="shrink-0 font-mono text-[15px] font-extrabold text-cs2-ink">
-              {yourGameweekMetric(statusCards)}
-            </span>
-          </div>
-          <div>
-            {statusCards.map((card) => (
-              <EntryStatusRow key={card.leagueId} card={card} />
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       <div className="flex flex-col gap-3">
         {scoped.map((card) => (

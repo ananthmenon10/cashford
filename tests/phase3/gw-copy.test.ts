@@ -79,7 +79,7 @@ const SAMPLE_CALLS: Record<string, unknown[]> = {
   entryErrorCopy: ["the deadline has passed", { noEntryAtSave: false, status: 400 }],
   mirrorErrorCopy: ["no fixtures to predict", 400],
   mirrorTargetErrorCopy: ["stake mismatch", "KK Bois"],
-  // Step 6A: exported for home entry-status copy (HOME_ENTRY_STATUS_COPY.live/won/lost).
+  // Used by HomeHub's entry-status state mapping.
   ordinalCopy: [3],
 };
 

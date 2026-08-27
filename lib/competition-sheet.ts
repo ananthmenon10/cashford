@@ -17,7 +17,11 @@ export function buildCompetitionSheet(
   rows: readonly Omit<CompetitionSheetItem, "href">[],
 ): CompetitionSheetDTO {
   const items = [...rows].sort((a, b) =>
-    (a.participationStatus === b.participationStatus ? 0 : a.participationStatus === "active" ? -1 : 1) ||
+    (a.participationStatus === b.participationStatus
+      ? 0
+      : a.participationStatus === "archived"
+        ? 1
+        : -1) ||
     new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime() ||
     a.slug.localeCompare(b.slug),
   ).map((item) => ({
@@ -52,4 +56,3 @@ export async function loadCompetitionSheet(
     };
   }));
 }
-

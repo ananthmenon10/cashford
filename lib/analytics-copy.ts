@@ -1,7 +1,7 @@
 // Step 8 — copy home for the Analytics feed (components/AnalyticsFeed.tsx). Follows the plain
 // object + small template-function convention of lib/match-copy.ts. Every user-visible literal
 // for the new feed lives here — amounts are never baked in (rendered via components/ui `inr` at
-// display time, same pattern HOME_ENTRY_STATUS_COPY uses for dates via LocalTime).
+// display time, matching the app's LocalTime pattern).
 
 export const ANALYTICS_COPY = {
   tabTitle: "Analytics",

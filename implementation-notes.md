@@ -2727,3 +2727,31 @@ eligible data). Copy nit for later: "Entry started" undersells `entered` (which 
 complete pick set).
 
 Deferred to matchday (per plan §6): S2/S3/S4 live-state browser QC — covered now by unit fixtures.
+
+## Plan 012 — home cleanup
+
+Removed the Home Leagues tab's redundant “Your gameweek” section from `components/gw/HomeHub.tsx`.
+The hub now keeps the competition scope controls, `GwNavigator`, and the `LeagueCard` list. The
+status-row component, count and metric helpers, `HOME_HUB_COPY.yourGameweek*`, and the dedicated
+`HOME_ENTRY_STATUS_COPY` catalogue are gone. `netInr` remains on the home-card model for the
+`LeagueCard` rail, and the entry-status state used by the navigator remains.
+
+`homeCardsForScope` still applies its scope filter, then keeps non-archived cards in their input
+order and appends archived cards in their input order. `buildCompetitionSheet` keeps active rows
+first and archived rows last while retaining the existing date/slug order within each group.
+Added the two ordering regressions, updated the existing Home order expectations, and refreshed the
+copy-scan manifest note and stale test comments.
+
+Verification: `npm run typecheck` passed. `npx vitest run` passed with 97 files and 1,095 tests.
+The plain `npm run build` reached the Next font step but could not resolve `fonts.googleapis.com`;
+the same build command passed with Next's supported `NEXT_FONT_GOOGLE_MOCKED_RESPONSES` hook and a
+temporary local-font fixture, which was removed afterward. No commit, staging, database write, or
+settlement/scoring-file change was made.
+
+## Deviations
+
+- The existing `CompetitionSheet` was the only mixed active/archived list found by searching
+  `components/` and `app/`, so only its builder received the stable archived-last rule.
+- The local browser smoke could not run because the sandbox rejects both `0.0.0.0:3000` and
+  `127.0.0.1:3000` with `EPERM`. The authenticated Home path was therefore not exercised in a
+  browser.
