@@ -30,7 +30,7 @@ function one<T>(value: T | T[]): T {
   return Array.isArray(value) ? value[0] : value;
 }
 
-const POINT_GRID_LIFECYCLES = new Set(["CL2", "CL3", "CL4", "CL5", "CL6"]);
+const POINT_GRID_LIFECYCLES = new Set(["CL2", "CL3", "CL4", "CL5", "CL6", "CL7", "CL8", "CL10"]);
 
 function gridName(entry: any): string {
   const profile = one(entry.profiles);
@@ -547,7 +547,7 @@ export async function loadMatchesTabInternal(
         leagueName: league.name,
         gameweekNumber: focusRef.number,
         viewerId: userId,
-        mode: contest.cl === "CL5" || contest.cl === "CL6" ? "settled" : "live",
+        mode: ["CL5", "CL6", "CL7", "CL8"].includes(contest.cl) ? "settled" : "live",
         entries: contestEntries.map((entry: any) => ({
           entryId: entry.id,
           userId: entry.user_id,

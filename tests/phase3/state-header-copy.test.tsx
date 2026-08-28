@@ -5,6 +5,7 @@ import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, afterEach } from "vitest";
 import { render, cleanup, screen } from "@testing-library/react";
 import { StateHeader } from "../../components/gw/StateHeader";
+import { LeagueGameweekPane } from "../../components/gw/LeaguePanes";
 import type { GameweekViewDTO } from "../../lib/gw-view";
 
 afterEach(() => cleanup());
@@ -57,6 +58,38 @@ function view(overrides: Partial<GameweekViewDTO> = {}): GameweekViewDTO {
   };
 }
 
+function pointGrid(): NonNullable<GameweekViewDTO["pointGrid"]> {
+  return {
+    leagueId: "l1",
+    leagueName: "KK Bois",
+    gameweekNumber: 24,
+    viewerId: "u1",
+    entrants: [{
+      entryId: "entry1",
+      userId: "u1",
+      name: "Ananth Menon",
+      initials: "AM",
+      isViewer: true,
+      totalPoints: 0,
+    }],
+    rows: [{
+      fixture: {
+        fixtureId: "f1",
+        homeName: "Home f1",
+        awayName: "Away f1",
+        kickoffAt: "2026-02-03T10:30:00.000Z",
+        status: "scheduled",
+        minute: null,
+        homeScore: null,
+        awayScore: null,
+        state: "void",
+        matchHref: "/m/f1",
+      },
+      cells: [{ pick: [2, 1], points: 0, verdict: "void" }],
+    }],
+  };
+}
+
 describe("StateHeader body copy (C4) sources the real per-gameweek fixture count", () => {
   it("a 5-fixture gameweek (ZZ-P1 shape) reads 'all 5 scorelines', not a hardcoded 10", () => {
     render(
@@ -94,5 +127,46 @@ describe("StateHeader body copy (C4) sources the real per-gameweek fixture count
       />,
     );
     expect(screen.getByText("You’ll predict all 2 scorelines. You can edit until the deadline.")).toBeTruthy();
+  });
+
+  it("keeps the CL7 void note when the point grid is shown beside it", () => {
+    render(
+      <LeagueGameweekPane
+        view={view({
+          lifecycle: "CL7",
+          viewerParticipation: "VP4",
+          contest: { id: "contest1", status: "void", stakeInr: 100, deadlineAt: "2026-02-03T10:30:00.000Z", inputVersion: 1 },
+          result: {
+            outcome: "void",
+            voidReason: "single_entrant",
+            tiebreakUsed: null,
+            settledVersion: 1,
+            lastSettleCause: "initial",
+          },
+          pointGrid: pointGrid(),
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Only one person entered, so the ante went back.")).toBeInTheDocument();
+    expect(screen.getByTestId("point-grid-cell-void")).toBeInTheDocument();
+  });
+
+  it("shows a CL10 grid of void cells instead of the blank matches state", () => {
+    render(
+      <LeagueGameweekPane
+        view={view({
+          lifecycle: "CL10",
+          viewerParticipation: "VP4",
+          contest: { id: "contest1", status: "locked", stakeInr: 100, deadlineAt: "2026-02-03T10:30:00.000Z", inputVersion: 1 },
+          fixtures: [fixture("f1", { state: "void", voidReason: "all_fixtures_void" })],
+          pointGrid: pointGrid(),
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId("point-grid")).toBeInTheDocument();
+    expect(screen.getByTestId("point-grid-cell-void")).toBeInTheDocument();
+    expect(screen.queryByText("No locked entries yet.")).not.toBeInTheDocument();
   });
 });

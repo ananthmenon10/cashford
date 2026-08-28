@@ -181,7 +181,7 @@ export type GameweekViewDTO = {
   viewerParticipation: ViewerParticipation;
   render: ReturnType<typeof resolveRender>;
   fixtures: GameweekViewFixture[];
-  /** Present only for CL2–CL6; other lifecycle paths keep the existing fixture list. */
+  /** Present for locked, live, settling, settled, and void gameweek paths; open and corrupt paths keep their existing treatment. */
   pointGrid?: import("./point-grid").PointGridView;
   viewerEntry: {
     id: string;
@@ -227,7 +227,7 @@ function one<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null;
 }
 
-const POINT_GRID_LIFECYCLES = new Set(["CL2", "CL3", "CL4", "CL5", "CL6"]);
+const POINT_GRID_LIFECYCLES = new Set(["CL2", "CL3", "CL4", "CL5", "CL6", "CL7", "CL8", "CL10"]);
 
 function gridName(entry: any, names: ReadonlyMap<string, string>): string {
   return names.get(entry.user_id) ?? MATCH_COPY.pointGridUnknownPlayer;
@@ -983,7 +983,7 @@ export async function loadGameweekView(
         leagueName: identity.league.name,
         gameweekNumber: gameweek.number,
         viewerId: userId,
-        mode: lifecycle === "CL5" || lifecycle === "CL6" ? "settled" : "live",
+        mode: ["CL5", "CL6", "CL7", "CL8"].includes(lifecycle) ? "settled" : "live",
         entries: entries.map((entry) => ({
           entryId: entry.id,
           userId: entry.user_id,

@@ -77,7 +77,7 @@ export function LeagueGameweekPane({ view }: { view: LeagueGameweekView }) {
       {view.lifecycle !== "CL9" && view.render.showStandings ? (
         <Standings rows={view.standings} showMoney={view.render.showMoney} />
       ) : null}
-      {view.lifecycle !== "CL1" && view.lifecycle !== "CL9" && view.lifecycle !== "CL10" ? (
+      {view.lifecycle !== "CL1" && view.lifecycle !== "CL9" ? (
         <section id={`league-gw-${view.gameweek.number}-matches`} className="mt-5">
           <div className="mb-2 flex items-end justify-between gap-3">
             <h2 className="text-[13px] font-extrabold">{LEAGUE_SCREEN_COPY.matches(view.gameweek.number)}</h2>

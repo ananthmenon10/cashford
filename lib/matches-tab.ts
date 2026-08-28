@@ -415,7 +415,7 @@ export type MatchesTabView = {
     provisional: boolean;
     recap?: { gwNumber: number; href: string };
   } | null;
-  /** Present only for CL2–CL6 focus contests; omitted on the existing list paths. */
+  /** Present for lock-onward focus contests; omitted on the existing open and corrupt paths. */
   pointGrids?: PointGridView[];
   winnersRecap: WinnersRecapView[] | null;
   fixtures: FixtureRowView[];

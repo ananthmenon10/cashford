@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { HomeMatchesTab } from "../../components/matches/HomeMatchesTab";
 import { HomeTabs } from "../../components/HomeTabs";
 import { HomeTabsContext } from "../../components/HomeTabsContext";
-import type { FixtureRowView, GameweekSwitchOption, MatchesTabView } from "../../lib/matches-tab";
+import type { FixtureRowView, GameweekSwitchOption, LeagueRowView, MatchesTabView } from "../../lib/matches-tab";
 import type { MatchesHomeTabPayload } from "../../lib/matches-home-tab";
 import { MATCH_COPY } from "../../lib/match-copy";
 
@@ -88,16 +88,63 @@ function full(
   nextGw: Extract<MatchesHomeTabPayload, { empty: false }>["nextGw"] = null,
   switcher?: GameweekSwitchOption[],
   requestedGw: number | null = null,
+  viewOverrides: Partial<MatchesTabView> = {},
 ): Extract<MatchesHomeTabPayload, { empty: false }> {
+  const baseView = view(selectedComp, scopes, [], switcher);
   return {
     empty: false,
     requestedComp,
     requestedGw,
     selectedComp,
-    view: view(selectedComp, scopes, [], switcher),
+    view: { ...baseView, ...viewOverrides },
     freshness,
     nextGw,
     receipt: null,
+  };
+}
+
+function pointGrid(
+  leagueId: string,
+  leagueName: string,
+  initials: string,
+  totalPoints: number,
+): NonNullable<MatchesTabView["pointGrids"]>[number] {
+  return {
+    leagueId,
+    leagueName,
+    gameweekNumber: 1,
+    viewerId: "viewer",
+    entrants: [{
+      entryId: `entry-${leagueId}`,
+      userId: "viewer",
+      name: `${leagueName} player`,
+      initials,
+      isViewer: true,
+      totalPoints,
+    }],
+    rows: [{
+      fixture: {
+        fixtureId: `fixture-${leagueId}`,
+        homeName: `${leagueName} home`,
+        awayName: `${leagueName} away`,
+        kickoffAt: "2026-08-10T12:00:00.000Z",
+        status: "finished",
+        minute: null,
+        homeScore: 1,
+        awayScore: 0,
+        state: "active",
+        matchHref: `/m/fixture-${leagueId}`,
+      },
+      cells: [{ pick: [1, 0], points: totalPoints === 3 ? 3 : 1, verdict: totalPoints === 3 ? "exact" : "result" }],
+    }],
+  };
+}
+
+function lockedLeagueRow(id: string, name: string): LeagueRowView {
+  return {
+    kind: "locked-awaiting",
+    league: { id, slug: id, name },
+    raceHref: `/leagues/${id}`,
   };
 }
 
@@ -162,6 +209,91 @@ describe("HomeMatchesTab activation and cache", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(requests[0]?.url).toBe("/api/matches/home-tab");
     await resolveAndWait(requests[0]!, full(), MATCH_COPY.matchesNoFixtures);
+  });
+
+  it("keeps the CL1 fixture list and does not render a point grid", async () => {
+    const { fetchMock, requests } = installFetch();
+    const rendered = renderAt(0);
+    await activate(rendered);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await resolveAndWait(
+      requests[0]!,
+      full("pre", "pl-2026-27", null, undefined, null, undefined, null, {
+        fixtures: [fixture()],
+      }),
+      "Home",
+    );
+
+    expect(screen.getByText("Home")).toBeInTheDocument();
+    expect(screen.queryByTestId("point-grid")).not.toBeInTheDocument();
+  });
+
+  it("shows one selected league grid at a time and starts with the first league card", async () => {
+    const { fetchMock, requests } = installFetch();
+    const rendered = renderAt(0);
+    await activate(rendered);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    const alpha = pointGrid("alpha", "Alpha", "AL", 3);
+    const beta = pointGrid("beta", "Beta", "BE", 1);
+    const rows = [lockedLeagueRow("alpha", "Alpha"), lockedLeagueRow("beta", "Beta")];
+    await resolveAndWait(
+      requests[0]!,
+      full("unresolved", "pl-2026-27", null, undefined, null, undefined, null, {
+        yourGw: {
+          enteredCount: 2,
+          leagueCount: 2,
+          toGo: null,
+          headerPoints: null,
+          rows,
+          provisional: false,
+        },
+        pointGrids: [beta, alpha],
+      }),
+      "AL",
+    );
+
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    expect(screen.getByRole("tab", { name: "Alpha" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("point-grid")).toBeInTheDocument();
+    expect(screen.getByText("AL")).toBeInTheDocument();
+    expect(screen.getByText("3 pts")).toBeInTheDocument();
+    expect(screen.queryByText("BE")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Beta" }));
+
+    expect(screen.getAllByTestId("point-grid")).toHaveLength(1);
+    expect(screen.getByRole("tab", { name: "Beta" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("BE")).toBeInTheDocument();
+    expect(screen.getByText("1 pts")).toBeInTheDocument();
+    expect(screen.queryByText("AL")).not.toBeInTheDocument();
+  });
+
+  it("does not render league chips when the selected competition has one league", async () => {
+    const { fetchMock, requests } = installFetch();
+    const rendered = renderAt(0);
+    await activate(rendered);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    await resolveAndWait(
+      requests[0]!,
+      full("unresolved", "pl-2026-27", null, undefined, null, undefined, null, {
+        yourGw: {
+          enteredCount: 1,
+          leagueCount: 1,
+          toGo: null,
+          headerPoints: 3,
+          rows: [lockedLeagueRow("alpha", "Alpha")],
+          provisional: false,
+        },
+        pointGrids: [pointGrid("alpha", "Alpha", "AL", 3)],
+      }),
+      "AL",
+    );
+
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
+    expect(screen.getAllByTestId("point-grid")).toHaveLength(1);
+    expect(screen.getByText("AL")).toBeInTheDocument();
   });
 
   it("renders a stable three-way switch and disables an unavailable next week", async () => {

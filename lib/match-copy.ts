@@ -131,6 +131,7 @@ export const MATCH_COPY = {
     "All expanded by default. No pagination—everything remains in the page.",
   fixturesScrollFoot: (n: number) => `${n} of ${n} fixtures · scroll to collapse or review`,
   competitionScope: "Competition scope",
+  leagueScope: "League scope",
   gameweekSwitcher: "Gameweek switcher",
   noCurrentWeek: "No current week yet",
   noPreviousWeek: "No previous week yet",

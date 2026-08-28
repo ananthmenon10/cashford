@@ -294,6 +294,7 @@ describe("loadMatchesHomeTab focus, banner, and freshness", () => {
     if (payload.empty) return;
     expect(payload.view.gw.number).toBe(1);
     expect(payload.view.yourGw?.rows[0]?.kind).toBe("open-not-entered");
+    expect(payload.view.pointGrids).toBeUndefined();
     expect(payload.nextGw).toBeNull();
     expect(payload.freshness).toBe("pre");
   });
@@ -471,12 +472,47 @@ describe("loadMatchesHomeTab focus, banner, and freshness", () => {
       gameweeks: [gw(1, PAST)],
       contests: [contest("contest-1", "league-1", "gw1", PAST, "locked")],
       fixtures: [fixture("gw1", 1, "scheduled", "void")],
-      entries: [entry("contest-1", "league-1", "entered")],
+      entries: [entry("contest-1", "league-1", "locked_in")],
+      picks: [{ entry_id: "entry-contest-1-viewer", fixture_id: "fixture-gw1-1", pred_home: 2, pred_away: 1 }],
     });
     const payload = await load(data);
     if (payload.empty) throw new Error("expected payload");
     expect(payload.view.yourGw?.rows[0]?.kind).toBe("all-called-off");
+    expect(payload.view.pointGrids).toHaveLength(1);
+    expect(payload.view.pointGrids?.[0]?.rows[0]?.cells[0]).toEqual({
+      pick: [2, 1],
+      points: 0,
+      verdict: "void",
+    });
     expect(payload.freshness).toBe("unresolved");
+  });
+
+  it("uses the stored void snapshot for clean and stale void results", async () => {
+    for (const stale of [false, true]) {
+      const voidEntry = entry("contest-1", "league-1", "locked_in");
+      const data = dataset({
+        gameweeks: [gw(1, PAST)],
+        contests: [contest("contest-1", "league-1", "gw1", PAST, "void", stale ? 2 : 1)],
+        fixtures: [fixture("gw1", 1, "finished")],
+        results: [result("contest-1", "void", stale ? 1 : 1)],
+        entries: [voidEntry],
+        entryResults: [{
+          ...entryResult(voidEntry.id, "contest-1"),
+          points: 0,
+          per_fixture: [{ fixtureId: "fixture-gw1-1", pts: 0, verdict: "void" }],
+        }],
+        picks: [{ entry_id: voidEntry.id, fixture_id: "fixture-gw1-1", pred_home: 2, pred_away: 1 }],
+      });
+
+      const payload = await load(data);
+      if (payload.empty) throw new Error("expected payload");
+      expect(payload.view.pointGrids).toHaveLength(1);
+      expect(payload.view.pointGrids?.[0]?.rows[0]?.cells[0]).toEqual({
+        pick: [2, 1],
+        points: 0,
+        verdict: "void",
+      });
+    }
   });
 
   it("dirty/recalculating body stays focused until the stored result is clean", async () => {

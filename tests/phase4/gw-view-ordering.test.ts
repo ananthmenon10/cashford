@@ -239,6 +239,98 @@ async function loadCl6WithGrid() {
   );
 }
 
+async function loadPointGridLifecycle(
+  lifecycle: "CL1" | "CL7" | "CL8" | "CL10",
+) {
+  const open = lifecycle === "CL1";
+  const voidResult = lifecycle === "CL7" || lifecycle === "CL8";
+  const result = voidResult
+    ? {
+        gameweek_contest_id: "contest-1",
+        outcome: "void",
+        settled_version: lifecycle === "CL8" ? 1 : 2,
+        void_reason: "single_entrant",
+        tiebreak_used: null,
+        last_settle_cause: "initial",
+      }
+    : null;
+  const entry = {
+    id: "entry-1",
+    gameweek_contest_id: "contest-1",
+    user_id: "viewer",
+    status: "locked_in",
+    profiles: { display_name: "Viewer", username: "viewer" },
+  };
+  const pick = {
+    entry_id: "entry-1",
+    fixture_id: "fixture-1",
+    pred_home: 2,
+    pred_away: 1,
+    "gameweek_entries.gameweek_contest_id": "contest-1",
+    gameweek_entries: { user_id: "viewer", gameweek_contest_id: "contest-1" },
+  };
+  const fixture = fixtureRow("fixture-1", "2026-07-31T13:00:00.000Z", 1);
+  const reader = fakeReader({
+    gameweek_contests: [{
+      id: "contest-1",
+      league_id: "league-1",
+      gameweek_id: "gw-1",
+      competition_id: "competition-1",
+      status: open ? "open" : voidResult ? "void" : "locked",
+      stake_inr: 100,
+      deadline_at: open ? "2026-08-10T12:00:00.000Z" : "2026-07-31T12:00:00.000Z",
+      input_version: lifecycle === "CL8" ? 2 : 1,
+      gameweek_results: result ? [result] : [],
+    }],
+    gameweeks: [{
+      id: "gw-1",
+      competition_id: "competition-1",
+      number: 1,
+      name: "Gameweek 1",
+      status: open ? "open" : "locked",
+      deadline_at: open ? "2026-08-10T12:00:00.000Z" : "2026-07-31T12:00:00.000Z",
+    }],
+    gameweek_fixtures: [{
+      ...fixture,
+      state: lifecycle === "CL10" ? "void" : "active",
+      fixtures: {
+        ...(fixture.fixtures as Row),
+        status: open ? "scheduled" : "finished",
+        ft_home: open ? null : 1,
+        ft_away: open ? null : 0,
+      },
+    }],
+    gameweek_results: result ? [result] : [],
+    gameweek_entry_results: result
+      ? [{
+          entry_id: "entry-1",
+          gameweek_contest_id: "contest-1",
+          points: 0,
+          exacts: 0,
+          goal_error: 0,
+          net_inr: 0,
+          is_winner: false,
+          per_fixture: [{ fixtureId: "fixture-1", pts: 0, verdict: "void" }],
+          gameweek_entries: { user_id: "viewer", status: "locked_in", profiles: entry.profiles },
+        }]
+      : [],
+    member_competitions: [{ user_id: "viewer", eligible_from_gameweek_id: null, left_at: null }],
+    gameweek_entries: open ? [] : [entry],
+    gameweek_picks: open ? [] : [pick],
+    profiles: [],
+  });
+
+  return loadGameweekView(
+    reader as never,
+    reader as never,
+    IDENTITY,
+    "viewer",
+    undefined,
+    NOW,
+    false,
+  );
+}
+
 describe("loadGameweekView fixture ordering", () => {
   it("returns deliberately unsorted fixtures in ascending kickoff order", async () => {
     const view = await loadWithFixtures([
@@ -318,5 +410,39 @@ describe("loadGameweekView fixture ordering", () => {
       points: 3,
       verdict: "exact",
     });
+  });
+
+  it.each(["CL7", "CL8"] as const)(
+    "uses the settled void snapshot for %s grids",
+    async (lifecycle) => {
+      const view = await loadPointGridLifecycle(lifecycle);
+
+      expect(view.lifecycle).toBe(lifecycle);
+      expect(view.pointGrid?.entrants[0]?.totalPoints).toBe(0);
+      expect(view.pointGrid?.rows[0]?.cells[0]).toEqual({
+        pick: [2, 1],
+        points: 0,
+        verdict: "void",
+      });
+    },
+  );
+
+  it("uses the live void fixture state for CL10 grids", async () => {
+    const view = await loadPointGridLifecycle("CL10");
+
+    expect(view.lifecycle).toBe("CL10");
+    expect(view.pointGrid?.rows[0]?.cells[0]).toEqual({
+      pick: [2, 1],
+      points: 0,
+      verdict: "void",
+    });
+  });
+
+  it("keeps the existing fixture list on the CL1 path", async () => {
+    const view = await loadPointGridLifecycle("CL1");
+
+    expect(view.lifecycle).toBe("CL1");
+    expect(view.pointGrid).toBeUndefined();
+    expect(view.fixtures).toHaveLength(1);
   });
 });

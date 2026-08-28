@@ -2917,3 +2917,28 @@ at the boundary that clears at the end of the scroll.
   scrolling under it. The tint now sits on a `before:` layer above an opaque base. Also fixed: CL6
   first graded live instead of reading the settled snapshot, and the scroll edge cue was painting
   over the pinned column.
+
+### Plan 014 revision — void weeks and league chips
+
+The delivery director changed two calls after the first commit (`0406697`); both are now in.
+
+- The grid covers every state from lock onward, not CL2–CL6. `POINT_GRID_LIFECYCLES` in
+  `lib/gw-view.ts` and `lib/matches-tab-load.ts` now reads CL2, CL3, CL4, CL5, CL6, CL7, CL8 and
+  CL10. A void week keeps its note and shows the grid beside it, with void cells; a fully void CL10
+  week shows a grid of void cells instead of a blank. CL5–CL8 read the stored snapshot, CL10 has no
+  result so it grades live and takes its void cells from the fixtures themselves. CL0, CL1 and CL9
+  are untouched. `components/gw/LeaguePanes.tsx` dropped its CL10 exclusion.
+- The home Matches tab shows one grid at a time. When the viewer holds more than one league in the
+  selected competition, a league chip row sits above the grid, defaulting to the first league in the
+  card order the tab already uses; tapping a chip swaps the grid. One league renders no chip row.
+  Entrants and totals stay per league — nothing is merged across leagues.
+
+Verification after the revision: `npm run typecheck` exit 0; `npx vitest run` exit 0 with
+`Test Files 102 passed (102)` / `Tests 1159 passed (1159)`; `npm run build` exit 0 with
+`✓ Compiled successfully in 2.6s`. New tests cover the CL7 note surviving beside the grid, a CL10
+week rendering void cells, CL1 still using the pre-lock list, and the chip row selecting the first
+league, swapping on tap and staying hidden for a single league.
+
+Deviation: `LeagueTabs` in `HomeMatchesTab.tsx` copies the markup of the neighbouring `ScopeTabs`
+chips rather than sharing one component. It matches the pattern, tokens and roles; folding the two
+into one chip component is a follow-up, not part of this plan.

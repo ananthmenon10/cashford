@@ -17,6 +17,7 @@ import type { MatchesHomeTabPayload } from "@/lib/matches-home-tab";
 import { MATCH_COPY } from "@/lib/match-copy";
 import { verdictCopy } from "@/lib/matches-verdict";
 import { formatShortWeekday } from "@/lib/datetime";
+import type { PointGridView } from "@/lib/point-grid";
 
 const DEFAULT_KEY = "__default";
 const TTL_MS = {
@@ -257,6 +258,37 @@ function ScopeTabs({
   );
 }
 
+function LeagueTabs({
+  grids,
+  selectedLeagueId,
+  onLeague,
+}: {
+  grids: readonly PointGridView[];
+  selectedLeagueId: string;
+  onLeague: (leagueId: string) => void;
+}) {
+  if (grids.length <= 1) return null;
+  return (
+    <div role="tablist" aria-label={MATCH_COPY.leagueScope} className="mb-4 flex gap-2 overflow-x-auto">
+      {grids.map((grid) => {
+        const selected = grid.leagueId === selectedLeagueId;
+        return (
+          <button
+            key={grid.leagueId}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onLeague(grid.leagueId)}
+            className={`shrink-0 rounded-pill border px-3 py-1.5 text-[10px] font-extrabold whitespace-nowrap ${selected ? "border-cs2-green-line bg-cs2-green-soft text-cs2-green" : "border-cs2-line text-cs2-ink-3"}`}
+          >
+            {grid.leagueName}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function switchLabel(option: GameweekSwitchOption, timeZone: string | null): string {
   if (option.number == null || option.state === "unavailable") {
     if (option.role === "previous") return MATCH_COPY.noPreviousWeek;
@@ -345,6 +377,37 @@ function HomeMatchesBody({
     [data.view.fixtures, timeZone],
   );
   const pointGrids = data.view.pointGrids ?? [];
+  const orderedPointGrids = useMemo(() => {
+    const gridsByLeague = new Map(pointGrids.map((grid) => [grid.leagueId, grid]));
+    const orderedLeagueIds = new Set<string>();
+    const ordered = (data.view.yourGw?.rows ?? []).flatMap((row) => {
+      const grid = gridsByLeague.get(row.league.id);
+      if (!grid) return [];
+      orderedLeagueIds.add(grid.leagueId);
+      return [grid];
+    });
+    return [
+      ...ordered,
+      ...pointGrids.filter((grid) => !orderedLeagueIds.has(grid.leagueId)),
+    ];
+  }, [data.view.yourGw?.rows, pointGrids]);
+  const selectionContextKey = `${data.view.selectedScope}:${data.view.gw.id}`;
+  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(
+    () => orderedPointGrids[0]?.leagueId ?? null,
+  );
+  const selectionContextRef = useRef(selectionContextKey);
+  useEffect(() => {
+    if (
+      selectionContextRef.current !== selectionContextKey ||
+      !orderedPointGrids.some((grid) => grid.leagueId === selectedLeagueId)
+    ) {
+      selectionContextRef.current = selectionContextKey;
+      setSelectedLeagueId(orderedPointGrids[0]?.leagueId ?? null);
+    }
+  }, [orderedPointGrids, selectedLeagueId, selectionContextKey]);
+  const selectedPointGrid = orderedPointGrids.find(
+    (grid) => grid.leagueId === selectedLeagueId,
+  ) ?? orderedPointGrids[0] ?? null;
 
   return (
     <main className="px-4 py-4">
@@ -407,16 +470,14 @@ function HomeMatchesBody({
           </section>
         ) : null}
 
-        {data.view.pointGrids?.length ? (
+        {selectedPointGrid ? (
           <div className="space-y-4">
-            {pointGrids.map((grid) => (
-              <section key={grid.leagueId} className="space-y-2">
-                {pointGrids.length > 1 ? (
-                  <h2 className="text-[12px] font-extrabold text-cs2-ink">{grid.leagueName}</h2>
-                ) : null}
-                <PointGrid grid={grid} />
-              </section>
-            ))}
+            <LeagueTabs
+              grids={orderedPointGrids}
+              selectedLeagueId={selectedPointGrid.leagueId}
+              onLeague={setSelectedLeagueId}
+            />
+            <PointGrid grid={selectedPointGrid} />
           </div>
         ) : <>
         {days.length ? (
