@@ -6,7 +6,7 @@ import {
   matchStatLabel,
   timelineEventLabel,
 } from "@/lib/match-copy";
-import type { Club, MatchDetailView, TeamNewsItem } from "@/lib/match-detail";
+import type { Club, MatchDetailView, MatchTimelineEvent, TeamNewsItem } from "@/lib/match-detail";
 import type { CompetitionStanding } from "@/lib/espn-standings";
 import { buildStandingsView } from "@/lib/standings-view";
 
@@ -363,6 +363,21 @@ export function TeamNewsModule({
 
 // ---- Timeline module (text labels keep event copy and accessibility token-safe) ---------------
 
+const TIMELINE_EVENT_CLASSES: Record<MatchTimelineEvent["type"], string> = {
+  goal: "bg-mint text-primary-press",
+  own_goal: "bg-amber-bg text-amber-fg",
+  pen: "bg-mint text-primary-press",
+  miss_pen: "bg-amber-bg text-amber-fg",
+  yellow: "bg-amber-bg text-amber-fg",
+  red: "bg-[#FEE2E2] text-loss dark:bg-[#ef44441f]",
+  sub: "bg-subtle text-muted",
+  var: "bg-subtle text-muted",
+};
+
+function timelineEventClass(type: MatchTimelineEvent["type"]): string {
+  return TIMELINE_EVENT_CLASSES[type];
+}
+
 export function TimelineModule({
   keyEvents,
   home,
@@ -385,7 +400,7 @@ export function TimelineModule({
             <span className="font-mono text-[11px] text-muted">
               {textOrDash(event.clock || MATCH_COPY.minute(event.minute))}
             </span>
-            <span className="rounded-pill bg-subtle px-2 py-0.5 text-[10px] font-bold text-muted">
+            <span className={`rounded-pill px-2 py-0.5 text-[10px] font-bold ${timelineEventClass(event.type)}`}>
               {timelineEventLabel(event.type)}
             </span>
             <span className="min-w-0 truncate font-semibold">

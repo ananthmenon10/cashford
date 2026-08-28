@@ -291,6 +291,22 @@ describe("TimelineModule", () => {
     ]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
+    const expectedClassesByLabel: Record<string, string[]> = {
+      Goal: ["bg-mint", "text-primary-press"],
+      "Own goal": ["bg-amber-bg", "text-amber-fg"],
+      Penalty: ["bg-mint", "text-primary-press"],
+      "Penalty missed": ["bg-amber-bg", "text-amber-fg"],
+      "Yellow card": ["bg-amber-bg", "text-amber-fg"],
+      "Red card": ["bg-[#FEE2E2]", "text-loss", "dark:bg-[#ef44441f]"],
+      Substitution: ["bg-subtle", "text-muted"],
+      VAR: ["bg-subtle", "text-muted"],
+    };
+    for (const [label, expectedClasses] of Object.entries(expectedClassesByLabel)) {
+      const badge = screen.getByText(label);
+      for (const expectedClass of expectedClasses) {
+        expect(badge.className).toContain(expectedClass);
+      }
+    }
     expect(screen.getAllByText("Arsenal").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Chelsea").length).toBeGreaterThan(0);
     expect(screen.getByText("ESPN · 2h ago")).toBeInTheDocument();
