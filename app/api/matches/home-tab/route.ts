@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 const paramsSchema = z.object({
   comp: z.string().min(1).max(64).optional(),
+  gw: z.string().regex(/^[1-9]\d*$/).transform(Number).optional(),
 });
 
 const CACHE_HEADERS = { "Cache-Control": "private, no-store" };
@@ -24,15 +25,19 @@ export async function GET(request: Request) {
   }
 
   const requestedComp = new URL(request.url).searchParams.get("comp");
+  const requestedGw = new URL(request.url).searchParams.get("gw");
   const parsed = paramsSchema.safeParse({
     comp: requestedComp ?? undefined,
+    gw: requestedGw ?? undefined,
   });
   if (!parsed.success) return json({ error: MATCH_COPY.apiInvalidCompetition }, 400);
 
   try {
-    const payload = await loadMatchesHomeTab(auth.db, auth.userId, {
+    const options = {
       requestedScopeSlug: parsed.data.comp,
-    });
+      ...(parsed.data.gw == null ? {} : { requestedGameweek: parsed.data.gw }),
+    };
+    const payload = await loadMatchesHomeTab(auth.db, auth.userId, options);
     return json(payload);
   } catch {
     return json({ error: MATCH_COPY.apiUnavailable }, 500);

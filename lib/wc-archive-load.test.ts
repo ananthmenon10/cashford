@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveWcTransition } from "./wc-archive-load";
+import { resolveWcTransition, sortWcArchiveMatchRows } from "./wc-archive-load";
 import { pickCurrentSeasonCompetition, pickLiveCompetitionLink } from "./wc-live-competition";
 
 // Step 7B item 2/8 — this is the function the archive page, the manage page, and the home
@@ -54,6 +54,33 @@ describe("resolveWcTransition", () => {
   it("is archived when the league itself is archived, even with an active unjoined competition", () => {
     expect(resolveWcTransition({ pl: { status: "active" }, participationStatus: "none", otherActiveCompetition: false, leagueStatus: "archived" }, true))
       .toBe("archived");
+  });
+});
+
+describe("sortWcArchiveMatchRows", () => {
+  it("sorts an unsorted archive match list by kickoff ascending", () => {
+    const rows = [
+      { id: "contest-late", status: "settled", stake_inr: 100, fixtures: { id: "fixture-late", kickoff_at: "2026-08-15T15:00:00.000Z", external_id: 20 } },
+      { id: "contest-early", status: "settled", stake_inr: 100, fixtures: { id: "fixture-early", kickoff_at: "2026-08-15T13:00:00.000Z", external_id: 10 } },
+    ];
+
+    expect(sortWcArchiveMatchRows(rows).map((row) => row.id)).toEqual([
+      "contest-early",
+      "contest-late",
+    ]);
+  });
+
+  it("uses the fixture id as the string tie-break when external ids are absent", () => {
+    const kickoffAt = "2026-08-15T13:00:00.000Z";
+    const rows = [
+      { id: "contest-a", status: "settled", stake_inr: 100, fixtures: { id: "fixture-z", kickoff_at: kickoffAt, external_id: null } },
+      { id: "contest-z", status: "settled", stake_inr: 100, fixtures: { id: "fixture-a", kickoff_at: kickoffAt, external_id: null } },
+    ];
+
+    expect(sortWcArchiveMatchRows(rows).map((row) => row.id)).toEqual([
+      "contest-z",
+      "contest-a",
+    ]);
   });
 });
 

@@ -43,7 +43,15 @@ function view(fixtures: FixtureRowView[]): MatchesTabView {
       deadlineAt: "2026-08-10T12:00:00.000Z",
       isCurrent: true,
     },
-    picker: { range: [1], futureCaveat: false },
+    picker: {
+      range: [1],
+      futureCaveat: false,
+      switcher: [
+        { role: "previous", number: null, name: null, openingAt: null, state: "unavailable", lifecycle: null, disabled: true },
+        { role: "current", number: 1, name: "Gameweek 1", openingAt: "2026-08-10T12:00:00.000Z", state: "live", lifecycle: "CL3", disabled: false },
+        { role: "next", number: null, name: null, openingAt: null, state: "unavailable", lifecycle: null, disabled: true },
+      ],
+    },
     yourGw: null,
     winnersRecap: null,
     fixtures,

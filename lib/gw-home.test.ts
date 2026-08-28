@@ -3,7 +3,6 @@ import {
   analyticsViewHasHistory,
   analyticsVisibleForHomeCards,
   buildHomeLeagueCard,
-  gwNavigatorTargets,
   homeCardsForScope,
   homeCompetitionScopes,
   homeScopeChipsVisible,
@@ -316,7 +315,7 @@ describe("analyticsVisibleForHomeCards", () => {
   });
 });
 
-// ── Step 6A: home hub — scope chips, GW navigator, entry-status copy ────────────────
+// ── Home hub — scope chips and entry-status copy ─────────────────────────────────────
 
 function scopeCard(overrides: Partial<HomeLeagueCard> = {}): HomeLeagueCard {
   return {
@@ -326,7 +325,6 @@ function scopeCard(overrides: Partial<HomeLeagueCard> = {}): HomeLeagueCard {
     competitionName: "Premier League",
     competitionSlug: "pl",
     gameweekNumber: 4,
-    allGameweekNumbers: [1, 2, 3, 4, 5],
     format: "gameweek",
     archived: false,
     state: "OTHER",
@@ -406,25 +404,6 @@ describe("homeCompetitionScopes / homeScopeChipsVisible", () => {
       "active-after",
       "archived-first",
       "archived-last",
-    ]);
-  });
-});
-
-describe("gwNavigatorTargets", () => {
-  it("returns every gameweek as a reachable target, sorted, with the current one flagged", () => {
-    expect(gwNavigatorTargets([3, 1, 5, 2, 4], 3)).toEqual([
-      { gameweekNumber: 1, isCurrent: false },
-      { gameweekNumber: 2, isCurrent: false },
-      { gameweekNumber: 3, isCurrent: true },
-      { gameweekNumber: 4, isCurrent: false },
-      { gameweekNumber: 5, isCurrent: false },
-    ]);
-  });
-
-  it("dedupes gameweek numbers and marks none current when the current GW isn't in the list", () => {
-    expect(gwNavigatorTargets([1, 1, 2], 9)).toEqual([
-      { gameweekNumber: 1, isCurrent: false },
-      { gameweekNumber: 2, isCurrent: false },
     ]);
   });
 });

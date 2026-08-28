@@ -2,9 +2,10 @@ import {
   resolveContestLifecycle,
   resolveViewerParticipation,
 } from "./gw-state";
-import { resolveAppGameweek } from "./gw-resolve-app";
+import { resolveAppGameweek, resolveGameweekFocus } from "./gw-resolve-app";
 import {
   buildLeagueRow,
+  buildGameweekSwitchOptions,
   sharedHeaderPoints,
   type FixtureRowView,
   type LeagueRef,
@@ -20,6 +21,7 @@ import { rankGameweekScores } from "./gw-rank";
 import { ordinal } from "./view-format";
 import { MATCH_COPY } from "./match-copy";
 import { homeCompetitionScopes } from "./gw-home";
+import { compareFixtureKickoff } from "./fixture-order";
 
 type Client = Awaited<ReturnType<typeof import("./supabase/server").createClient>>;
 
@@ -264,7 +266,7 @@ export async function loadMatchesTabInternal(
     session
       .from("gameweek_fixtures")
       .select(
-        "id, gameweek_id, fixture_id, state, fixtures(id,kickoff_at,status,status_detail,minute,ft_home,ft_away,home:teams!fixtures_home_team_id_fkey(id,name,flag_url),away:teams!fixtures_away_team_id_fkey(id,name,flag_url),fixture_insights(fixture_id))",
+        "id, gameweek_id, fixture_id, state, fixtures(id,external_id,kickoff_at,status,status_detail,minute,ft_home,ft_away,home:teams!fixtures_home_team_id_fkey(id,name,flag_url),away:teams!fixtures_away_team_id_fkey(id,name,flag_url),fixture_insights(fixture_id))",
       )
       .in("gameweek_id", gwIds),
     contests?.length
@@ -365,15 +367,10 @@ export async function loadMatchesTabInternal(
   const requested = requestedGw
     ? gameweeks.find((gw: any) => gw.number === requestedGw)
     : null;
+  const focusGw = resolveGameweekFocus(resolution);
   const focusRef =
     requested ??
-    (resolution.currentGw
-      ? gameweeks.find((gw: any) => gw.id === resolution.currentGw!.id)
-      : resolution.nextOpenGw
-        ? gameweeks.find((gw: any) => gw.id === resolution.nextOpenGw!.id)
-        : resolution.latestSettledGw
-          ? gameweeks.find((gw: any) => gw.id === resolution.latestSettledGw!.id)
-          : gameweeks[0]);
+    (focusGw ? gameweeks.find((gw: any) => gw.id === focusGw.id) : gameweeks[0]);
   if (!focusRef) return null;
   const focusContests = contestWithCl.filter(
     (contest: any) => contest.gameweek_id === focusRef.id,
@@ -509,9 +506,18 @@ export async function loadMatchesTabInternal(
   const fixtureRows: FixtureRowView[] = (membershipByGw.get(focusRef.id) ?? [])
     .filter((membership: any) => membership.fixtures)
     .sort(
-      (a: any, b: any) =>
-        new Date(a.fixtures.kickoff_at ?? 0).getTime() -
-        new Date(b.fixtures.kickoff_at ?? 0).getTime(),
+      (a: any, b: any) => compareFixtureKickoff(
+        {
+          id: a.fixtures.id,
+          kickoffAt: a.fixtures.kickoff_at,
+          externalId: a.fixtures.external_id,
+        },
+        {
+          id: b.fixtures.id,
+          kickoffAt: b.fixtures.kickoff_at,
+          externalId: b.fixtures.external_id,
+        },
+      ),
     )
     .map((membership: any) => {
       const fixture = membership.fixtures;
@@ -592,6 +598,7 @@ export async function loadMatchesTabInternal(
       const display = fixtureLabel(fixture, membershipVoid);
       return {
         id: fixture.id,
+        externalId: fixture.external_id ?? null,
         state: display.label,
         scheduled: display.scheduled,
         kickoffAt: fixture.kickoff_at ?? null,
@@ -661,14 +668,28 @@ export async function loadMatchesTabInternal(
       deadlineAt: focusDeadline,
       isCurrent: resolution.currentGw?.id === focusRef.id,
     },
-    picker: {
-      prev:
-        gameweeks.find((gw: any) => gw.number === focusRef.number - 1)?.number,
-      next:
-        gameweeks.find((gw: any) => gw.number === focusRef.number + 1)?.number,
-      range: gameweeks.map((gw: any) => gw.number),
-      futureCaveat: gwState === "pre",
-    },
+    picker: (() => {
+      const switcher = buildGameweekSwitchOptions({
+        gameweeks: gameweeks.map((gameweek: any) => ({
+          id: gameweek.id,
+          number: gameweek.number,
+          name: gameweek.name,
+          deadlineAt: gameweek.deadline_at ?? null,
+        })),
+        contests: contestWithCl.map((contest: any) => ({
+          gameweekId: contest.gameweek_id,
+          lifecycle: contest.cl,
+        })),
+        focusNumber: focusRef.number,
+      });
+      return {
+        prev: switcher.find((option) => option.role === "previous" && !option.disabled)?.number ?? undefined,
+        next: switcher.find((option) => option.role === "next" && !option.disabled)?.number ?? undefined,
+        switcher,
+        range: gameweeks.map((gw: any) => gw.number),
+        futureCaveat: gwState === "pre",
+      };
+    })(),
     yourGw: leagueRows.length
       ? {
           enteredCount: myEntries.length,

@@ -9,6 +9,15 @@ export type AppGwResolution = {
   overlapAlert: { gws: number[] } | null;
 };
 
+export type GameweekAccessTarget = GwRef & {
+  lifecycle: ContestLifecycle | null;
+};
+
+export type GameweekAccess = {
+  now: GameweekAccessTarget | null;
+  last: GameweekAccessTarget | null;
+};
+
 type AppContest = {
   gwId: string;
   leagueId: string;
@@ -23,6 +32,31 @@ const ref = (gw: { id: string; number: number; label: string }): GwRef => ({
   number: gw.number,
   label: gw.label,
 });
+
+export function resolveGameweekFocus(resolution: AppGwResolution): GwRef | null {
+  return resolution.currentGw ?? resolution.nextOpenGw ?? resolution.latestSettledGw;
+}
+
+export function resolveGameweekAccess(input: {
+  resolution: AppGwResolution;
+  gameweeks: readonly GwRef[];
+  lifecycleByGameweekId: ReadonlyMap<string, ContestLifecycle>;
+}): GameweekAccess {
+  const target = (gameweek: GwRef | null): GameweekAccessTarget | null =>
+    gameweek
+      ? {
+          ...gameweek,
+          lifecycle: input.lifecycleByGameweekId.get(gameweek.id) ?? null,
+        }
+      : null;
+  const available = new Map(input.gameweeks.map((gameweek) => [gameweek.id, gameweek]));
+  const focus = resolveGameweekFocus(input.resolution);
+  const latest = input.resolution.latestSettledGw;
+  return {
+    now: target(focus ? available.get(focus.id) ?? focus : null),
+    last: target(latest ? available.get(latest.id) ?? latest : null),
+  };
+}
 
 export function resolveAppGameweek(input: {
   competition: { id: string; archived: boolean };
@@ -86,8 +120,9 @@ export function resolveAppGameweek(input: {
   const nextOpen =
     ordered.find((gw) => {
       if (!gw.deadlineAt || gw.deadlineAt <= input.now) return false;
-      return !(byGw.get(gw.id) ?? []).some(
-        (contest) => contest.cl !== "CL0" && contest.cl !== "CL1",
+      const rows = byGw.get(gw.id) ?? [];
+      return rows.some((contest) => contest.cl === "CL1") && rows.every(
+        (contest) => contest.cl === "CL0" || contest.cl === "CL1",
       );
     }) ?? null;
   return {

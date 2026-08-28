@@ -8,12 +8,14 @@ import {
   groupFixturesByLocalDay,
   isLiveFixtureState,
   liveMinuteFromState,
+  type GameweekSwitchOption,
   type FixtureRowView,
   type LeagueRowView,
 } from "@/lib/matches-tab";
 import type { MatchesHomeTabPayload } from "@/lib/matches-home-tab";
 import { MATCH_COPY } from "@/lib/match-copy";
 import { verdictCopy } from "@/lib/matches-verdict";
+import { formatShortWeekday } from "@/lib/datetime";
 
 const DEFAULT_KEY = "__default";
 const TTL_MS = {
@@ -22,6 +24,10 @@ const TTL_MS = {
   unresolved: 60_000,
   empty: 10 * 60_000,
 } as const;
+
+function selectionKey(scope: string | null, gw: number | null): string {
+  return `${scope ?? DEFAULT_KEY}::${gw ?? "focus"}`;
+}
 
 type CacheEntry = {
   data: MatchesHomeTabPayload;
@@ -37,6 +43,7 @@ type LoadState = {
 type LastData = {
   key: string;
   requested: string | null;
+  requestedGw: number | null;
   data: MatchesHomeTabPayload;
 };
 
@@ -249,12 +256,84 @@ function ScopeTabs({
   );
 }
 
+function switchLabel(option: GameweekSwitchOption, timeZone: string | null): string {
+  if (option.number == null || option.state === "unavailable") {
+    if (option.role === "previous") return MATCH_COPY.noPreviousWeek;
+    if (option.role === "next") return MATCH_COPY.noNextWeek;
+    return MATCH_COPY.noCurrentWeek;
+  }
+  const state = option.role === "next" && option.state === "open" && option.openingAt
+    ? formatShortWeekday(option.openingAt, { timeZone: timeZone ?? undefined })
+    : MATCH_COPY.gameweekSwitchState(option.state);
+  return MATCH_COPY.gameweekSegment(option.number, state);
+}
+
+function GameweekSwitcher({
+  options,
+  selectedNumber,
+  onGameweek,
+}: {
+  options: readonly GameweekSwitchOption[];
+  selectedNumber: number;
+  onGameweek: (number: number) => void;
+}) {
+  const timeZone = (() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return null;
+    }
+  })();
+  return (
+    <nav aria-label={MATCH_COPY.gameweekSwitcher} className="mb-4 rounded-cs2-lg border border-cs2-line bg-cs2-paper p-2">
+      <div className="flex items-stretch gap-1" role="group" aria-label={MATCH_COPY.gameweekSwitcher}>
+        {options.map((option) => {
+          const label = switchLabel(option, timeZone);
+          const selected = option.number === selectedNumber && option.role === "current";
+          const className = `min-w-0 flex-1 rounded-cs2-sm px-2 py-2 text-center text-[11px] font-extrabold ${
+            option.disabled
+              ? "text-cs2-ink-3"
+              : selected
+                ? "bg-cs2-green-soft text-cs2-green"
+                : "text-cs2-ink-2 hover:bg-cs2-canvas"
+          }`;
+          return option.disabled || option.number == null ? (
+            <button
+              key={option.role}
+              type="button"
+              disabled
+              aria-disabled="true"
+              aria-label={label}
+              className={className}
+            >
+              {label}
+            </button>
+          ) : (
+            <button
+              key={option.role}
+              type="button"
+              aria-selected={selected}
+              aria-label={label}
+              onClick={() => onGameweek(option.number!)}
+              className={className}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
 function HomeMatchesBody({
   data,
   onScope,
+  onGameweek,
 }: {
   data: Extract<MatchesHomeTabPayload, { empty: false }>;
   onScope: (scope: string) => void;
+  onGameweek: (number: number) => void;
 }) {
   const [timeZone, setTimeZone] = useState<string | null>(null);
   useEffect(() => {
@@ -283,6 +362,12 @@ function HomeMatchesBody({
           </div>
         </div>
       </div>
+
+      <GameweekSwitcher
+        options={data.view.picker.switcher}
+        selectedNumber={data.view.gw.number}
+        onGameweek={onGameweek}
+      />
 
       <ScopeTabs scopes={data.view.scopes} selectedScope={data.view.selectedScope} onScope={onScope} />
 
@@ -352,6 +437,7 @@ export function HomeMatchesTab() {
   const { activeIndex } = useHomeTabsContext();
   const [activated, setActivated] = useState(false);
   const [requestedComp, setRequestedComp] = useState<string | null>(null);
+  const [requestedGw, setRequestedGw] = useState<number | null>(null);
   const [retry, setRetry] = useState(0);
   const [load, setLoad] = useState<LoadState>({ key: DEFAULT_KEY, status: "idle", data: null });
   const cacheRef = useRef<Map<string, CacheEntry>>(new Map());
@@ -359,7 +445,8 @@ export function HomeMatchesTab() {
   const lastDataRef = useRef<LastData | null>(null);
   const currentKeyRef = useRef(DEFAULT_KEY);
   const currentRequestedCompRef = useRef<string | null>(null);
-  const defaultResolvedKeyRef = useRef<string | null>(null);
+  const currentRequestedGwRef = useRef<number | null>(null);
+  const defaultResolvedScopeRef = useRef<string | null>(null);
   const retryKeyRef = useRef<string | null>(null);
   const timerRef = useRef<number | null>(null);
 
@@ -367,9 +454,10 @@ export function HomeMatchesTab() {
     if (activeIndex === 1) setActivated(true);
   }, [activeIndex]);
 
-  const requestKey = requestedComp ?? defaultResolvedKeyRef.current ?? DEFAULT_KEY;
+  const requestKey = selectionKey(requestedComp ?? defaultResolvedScopeRef.current, requestedGw);
   currentKeyRef.current = requestKey;
   currentRequestedCompRef.current = requestedComp;
+  currentRequestedGwRef.current = requestedGw;
 
   const clearTimer = useCallback(() => {
     if (timerRef.current != null) {
@@ -379,10 +467,10 @@ export function HomeMatchesTab() {
   }, []);
 
   const fetchFor = useCallback(
-    (requested: string | null, key: string, force: boolean): AbortController | null => {
+    (requested: string | null, requestedGameweek: number | null, key: string, force: boolean): AbortController | null => {
       const cached = cacheRef.current.get(key);
       if (!force && cached && !stale(cached)) {
-        lastDataRef.current = { key, requested, data: cached.data };
+        lastDataRef.current = { key, requested, requestedGw: requestedGameweek, data: cached.data };
         setLoad({ key, status: "ready", data: cached.data });
         return null;
       }
@@ -390,7 +478,8 @@ export function HomeMatchesTab() {
       if (existing && !existing.signal.aborted) {
         const carryData =
           lastDataRef.current?.key === key &&
-          lastDataRef.current.requested === requested
+          lastDataRef.current.requested === requested &&
+          lastDataRef.current.requestedGw === requestedGameweek
             ? lastDataRef.current.data
             : null;
         setLoad({ key, status: "loading", data: carryData });
@@ -399,13 +488,17 @@ export function HomeMatchesTab() {
 
       const carryData =
         lastDataRef.current?.key === key &&
-        lastDataRef.current.requested === requested
+        lastDataRef.current.requested === requested &&
+        lastDataRef.current.requestedGw === requestedGameweek
           ? lastDataRef.current.data
           : null;
       const controller = new AbortController();
       inFlightRef.current.set(key, controller);
       setLoad({ key, status: "loading", data: carryData });
-      const query = requested == null ? "" : `?comp=${encodeURIComponent(requested)}`;
+      const params = new URLSearchParams();
+      if (requested != null) params.set("comp", requested);
+      if (requestedGameweek != null) params.set("gw", String(requestedGameweek));
+      const query = params.toString() ? `?${params.toString()}` : "";
       fetch(`/api/matches/home-tab${query}`, { cache: "no-store", signal: controller.signal })
         .then(async (response) => {
           if (!response.ok) throw new Error("home matches request failed");
@@ -414,26 +507,28 @@ export function HomeMatchesTab() {
         .then((data) => {
           if (inFlightRef.current.get(key) !== controller) return;
           if (data.requestedComp !== requested) return;
-          const canonicalKey = data.selectedComp ?? data.requestedComp ?? DEFAULT_KEY;
+          if (data.requestedGw !== requestedGameweek) return;
+          const canonicalKey = selectionKey(data.selectedComp ?? data.requestedComp, data.requestedGw);
           const entry = { data, receivedAt: Date.now() };
           cacheRef.current.set(canonicalKey, entry);
           if (requested == null && data.selectedComp) {
-            defaultResolvedKeyRef.current = canonicalKey;
-            if (key === DEFAULT_KEY) cacheRef.current.delete(DEFAULT_KEY);
+            defaultResolvedScopeRef.current = data.selectedComp;
+            if (key !== canonicalKey) cacheRef.current.delete(key);
           }
           if (
             currentKeyRef.current !== key ||
-            currentRequestedCompRef.current !== requested
+            currentRequestedCompRef.current !== requested ||
+            currentRequestedGwRef.current !== requestedGameweek
           ) {
             return;
           }
-          lastDataRef.current = { key: canonicalKey, requested, data };
+          lastDataRef.current = { key: canonicalKey, requested, requestedGw: requestedGameweek, data };
           setLoad({ key: canonicalKey, status: "ready", data });
         })
         .catch((error: unknown) => {
           if (controller.signal.aborted || (error as { name?: string })?.name === "AbortError") return;
           if (inFlightRef.current.get(key) !== controller) return;
-          if (currentKeyRef.current === key && currentRequestedCompRef.current === requested) {
+          if (currentKeyRef.current === key && currentRequestedCompRef.current === requested && currentRequestedGwRef.current === requestedGameweek) {
             setLoad({ key, status: "error", data: null });
           }
         })
@@ -449,14 +544,14 @@ export function HomeMatchesTab() {
     if (!activated || activeIndex !== 1) return;
     const force = retryKeyRef.current === requestKey;
     if (force) retryKeyRef.current = null;
-    const controller = fetchFor(requestedComp, requestKey, force);
+    const controller = fetchFor(requestedComp, requestedGw, requestKey, force);
     return () => {
       if (controller && inFlightRef.current.get(requestKey) === controller) {
         controller.abort();
         inFlightRef.current.delete(requestKey);
       }
     };
-  }, [activated, activeIndex, fetchFor, requestedComp, requestKey, retry]);
+  }, [activated, activeIndex, fetchFor, requestedComp, requestedGw, requestKey, retry]);
 
   const freshnessData = load.key === requestKey ? load.data : null;
   useEffect(() => {
@@ -473,11 +568,11 @@ export function HomeMatchesTab() {
     const checkStale = () => {
       if (document.visibilityState === "hidden") return;
       const cached = cacheRef.current.get(requestKey);
-      if (!cached || stale(cached)) fetchFor(requestedComp, requestKey, false);
+      if (!cached || stale(cached)) fetchFor(requestedComp, requestedGw, requestKey, false);
     };
     const tick = () => {
       if (document.visibilityState !== "hidden") {
-        fetchFor(requestedComp, requestKey, true);
+        fetchFor(requestedComp, requestedGw, requestKey, true);
       }
     };
     const start = () => {
@@ -496,7 +591,7 @@ export function HomeMatchesTab() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       clearTimer();
     };
-  }, [activeIndex, activated, clearTimer, fetchFor, freshnessData, requestedComp, requestKey]);
+  }, [activeIndex, activated, clearTimer, fetchFor, freshnessData, requestedComp, requestedGw, requestKey]);
 
   useEffect(() => () => {
     clearTimer();
@@ -507,6 +602,10 @@ export function HomeMatchesTab() {
   }, [clearTimer]);
 
   if (!activated) return null;
+  const onScope = (scope: string) => {
+    setRequestedComp(scope);
+    setRequestedGw(null);
+  };
   const lastScopeData = lastDataRef.current?.data;
   const lastScopeView = lastScopeData?.empty === false ? lastScopeData.view : null;
   const loadingScopes = lastScopeView?.scopes ?? [];
@@ -521,7 +620,7 @@ export function HomeMatchesTab() {
           <ScopeTabs
             scopes={loadingScopes}
             selectedScope={requestedComp ?? lastScopeView?.selectedScope ?? ""}
-            onScope={setRequestedComp}
+            onScope={onScope}
           />
         </div>
         <section aria-busy="true" className="mx-4 my-4 rounded-cs2-lg border border-cs2-line bg-cs2-paper p-4 text-[12px] font-semibold text-cs2-ink-3">{MATCH_COPY.homeMatchesLoading}</section>
@@ -550,5 +649,5 @@ export function HomeMatchesTab() {
   }
 
   const data = dataForKey;
-  return <HomeMatchesBody data={data} onScope={setRequestedComp} />;
+  return <HomeMatchesBody data={data} onScope={onScope} onGameweek={setRequestedGw} />;
 }

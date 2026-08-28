@@ -2755,3 +2755,80 @@ settlement/scoring-file change was made.
 - The local browser smoke could not run because the sandbox rejects both `0.0.0.0:3000` and
   `127.0.0.1:3000` with `EPERM`. The authenticated Home path was therefore not exercised in a
   browser.
+
+## Plan 013 — GW access (L1 + H3) + kickoff ordering
+
+Implemented on `feature/cashford-2`. League L1 now exposes the resolver’s current week, latest
+terminal receipt week, and the existing all-weeks sheet. Home H3 moves week navigation out of the
+Leagues tab and into the Matches tab. The Matches tab and `/matches` share the same previous /
+current / next option builder. Visible fixture lists now use one ascending kickoff comparator with
+string tie-breaks for `external_id`, then fixture `id`.
+
+### Verification
+
+- `npm run typecheck` — PASS (exit 0).
+
+  ```text
+  > cashford@0.1.0 typecheck
+  > tsc --noEmit
+  ```
+
+- `npx vitest run` — PASS (exit 0).
+
+  ```text
+  Test Files  100 passed (100)
+  Tests  1124 passed (1124)
+  ```
+
+- `npm run build` — PASS (exit 0).
+
+  ```text
+  ✓ Compiled successfully in 2.4s
+  ✓ Generating static pages (17/17)
+  ```
+
+- Added `tests/phase4/gw-view-ordering.test.ts` with three loader-level ordering cases; the
+  final verification run is 100 test files / 1124 tests.
+- Fixed `compareFixtureKickoff` so equal missing or invalid kickoff times fall through to the
+  external-ID and row-ID tie-breaks instead of returning `NaN`.
+
+### Deviations
+
+- `app/leagues/[slug]/_cup/CupLeagueView.tsx` was left unchanged. It is an underscore-prefixed
+  legacy path and has no route caller.
+- The internal arrays in `lib/analytics-corpus-load.ts`, `lib/poll-standings.ts`,
+  `lib/analytics-feed-load.ts`, `lib/home-analytics.ts`, and the archived-card facts in
+  `lib/gw-home.ts` were left unchanged. They support calculations or analytics, not visible match
+  lists; changing their order could change those calculations.
+- `lib/knockout-data.ts` and `lib/knockout.ts` were left unchanged. Their order is bracket order,
+  not kickoff order.
+- `lib/home-matches.ts` and `lib/match-feed.ts` were checked and left unchanged. They have no
+  caller from `app/` or a rendered component in this branch; `components/MatchesTab.tsx` only
+  re-exports `Phase4MatchesPage`. The old feed’s past-list reverse therefore remains in dead
+  code, with no screen impact.
+- `lib/wc-archive-load.ts` has separate calculation inputs for archive standings; those were left
+  unchanged. Its visible archive match query now sorts through the shared comparator. When an
+  archive fixture has no external ID, the comparator uses the nested fixture ID and falls back to
+  the outer contest ID only when that nested ID is absent.
+- `lib/gw-fixtures.ts:27-57` remains a generic collapse helper that only has membership and
+  fixture-ID data. The enriched league and Matches loaders apply kickoff ordering after collapse,
+  so this helper did not receive a database-specific comparator.
+- `lib/legacy-match-load.ts` and `lib/match-detail-load.ts` read one selected fixture, not a
+  fixture list. `lib/matches-page-load.ts` also reads one live fixture only as a presence check.
+  No ordering change was needed there.
+- `lib/gw-season.ts` and `components/gw/SeasonTable.tsx` render gameweek and standings rows, not
+  fixture lists. Dirty season rows reuse the sorted `loadGameweekView` data.
+- `components/archive/ArchiveShell.tsx`, `components/archive/WcFinalStandings.tsx`, and
+  `components/archive/WcRecap.tsx` do not render fixture lists. The archive matches page inherits
+  the sorted rows from `lib/wc-archive-load.ts`.
+- Provider and poller reads in `lib/espn.ts`, `lib/espn-match.ts`, `lib/espn-insights.ts`,
+  `lib/poll-commentary.ts`, `lib/poll-insights.ts`, `lib/poll-match-data.ts`,
+  `lib/poll-slow-providers.ts`, `lib/poll-team-news.ts`, `lib/poll-understat.ts`, and
+  `lib/reconcile-match-cache.ts` are operational reads, not rendered lists, so they were left
+  unchanged.
+- The gameweek schema has `deadline_at` but no separate opening timestamp. H3 uses the available
+  gameweek deadline timestamp for the short weekday shown on an open next-week segment.
+- The current app resolver treats a future week as next-open only when it has a real `CL1` contest
+  and no other non-blank lifecycle. `CL7` remains terminal and is labelled `Void`, never
+  `Settled`.
+- No database inspection or writes, browser smoke, commit, staging, push, or deploy was done.

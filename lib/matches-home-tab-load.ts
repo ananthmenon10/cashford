@@ -16,6 +16,7 @@ type Client = Awaited<ReturnType<typeof import("./supabase/server").createClient
 
 export type MatchesHomeTabLoadOptions = {
   requestedScopeSlug?: string;
+  requestedGameweek?: number;
   now?: Date;
 };
 
@@ -306,11 +307,12 @@ export async function loadMatchesHomeTab(
   options: MatchesHomeTabLoadOptions = {},
 ): Promise<MatchesHomeTabPayload> {
   const requestedComp = options.requestedScopeSlug ?? null;
+  const requestedGw = options.requestedGameweek ?? null;
   const now = options.now ?? new Date();
   const context = await loadMatchesTabInternal(
     session,
     userId,
-    undefined,
+    options.requestedGameweek,
     now,
     options.requestedScopeSlug,
     { strictScope: true, strictReadErrors: true },
@@ -319,6 +321,7 @@ export async function loadMatchesHomeTab(
     return {
       empty: true,
       requestedComp,
+      requestedGw,
       selectedComp: null,
       freshness: "empty",
     };
@@ -332,6 +335,7 @@ export async function loadMatchesHomeTab(
   return {
     empty: false,
     requestedComp,
+    requestedGw,
     selectedComp: context.view.selectedScope,
     view: context.view,
     freshness: freshnessFor(context),

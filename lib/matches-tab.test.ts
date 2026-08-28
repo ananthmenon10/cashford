@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   groupFixturesByLocalDay,
+  buildGameweekSwitchOptions,
   isLiveFixtureState,
   liveClubMinutes,
   liveMinuteFromState,
@@ -55,6 +56,58 @@ describe("groupFixturesByLocalDay", () => {
 
     expect(total).toBe(rows.length);
     expect(groups.length).toBeGreaterThan(7);
+  });
+
+  it("sorts fixtures within a local day by kickoff, not input order", () => {
+    const groups = groupFixturesByLocalDay(
+      [
+        fixture("late", "2026-08-17T15:00:00.000Z"),
+        fixture("early", "2026-08-17T13:00:00.000Z"),
+      ],
+      "Asia/Kolkata",
+    );
+
+    expect(groups[0].fixtures.map((row) => row.id)).toEqual(["early", "late"]);
+  });
+});
+
+describe("buildGameweekSwitchOptions", () => {
+  const gameweeks = [
+    { id: "gw1", number: 1, name: "Gameweek 1", deadlineAt: "2026-08-10T12:00:00.000Z" },
+    { id: "gw2", number: 2, name: "Gameweek 2", deadlineAt: "2026-08-17T12:00:00.000Z" },
+    { id: "gw3", number: 3, name: "Gameweek 3", deadlineAt: "2026-08-24T12:00:00.000Z" },
+  ];
+
+  it("keeps previous/current/next in a stable shape and disables a locked next week", () => {
+    const options = buildGameweekSwitchOptions({
+      gameweeks,
+      contests: [
+        { gameweekId: "gw1", lifecycle: "CL5" },
+        { gameweekId: "gw2", lifecycle: "CL3" },
+        { gameweekId: "gw3", lifecycle: "CL2" },
+      ],
+      focusNumber: 2,
+    });
+
+    expect(options.map((option) => [option.role, option.number, option.state, option.disabled])).toEqual([
+      ["previous", 1, "settled", false],
+      ["current", 2, "live", false],
+      ["next", 3, "locked", true],
+    ]);
+  });
+
+  it("renders missing previous and next weeks as disabled unavailable options", () => {
+    const options = buildGameweekSwitchOptions({
+      gameweeks: [gameweeks[1]],
+      contests: [{ gameweekId: "gw2", lifecycle: "CL5" }],
+      focusNumber: 2,
+    });
+
+    expect(options).toMatchObject([
+      { role: "previous", number: null, state: "unavailable", disabled: true },
+      { role: "current", number: 2, state: "settled", disabled: false },
+      { role: "next", number: null, state: "unavailable", disabled: true },
+    ]);
   });
 });
 

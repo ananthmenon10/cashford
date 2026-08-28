@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { HomeMatchesTab } from "../../components/matches/HomeMatchesTab";
 import { HomeTabs } from "../../components/HomeTabs";
 import { HomeTabsContext } from "../../components/HomeTabsContext";
-import type { FixtureRowView, MatchesTabView } from "../../lib/matches-tab";
+import type { FixtureRowView, GameweekSwitchOption, MatchesTabView } from "../../lib/matches-tab";
 import type { MatchesHomeTabPayload } from "../../lib/matches-home-tab";
 import { MATCH_COPY } from "../../lib/match-copy";
 
@@ -34,7 +34,13 @@ function view(
   selectedComp: string,
   scopes = [{ slug: selectedComp, name: selectedComp }],
   fixtures: FixtureRowView[] = [],
+  switcher: GameweekSwitchOption[] = [
+    { role: "previous", number: null, name: null, openingAt: null, state: "unavailable", lifecycle: null, disabled: true },
+    { role: "current", number: 1, name: "Gameweek 1", openingAt: "2026-08-20T12:00:00.000Z", state: "open", lifecycle: "CL1", disabled: false },
+    { role: "next", number: null, name: null, openingAt: null, state: "unavailable", lifecycle: null, disabled: true },
+  ],
 ): MatchesTabView {
+  const current = switcher.find((option) => option.role === "current") ?? switcher[1];
   return {
     competition: {
       id: selectedComp,
@@ -45,14 +51,14 @@ function view(
     scopes,
     selectedScope: selectedComp,
     gw: {
-      id: "gw1",
-      number: 1,
-      label: "Gameweek 1",
+      id: current?.number == null ? "gw1" : `gw${current.number}`,
+      number: current?.number ?? 1,
+      label: current?.name ?? "Gameweek 1",
       state: "pre",
-      deadlineAt: "2026-08-20T12:00:00.000Z",
+      deadlineAt: current?.openingAt ?? "2026-08-20T12:00:00.000Z",
       isCurrent: true,
     },
-    picker: { range: [1], futureCaveat: true },
+    picker: { range: [1], futureCaveat: true, switcher },
     yourGw: null,
     winnersRecap: null,
     fixtures,
@@ -80,20 +86,23 @@ function full(
   requestedComp: string | null = null,
   scopes = [{ slug: selectedComp, name: selectedComp }],
   nextGw: Extract<MatchesHomeTabPayload, { empty: false }>["nextGw"] = null,
+  switcher?: GameweekSwitchOption[],
+  requestedGw: number | null = null,
 ): Extract<MatchesHomeTabPayload, { empty: false }> {
   return {
     empty: false,
     requestedComp,
+    requestedGw,
     selectedComp,
-    view: view(selectedComp, scopes),
+    view: view(selectedComp, scopes, [], switcher),
     freshness,
     nextGw,
     receipt: null,
   };
 }
 
-function empty(requestedComp: string | null, selectedComp: string | null = null): MatchesHomeTabPayload {
-  return { empty: true, requestedComp, selectedComp, freshness: "empty" };
+function empty(requestedComp: string | null, selectedComp: string | null = null, requestedGw: number | null = null): MatchesHomeTabPayload {
+  return { empty: true, requestedComp, requestedGw, selectedComp, freshness: "empty" };
 }
 
 function installFetch() {
@@ -153,6 +162,42 @@ describe("HomeMatchesTab activation and cache", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(requests[0]?.url).toBe("/api/matches/home-tab");
     await resolveAndWait(requests[0]!, full(), MATCH_COPY.matchesNoFixtures);
+  });
+
+  it("renders a stable three-way switch and disables an unavailable next week", async () => {
+    const switcher: GameweekSwitchOption[] = [
+      { role: "previous", number: 2, name: "Gameweek 2", openingAt: "2026-08-17T12:00:00.000Z", state: "settled", lifecycle: "CL5", disabled: false },
+      { role: "current", number: 3, name: "Gameweek 3", openingAt: "2026-08-24T12:00:00.000Z", state: "live", lifecycle: "CL3", disabled: false },
+      { role: "next", number: null, name: null, openingAt: null, state: "unavailable", lifecycle: null, disabled: true },
+    ];
+    const { fetchMock, requests } = installFetch();
+    const rendered = renderAt(0);
+    await activate(rendered);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await resolveAndWait(requests[0]!, full("unresolved", "pl-2026-27", null, undefined, null, switcher), MATCH_COPY.matchesNoFixtures);
+
+    expect(screen.getByRole("button", { name: "GW2 · Settled" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "GW3 · Live" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "No next week yet" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "GW2 · Settled" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(requests[1]?.url).toBe("/api/matches/home-tab?gw=2");
+  });
+
+  it("uses the next game's opening weekday as its state label", async () => {
+    const switcher: GameweekSwitchOption[] = [
+      { role: "previous", number: 2, name: "Gameweek 2", openingAt: "2026-08-17T12:00:00.000Z", state: "settled", lifecycle: "CL5", disabled: false },
+      { role: "current", number: 3, name: "Gameweek 3", openingAt: "2026-08-24T12:00:00.000Z", state: "live", lifecycle: "CL3", disabled: false },
+      { role: "next", number: 4, name: "Gameweek 4", openingAt: "2026-08-25T12:00:00.000Z", state: "open", lifecycle: "CL1", disabled: false },
+    ];
+    const { fetchMock, requests } = installFetch();
+    const rendered = renderAt(0);
+    await activate(rendered);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await resolveAndWait(requests[0]!, full("pre", "pl-2026-27", null, undefined, null, switcher), MATCH_COPY.matchesNoFixtures);
+
+    expect(screen.getByRole("button", { name: "GW4 · Tue" })).toBeInTheDocument();
   });
 
   it.each([

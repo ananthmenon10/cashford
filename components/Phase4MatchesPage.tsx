@@ -184,6 +184,8 @@ export function Phase4MatchesPage({
   );
   const totalFixtures = view.fixtures.length;
   const liveMinutes = useMemo(() => liveClubMinutes(view.fixtures), [view.fixtures]);
+  const previousOption = view.picker.switcher.find((option) => option.role === "previous");
+  const nextOption = view.picker.switcher.find((option) => option.role === "next");
   // Every day loads expanded (frame decision: no pagination, the day header is the only collapse
   // handle) — this set holds only the days a viewer has actively chosen to collapse.
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
@@ -253,15 +255,15 @@ export function Phase4MatchesPage({
         </nav>
 
         <div className="mb-4 flex items-center justify-between text-sm">
-          {view.picker.prev ? (
-            <Link href={`/matches?gw=${view.picker.prev}`} className="font-bold">
-              {MATCH_COPY.previousGw(view.picker.prev)}
+          {previousOption?.number != null && !previousOption.disabled ? (
+            <Link href={`/matches?gw=${previousOption.number}`} className="font-bold">
+              {MATCH_COPY.previousGw(previousOption.number)}
             </Link>
           ) : <span />}
           <span className="font-bold">{MATCH_COPY.gwLabel(view.gw.number)}</span>
-          {view.picker.next ? (
-            <Link href={`/matches?gw=${view.picker.next}`} className="font-bold">
-              {MATCH_COPY.nextGw(view.picker.next)}
+          {nextOption?.number != null && !nextOption.disabled ? (
+            <Link href={`/matches?gw=${nextOption.number}`} className="font-bold">
+              {MATCH_COPY.nextGw(nextOption.number)}
             </Link>
           ) : <span />}
         </div>

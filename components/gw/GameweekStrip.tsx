@@ -4,11 +4,18 @@ import Link from "next/link";
 import { LocalTime } from "@/components/LocalTime";
 import { GW_UI_COPY, LEAGUE_SCREEN_COPY } from "@/lib/gw-copy";
 import { useBottomSheet } from "@/lib/use-bottom-sheet";
+import type { GameweekAccessTarget } from "@/lib/gw-resolve-app";
 import type { GameweekViewDTO } from "@/lib/gw-view";
 
 type GameweekRow = GameweekViewDTO["adjacentGameweeks"][number];
 
 function stateLabel(row: GameweekRow): string {
+  if (row.lifecycle) {
+    const state = GW_UI_COPY.gameweekAccessState(row.lifecycle);
+    return row.lifecycle === "CL5" && row.matchCount
+      ? LEAGUE_SCREEN_COPY.statusWithMatches(state, row.matchCount)
+      : state;
+  }
   if (row.outcome === "void" || row.status === "void") return LEAGUE_SCREEN_COPY.void;
   if (row.outcome === "settled" || row.status === "settled" || row.status === "completed") {
     return row.matchCount ? LEAGUE_SCREEN_COPY.statusWithMatches(LEAGUE_SCREEN_COPY.settled, row.matchCount) : LEAGUE_SCREEN_COPY.settled;
@@ -20,6 +27,9 @@ function stateLabel(row: GameweekRow): string {
 
 function sheetState(row: GameweekRow, selected: boolean): string {
   if (selected) return LEAGUE_SCREEN_COPY.selected;
+  if (row.lifecycle === "CL7" || row.outcome === "void" || row.status === "void") {
+    return LEAGUE_SCREEN_COPY.void.toLowerCase();
+  }
   if (row.status === "open") return LEAGUE_SCREEN_COPY.sheetOpen;
   if (row.outcome === "settled" || row.status === "settled" || row.status === "completed") {
     return LEAGUE_SCREEN_COPY.settled.toLowerCase();
@@ -28,6 +38,9 @@ function sheetState(row: GameweekRow, selected: boolean): string {
 }
 
 function rowMeta(row: GameweekRow): React.ReactNode {
+  if (row.lifecycle && row.lifecycle !== "CL1" && row.lifecycle !== "CL5") {
+    return stateLabel(row);
+  }
   if (row.status === "open" && row.deadlineAt) {
     return <>{LEAGUE_SCREEN_COPY.deadline} <LocalTime iso={row.deadlineAt} relative={false} includeYear={false} /></>;
   }
@@ -40,82 +53,86 @@ function rowMeta(row: GameweekRow): React.ReactNode {
   return row.deadlineAt ? <>{LEAGUE_SCREEN_COPY.upcomingDeadline} <LocalTime iso={row.deadlineAt} relative={false} includeYear={false} /></> : LEAGUE_SCREEN_COPY.upcoming;
 }
 
+function accessLabel(target: GameweekAccessTarget | null, emptyCopy: string): string {
+  return target
+    ? GW_UI_COPY.gameweekSegment(target.number, GW_UI_COPY.gameweekAccessState(target.lifecycle))
+    : emptyCopy;
+}
+
+function AccessSegment({
+  target,
+  emptyCopy,
+  selected,
+  href,
+}: {
+  target: GameweekAccessTarget | null;
+  emptyCopy: string;
+  selected: boolean;
+  href: string | null;
+}) {
+  const label = accessLabel(target, emptyCopy);
+  const className = `min-w-0 flex-1 rounded-cs2-sm px-2 py-2 text-center text-[11px] font-extrabold ${
+    target && selected
+      ? "bg-cs2-green-soft text-cs2-green"
+      : target
+        ? "text-cs2-ink-2 hover:bg-cs2-canvas"
+        : "text-cs2-ink-3"
+  }`;
+  if (!target || !href) {
+    return (
+      <button type="button" disabled aria-disabled="true" aria-label={label} className={className}>
+        {label}
+      </button>
+    );
+  }
+  return (
+    <Link href={href} prefetch aria-label={label} aria-current={selected ? "page" : undefined} className={className}>
+      {label}
+    </Link>
+  );
+}
+
 export function GameweekStrip({
   slug,
   gameweek,
   adjacent,
+  gameweekAccess,
 }: {
   slug: string;
   gameweek: GameweekViewDTO["gameweek"];
   adjacent: GameweekViewDTO["adjacentGameweeks"];
+  gameweekAccess: GameweekViewDTO["gameweekAccess"];
 }) {
   const { open: sheetOpen, setOpen: setSheetOpen, close: closeSheet, dialogRef, triggerRef } = useBottomSheet();
 
-  if (!gameweek) return null;
-
-  const index = adjacent.findIndex((row) => row.number === gameweek.number);
-  const currentRow = adjacent[index] ?? {
-    number: gameweek.number,
-    name: gameweek.name,
-    hasContest: true,
-    status: gameweek.status,
-    contestStatus: gameweek.status as GameweekRow["contestStatus"],
-    outcome: null,
-    deadlineAt: gameweek.deadlineAt,
-    winnerName: null,
-    matchCount: 0,
-    homeFact: null,
-  };
-  const previous = [...adjacent.slice(0, index)].reverse().find((row) => row.hasContest);
-  const next = adjacent.slice(index + 1).find((row) => row.hasContest);
   const hrefFor = (number: number) => `/leagues/${slug}?gw=${number}#league-gw-${number}-matches`;
 
   return (
     <>
-      <section className="mt-4 rounded-cs2-lg border border-cs2-line bg-cs2-paper p-4" aria-label={GW_UI_COPY.gameweekNavigation}>
-        <div className="flex items-center justify-between gap-3">
-          {previous ? (
-            <Link
-              prefetch
-              href={hrefFor(previous.number)}
-              aria-label={GW_UI_COPY.previousGameweek}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-cs2-line bg-cs2-paper text-xl leading-none text-cs2-ink-2 hover:bg-cs2-line-2"
-            >
-              ‹
-            </Link>
-          ) : <span className="h-9 w-9 shrink-0" />}
-          <div className="min-w-0 text-center">
-            <h1 className="truncate font-mono text-[17px] font-bold tabular">{gameweek.name}</h1>
-            <p className="mt-1 text-[11px] font-semibold text-cs2-ink-3">{stateLabel(currentRow)}</p>
-          </div>
-          {next ? (
-            <Link
-              prefetch
-              href={hrefFor(next.number)}
-              aria-label={GW_UI_COPY.nextGameweek}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-cs2-line bg-cs2-paper text-xl leading-none text-cs2-ink-2 hover:bg-cs2-line-2"
-            >
-              ›
-            </Link>
-          ) : <span className="h-9 w-9 shrink-0" />}
-        </div>
-        <div className="mt-4 flex items-center justify-between border-t border-cs2-line-2 pt-3 text-[11px] font-semibold text-cs2-ink-3">
-          <span>
-            {previous ? `GW${previous.number} ←` : ""}
-          </span>
+      <section className="mt-4 rounded-cs2-lg border border-cs2-line bg-cs2-paper p-2" aria-label={GW_UI_COPY.gameweekNavigation}>
+        <div className="flex items-stretch gap-1" role="group" aria-label={GW_UI_COPY.gameweekNavigation}>
+          <AccessSegment
+            target={gameweekAccess.now}
+            emptyCopy={GW_UI_COPY.noCurrentWeek}
+            selected={gameweekAccess.now?.number === gameweek?.number}
+            href={gameweekAccess.now ? hrefFor(gameweekAccess.now.number) : null}
+          />
+          <AccessSegment
+            target={gameweekAccess.last}
+            emptyCopy={GW_UI_COPY.noSettledWeek}
+            selected={gameweekAccess.last?.number === gameweek?.number}
+            href={gameweekAccess.last ? hrefFor(gameweekAccess.last.number) : null}
+          />
           <button
             type="button"
             ref={triggerRef}
             onClick={() => setSheetOpen(true)}
             aria-expanded={sheetOpen}
             aria-controls="all-gameweeks-dialog"
-            className="rounded-pill border border-cs2-line bg-cs2-canvas px-3 py-1.5 text-cs2-ink-2 hover:bg-cs2-line-2"
+            className="min-w-0 flex-1 rounded-cs2-sm px-2 py-2 text-center text-[11px] font-extrabold text-cs2-ink-2 hover:bg-cs2-canvas"
           >
-            {GW_UI_COPY.allGameweeks} <span aria-hidden>⌄</span>
+            {GW_UI_COPY.allWeeks}
           </button>
-          <span>
-            {next ? `→ GW${next.number}` : ""}
-          </span>
         </div>
       </section>
 
@@ -140,7 +157,7 @@ export function GameweekStrip({
             <p className="mt-1 text-[12px] text-cs2-ink-3">{GW_UI_COPY.chooseGameweek}</p>
             <div className="mt-4 divide-y divide-cs2-line-2 rounded-cs2-md border border-cs2-line">
               {adjacent.map((row) => {
-                const selected = row.number === gameweek.number;
+                const selected = row.number === gameweek?.number;
                 const content = (
                   <>
                     <span className="w-8 shrink-0 font-mono text-[11px] font-bold text-cs2-ink-3 tabular">{String(row.number).padStart(2, "0")}</span>

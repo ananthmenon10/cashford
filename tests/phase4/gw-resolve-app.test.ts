@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveAppGameweek } from "../../lib/gw-resolve-app";
+import {
+  resolveAppGameweek,
+  resolveGameweekAccess,
+  resolveGameweekFocus,
+} from "../../lib/gw-resolve-app";
 import type { ContestLifecycle } from "../../lib/gw-state";
 
 const now = new Date("2026-02-03T12:00:00.000Z");
@@ -106,5 +110,57 @@ describe("app gameweek resolution", () => {
       contests: [contest("gw4", "a", "CL1")],
     });
     expect(result.nextOpenGw).toBeNull();
+  });
+
+  it("does not treat a gameweek with no contest as next-open", () => {
+    const result = resolve({
+      gameweeks: [gw("gw4", 4, "2026-02-10T10:00:00.000Z")],
+      contests: [],
+    });
+    expect(result.nextOpenGw).toBeNull();
+  });
+
+  it("uses the same focus order as the Matches tab", () => {
+    const resolution = resolve({
+      gameweeks: [
+        gw("gw2", 2, "2026-01-27T10:00:00.000Z"),
+        gw("gw3", 3, "2026-02-03T10:00:00.000Z"),
+        gw("gw4", 4, "2026-02-10T10:00:00.000Z"),
+      ],
+      contests: [
+        contest("gw2", "a", "CL5"),
+        contest("gw3", "a", "CL3"),
+        contest("gw4", "a", "CL1"),
+      ],
+    });
+    expect(resolveGameweekFocus(resolution)?.number).toBe(3);
+    expect(resolveGameweekAccess({
+      resolution,
+      gameweeks: [
+        { id: "gw2", number: 2, label: "GW 2" },
+        { id: "gw3", number: 3, label: "GW 3" },
+        { id: "gw4", number: 4, label: "GW 4" },
+      ],
+      lifecycleByGameweekId: new Map([
+        ["gw2", "CL5" as const],
+        ["gw3", "CL3" as const],
+        ["gw4", "CL1" as const],
+      ]),
+    })).toEqual({
+      now: { id: "gw3", number: 3, label: "GW 3", lifecycle: "CL3" },
+      last: { id: "gw2", number: 2, label: "GW 2", lifecycle: "CL5" },
+    });
+  });
+
+  it("keeps the last terminal gameweek even when it is void", () => {
+    const resolution = resolve({
+      gameweeks: [gw("gw2", 2, "2026-01-27T10:00:00.000Z")],
+      contests: [contest("gw2", "a", "CL7")],
+    });
+    expect(resolveGameweekAccess({
+      resolution,
+      gameweeks: [{ id: "gw2", number: 2, label: "GW 2" }],
+      lifecycleByGameweekId: new Map([["gw2", "CL7" as const]]),
+    }).last?.lifecycle).toBe("CL7");
   });
 });

@@ -26,16 +26,16 @@ import { CompetitionTable } from "@/components/matches/CompetitionTable";
 
 export function LeagueGameweekPane({ view }: { view: GameweekViewDTO }) {
   const now = new Date();
-  if (!view.gameweek || !view.contest || view.lifecycle === "CL0") {
-    return <EmptyState copy={C29} />;
-  }
   return (
     <>
       <GameweekStrip
         slug={view.league.slug}
         gameweek={view.gameweek}
         adjacent={view.adjacentGameweeks}
+        gameweekAccess={view.gameweekAccess}
       />
+      {!view.gameweek || !view.contest || view.lifecycle === "CL0" ? <EmptyState copy={C29} /> : null}
+      {view.gameweek && view.contest && view.lifecycle !== "CL0" ? <>
       <StateHeader view={view} />
       {view.lifecycle !== "CL9" && view.isDoubleGameweek ? (
         <p className="mt-3 rounded-cs2-md border border-cs2-line bg-cs2-paper px-4 py-3 text-[12px] font-semibold text-cs2-ink-2">
@@ -86,6 +86,7 @@ export function LeagueGameweekPane({ view }: { view: GameweekViewDTO }) {
           </div>
         </section>
       ) : null}
+      </> : null}
     </>
   );
 }

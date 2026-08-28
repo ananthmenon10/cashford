@@ -7,6 +7,7 @@ import { loadKnockoutLeaderboards, loadKnockoutView } from "./knockout-data";
 import type { TransitionState } from "./transition";
 import { buildWcFinalStandings, combinedBalanceParts, countSettledFixtures, isLateMember, type WcArchiveStanding } from "./wc-archive";
 import { loadLiveCompetition, resolveWcTransition, type WcLiveCompetition } from "./wc-live-competition";
+import { compareFixtureKickoff } from "./fixture-order";
 
 export type { WcLiveCompetition };
 export { loadLiveCompetition, resolveWcTransition };
@@ -238,6 +239,27 @@ export type WcArchiveMatchRow = {
   fixtures: any;
 };
 
+export function sortWcArchiveMatchRows(
+  rows: readonly WcArchiveMatchRow[],
+): WcArchiveMatchRow[] {
+  return [...rows].sort((a, b) => {
+    const left = one<any>(a.fixtures);
+    const right = one<any>(b.fixtures);
+    return compareFixtureKickoff(
+      {
+        id: left?.id ?? a.id,
+        kickoffAt: left?.kickoff_at ?? null,
+        externalId: left?.external_id ?? null,
+      },
+      {
+        id: right?.id ?? b.id,
+        kickoffAt: right?.kickoff_at ?? null,
+        externalId: right?.external_id ?? null,
+      },
+    );
+  });
+}
+
 export type WcArchiveMatchesPageLoad = {
   dues: DuesView;
   balance: WcArchiveBalance | undefined;
@@ -292,7 +314,7 @@ export async function loadWcArchiveMatchesPage(
   const query = await admin
     .from("contests")
     .select(
-      "id, status, stake_inr, fixtures!inner(id, round, kickoff_at, home_label, away_label, home_team_id, away_team_id, ft_home, ft_away, status, competition_id, is_knockout, advancer_team_id)",
+      "id, status, stake_inr, fixtures!inner(id, external_id, round, kickoff_at, home_label, away_label, home_team_id, away_team_id, ft_home, ft_away, status, competition_id, is_knockout, advancer_team_id)",
     )
     .eq("league_id", identity.league.id)
     .eq("fixtures.competition_id", wcId);
@@ -320,11 +342,7 @@ export async function loadWcArchiveMatchesPage(
   const results = new Map(
     (resultsQ.data ?? []).map((row: any) => [row.contest_id, Number(row.net_inr)]),
   );
-  const rows = [...(query.data ?? [])].sort(
-    (a: any, b: any) =>
-      new Date(one<any>(b.fixtures)?.kickoff_at).getTime() -
-      new Date(one<any>(a.fixtures)?.kickoff_at).getTime(),
-  ) as WcArchiveMatchRow[];
+  const rows = sortWcArchiveMatchRows((query.data ?? []) as WcArchiveMatchRow[]);
   const balance =
     dues.ledger.status === "clean"
       ? combinedBalanceParts(dues.ledger.netByUser[userId] ?? 0)

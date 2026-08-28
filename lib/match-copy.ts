@@ -124,6 +124,24 @@ export const MATCH_COPY = {
     "All expanded by default. No pagination—everything remains in the page.",
   fixturesScrollFoot: (n: number) => `${n} of ${n} fixtures · scroll to collapse or review`,
   competitionScope: "Competition scope",
+  gameweekSwitcher: "Gameweek switcher",
+  noCurrentWeek: "No current week yet",
+  noPreviousWeek: "No previous week yet",
+  noNextWeek: "No next week yet",
+  gameweekSegment: (number: number, state: string) => `GW${number} · ${state}`,
+  gameweekSwitchState: (state: string) => {
+    switch (state) {
+      case "live": return "Live";
+      case "open": return "Open";
+      case "settled": return "Settled";
+      case "void": return "Void";
+      case "locked": return "Locked";
+      case "recalculating": return "Recalculating";
+      case "sync_issue": return "Sync issue";
+      case "upcoming": return "Upcoming";
+      default: return "Unavailable";
+    }
+  },
   homeMatchesLoading: "Loading matches…",
   homeMatchesError: "Matches could not be loaded.",
   homeMatchesRetry: "Try again",

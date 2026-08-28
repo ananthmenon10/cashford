@@ -5,6 +5,7 @@ import {
 } from "./gw-state";
 import { calendarDateKey } from "./datetime";
 import { toEspnClubName } from "./club-name-alias";
+import { sortFixturesByKickoff } from "./fixture-order";
 
 export type LeagueRef = { id: string; slug: string; name: string };
 export type Cta = { label: string; href: string };
@@ -201,6 +202,7 @@ export type WinnersRecapView =
 
 export type FixtureRowView = {
   id: string;
+  externalId?: number | string | null;
   state: string;
   scheduled: boolean;
   kickoffAt: string | null;
@@ -235,6 +237,104 @@ export type FixtureDay = {
   fixtures: FixtureRowView[];
 };
 
+export type GameweekSwitchRole = "previous" | "current" | "next";
+
+export type GameweekSwitchState =
+  | "live"
+  | "open"
+  | "settled"
+  | "void"
+  | "locked"
+  | "recalculating"
+  | "sync_issue"
+  | "upcoming"
+  | "unavailable";
+
+export type GameweekSwitchOption = {
+  role: GameweekSwitchRole;
+  number: number | null;
+  name: string | null;
+  openingAt: string | null;
+  state: GameweekSwitchState;
+  lifecycle: ContestLifecycle | null;
+  disabled: boolean;
+};
+
+type GameweekSwitchGameweek = {
+  id: string;
+  number: number;
+  name: string;
+  deadlineAt: string | null;
+};
+
+type GameweekSwitchContest = {
+  gameweekId: string;
+  lifecycle: ContestLifecycle;
+};
+
+function switchState(lifecycles: readonly ContestLifecycle[]): {
+  state: GameweekSwitchState;
+  lifecycle: ContestLifecycle | null;
+} {
+  if (lifecycles.length === 0) return { state: "unavailable", lifecycle: null };
+  if (lifecycles.some((lifecycle) => lifecycle === "CL3" || lifecycle === "CL4")) {
+    return { state: "live", lifecycle: lifecycles.length === 1 ? lifecycles[0] : null };
+  }
+  if (lifecycles.some((lifecycle) => lifecycle === "CL6" || lifecycle === "CL8")) {
+    return { state: "recalculating", lifecycle: lifecycles.length === 1 ? lifecycles[0] : null };
+  }
+  if (lifecycles.some((lifecycle) => lifecycle === "CL9")) {
+    return { state: "sync_issue", lifecycle: lifecycles.length === 1 ? lifecycles[0] : null };
+  }
+  if (lifecycles.every((lifecycle) => lifecycle === "CL7")) {
+    return { state: "void", lifecycle: lifecycles.length === 1 ? lifecycles[0] : null };
+  }
+  if (lifecycles.every((lifecycle) => lifecycle === "CL5" || lifecycle === "CL7")) {
+    return { state: "settled", lifecycle: lifecycles.length === 1 ? lifecycles[0] : null };
+  }
+  if (lifecycles.every((lifecycle) => lifecycle === "CL1")) {
+    return { state: "open", lifecycle: lifecycles.length === 1 ? lifecycles[0] : null };
+  }
+  if (lifecycles.some((lifecycle) => lifecycle === "CL2" || lifecycle === "CL10")) {
+    return { state: "locked", lifecycle: lifecycles.length === 1 ? lifecycles[0] : null };
+  }
+  return { state: "upcoming", lifecycle: lifecycles.length === 1 ? lifecycles[0] : null };
+}
+
+export function buildGameweekSwitchOptions(input: {
+  gameweeks: readonly GameweekSwitchGameweek[];
+  contests: readonly GameweekSwitchContest[];
+  focusNumber: number;
+}): GameweekSwitchOption[] {
+  const gameweekByNumber = new Map(input.gameweeks.map((gameweek) => [gameweek.number, gameweek]));
+  const lifecyclesByGameweekId = new Map<string, ContestLifecycle[]>();
+  for (const contest of input.contests) {
+    const lifecycles = lifecyclesByGameweekId.get(contest.gameweekId) ?? [];
+    lifecycles.push(contest.lifecycle);
+    lifecyclesByGameweekId.set(contest.gameweekId, lifecycles);
+  }
+  return ([
+    ["previous", input.focusNumber - 1],
+    ["current", input.focusNumber],
+    ["next", input.focusNumber + 1],
+  ] as const).map(([role, number]) => {
+    const gameweek = gameweekByNumber.get(number);
+    const aggregate = gameweek
+      ? switchState(lifecyclesByGameweekId.get(gameweek.id) ?? [])
+      : { state: "unavailable" as const, lifecycle: null };
+    return {
+      role,
+      number: gameweek?.number ?? null,
+      name: gameweek?.name ?? null,
+      openingAt: gameweek?.deadlineAt ?? null,
+      state: aggregate.state,
+      lifecycle: aggregate.lifecycle,
+      disabled:
+        !gameweek || aggregate.state === "unavailable" || (role === "next" && aggregate.state !== "open"),
+    };
+  });
+}
+
 export function groupFixturesByLocalDay(
   rows: readonly FixtureRowView[],
   timeZone: string,
@@ -268,7 +368,10 @@ export function groupFixturesByLocalDay(
   }
   return [...groups.values()]
     .sort((a, b) => a.firstKickoffMs - b.firstKickoffMs)
-    .map(({ firstKickoffMs: _firstKickoffMs, ...day }) => day);
+    .map(({ firstKickoffMs: _firstKickoffMs, ...day }) => ({
+      ...day,
+      fixtures: sortFixturesByKickoff(day.fixtures),
+    }));
 }
 
 // One chip per competition the viewer currently has a live (non-archived) link into — dedupe and
@@ -300,6 +403,7 @@ export type MatchesTabView = {
     next?: number;
     range: number[];
     futureCaveat: boolean;
+    switcher: GameweekSwitchOption[];
   };
   yourGw: {
     enteredCount: number;

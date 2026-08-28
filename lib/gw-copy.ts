@@ -147,28 +147,13 @@ export const LEAGUE_CARD_COPY = {
   duesChip: (count: number) => count === 1 ? "1 payment needs your answer" : `${count} payments need your answer`,
 } as const;
 
-/** Home hub · Option A: competition scope chips + GW navigator (segmented strip). */
+/** Home hub: competition scope chips. */
 export const HOME_HUB_COPY = {
   competitionScopeAria: "Competition scope",
-  gwNavigatorAria: "Gameweek navigator",
-  previousGameweek: "Previous gameweek",
-  nextGameweek: "Next gameweek",
-  jumpToGameweek: "Jump to gameweek",
-  gameweekLabel: (number: number) => `GW${number}`,
-  gameweekOption: (number: number, isCurrent: boolean) => isCurrent ? `GW${number} (current)` : `GW${number}`,
-  /** Navigator pill main segment: "GW4 · OPEN" — the badge-style state segment appended to the
-   * plain gameweek label, built from a copy constant (GW_BADGE_COPY) rather than assembled inline. */
-  gameweekStateLabel: (number: number, state: string) => `${HOME_HUB_COPY.gameweekLabel(number)} · ${state}`,
-  closesInPrefix: "closes in",
   /** Scope chip label: "Premier League · GW4" (or just the name when the scope has no GW yet). */
   scopeChip: (competitionName: string, gameweekNumber: number | null) =>
-    gameweekNumber != null
-      ? `${competitionName} · ${HOME_HUB_COPY.gameweekLabel(gameweekNumber)}`
-      : competitionName,
-  scopeHelper: "Selected competition drives the GW position, entries, fixtures, and table.",
-  /** Nav-anywhere row below the navigator pill: "Previous GW3" / "Next GW5". */
-  navAnywherePrevious: (number: number) => `Previous ${HOME_HUB_COPY.gameweekLabel(number)}`,
-  navAnywhereNext: (number: number) => `Next ${HOME_HUB_COPY.gameweekLabel(number)}`,
+    gameweekNumber != null ? `${competitionName} · GW${gameweekNumber}` : competitionName,
+  scopeHelper: "Selected competition drives the league cards.",
 } as const;
 
 export const LEAGUE_CARD_HARNESS_COPY = {
@@ -346,6 +331,25 @@ export const GW_UI_COPY = {
   yourNet: "Your net",
   gameweekNavigation: "Gameweek navigation",
   allGameweeks: "All gameweeks",
+  allWeeks: "All weeks",
+  noCurrentWeek: "No current week yet",
+  noSettledWeek: "No settled week yet",
+  gameweekSegment: (number: number, state: string) => `GW${number} · ${state}`,
+  gameweekAccessState: (lifecycle: string | null) => {
+    switch (lifecycle) {
+      case "CL1": return LEAGUE_SCREEN_COPY.open;
+      case "CL3":
+      case "CL4": return LEAGUE_SCREEN_COPY.live;
+      case "CL5": return LEAGUE_SCREEN_COPY.settled;
+      case "CL7": return LEAGUE_SCREEN_COPY.void;
+      case "CL6":
+      case "CL8": return GW_BADGE_COPY.recalculating;
+      case "CL9": return GW_UI_COPY.syncIssue;
+      case "CL2":
+      case "CL10": return GW_UI_COPY.locked;
+      default: return LEAGUE_SCREEN_COPY.upcoming;
+    }
+  },
   chooseGameweek: "Choose a week to open its state and matches.",
   seasonHistory: "Gameweek history",
   seasonTotals: "Running totals",

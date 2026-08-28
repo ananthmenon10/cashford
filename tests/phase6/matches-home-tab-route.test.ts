@@ -14,6 +14,7 @@ import { GET } from "../../app/api/matches/home-tab/route";
 const fullPayload = {
   empty: false,
   requestedComp: null,
+  requestedGw: null,
   selectedComp: "pl-2026-27",
   view: {},
   freshness: "pre",
@@ -50,6 +51,13 @@ describe("GET /api/matches/home-tab", () => {
     expect(loadMatchesHomeTab).not.toHaveBeenCalled();
   });
 
+  it.each(["?gw=0", "?gw=1.5", "?gw=abc", "?gw="])
+    ("rejects malformed gameweek %s", async (query) => {
+      const response = await GET(request(query));
+      expect(response.status).toBe(400);
+      expect(loadMatchesHomeTab).not.toHaveBeenCalled();
+    });
+
   it("converts an absent comp param to undefined and echoes the full payload", async () => {
     const response = await GET(request());
     const body = await response.json();
@@ -82,6 +90,15 @@ describe("GET /api/matches/home-tab", () => {
     });
     expect(loadMatchesHomeTab).toHaveBeenCalledWith({}, "user-1", {
       requestedScopeSlug: "friends",
+    });
+  });
+
+  it("passes a valid requested gameweek through", async () => {
+    await GET(request("?gw=7"));
+
+    expect(loadMatchesHomeTab).toHaveBeenCalledWith({}, "user-1", {
+      requestedScopeSlug: undefined,
+      requestedGameweek: 7,
     });
   });
 

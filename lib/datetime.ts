@@ -158,3 +158,14 @@ export function formatFriendlyTime(
     : "";
   return `${main}${zone ? ` ${zone}` : ""}`;
 }
+
+export function formatShortWeekday(
+  value: DateInput,
+  options: { timeZone?: string } = {},
+): string {
+  const date = asDate(value);
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    timeZone: resolvedTimeZone(options.timeZone),
+  }).format(date);
+}

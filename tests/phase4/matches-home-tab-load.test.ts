@@ -242,9 +242,10 @@ function sessionFor(data: Dataset, options: SessionOptions = {}) {
   } as never;
 }
 
-async function load(data: Dataset, options: SessionOptions = {}, requestedScopeSlug?: string) {
+async function load(data: Dataset, options: SessionOptions = {}, requestedScopeSlug?: string, requestedGameweek?: number) {
   return loadMatchesHomeTab(sessionFor(data, options), USER, {
     requestedScopeSlug,
+    requestedGameweek,
     now: NOW,
   });
 }
@@ -302,6 +303,36 @@ describe("loadMatchesHomeTab focus, banner, and freshness", () => {
     const payload = await load(data);
     if (payload.empty) throw new Error("expected payload");
     expect(payload.view.yourGw?.rows[0]?.kind).toBe("open-entered");
+  });
+
+  it("loads the requested gameweek and echoes it for response matching", async () => {
+    const data = parityScenario();
+    const payload = await load(data, {}, undefined, 2);
+
+    expect(payload.empty).toBe(false);
+    if (payload.empty) return;
+    expect(payload.requestedGw).toBe(2);
+    expect(payload.view.gw.number).toBe(2);
+  });
+
+  it("keeps a locked current gameweek and unavailable next week in the shared switch options", async () => {
+    const data = dataset({
+      gameweeks: [gw(1, PAST), gw(2, FUTURE_2), gw(3, FUTURE_3)],
+      contests: [
+        contest("contest-1", "league-1", "gw1", PAST, "settled"),
+        contest("contest-2", "league-1", "gw2", FUTURE_2),
+        contest("contest-3", "league-1", "gw3", PAST, "locked"),
+      ],
+      fixtures: [fixture("gw1", 1, "finished"), fixture("gw2", 1), fixture("gw3", 1)],
+      results: [result("contest-1")],
+    });
+    const payload = await load(data);
+    if (payload.empty) throw new Error("expected payload");
+    expect(payload.view.picker.switcher).toEqual([
+      { role: "previous", number: 2, name: "Gameweek 2", openingAt: FUTURE_2, state: "open", lifecycle: "CL1", disabled: false },
+      { role: "current", number: 3, name: "Gameweek 3", openingAt: FUTURE_3, state: "locked", lifecycle: "CL2", disabled: false },
+      { role: "next", number: null, name: null, openingAt: null, state: "unavailable", lifecycle: null, disabled: true },
+    ]);
   });
 
   it("S2: keeps locked GW1 as the body and exposes GW2 as a banner", async () => {
@@ -523,15 +554,15 @@ describe("loadMatchesHomeTab focus, banner, and freshness", () => {
 
   it("returns an empty payload for zero scopes and for a competition with no gameweeks", async () => {
     const zeroScope = await load(dataset({ leagues: [], links: [], members: [], gameweeks: [] }));
-    expect(zeroScope).toEqual({ empty: true, requestedComp: null, selectedComp: null, freshness: "empty" });
+    expect(zeroScope).toEqual({ empty: true, requestedComp: null, requestedGw: null, selectedComp: null, freshness: "empty" });
     const noGameweeks = await load(dataset({ gameweeks: [] }));
-    expect(noGameweeks).toEqual({ empty: true, requestedComp: null, selectedComp: null, freshness: "empty" });
+    expect(noGameweeks).toEqual({ empty: true, requestedComp: null, requestedGw: null, selectedComp: null, freshness: "empty" });
   });
 
   it("returns empty for an unknown requested scope instead of falling back", async () => {
     const data = oneOpen();
     const payload = await load(data, {}, "foreign-scope");
-    expect(payload).toEqual({ empty: true, requestedComp: "foreign-scope", selectedComp: null, freshness: "empty" });
+    expect(payload).toEqual({ empty: true, requestedComp: "foreign-scope", requestedGw: null, selectedComp: null, freshness: "empty" });
     const fallback = await loadMatchesTab(sessionFor(data), USER, undefined, NOW, "foreign-scope");
     expect(fallback?.selectedScope).toBe("pl-2026-27");
   });
@@ -668,6 +699,11 @@ describe("/matches parity and strict-read refactor", () => {
         next: 3,
         range: [1, 2, 3],
         futureCaveat: true,
+        switcher: [
+          { role: "previous", number: 1, name: "Gameweek 1", openingAt: PAST, state: "settled", lifecycle: "CL5", disabled: false },
+          { role: "current", number: 2, name: "Gameweek 2", openingAt: FUTURE_2, state: "open", lifecycle: "CL1", disabled: false },
+          { role: "next", number: 3, name: "Gameweek 3", openingAt: FUTURE_3, state: "open", lifecycle: "CL1", disabled: false },
+        ],
       },
       yourGw: {
         enteredCount: 1,
@@ -686,6 +722,7 @@ describe("/matches parity and strict-read refactor", () => {
       winnersRecap: null,
       fixtures: [{
         id: "fixture-gw2-2",
+        externalId: null,
         state: "",
         scheduled: true,
         kickoffAt: "2026-08-15T13:00:00.000Z",
@@ -703,6 +740,7 @@ describe("/matches parity and strict-read refactor", () => {
         },
       }, {
         id: "fixture-gw2-1",
+        externalId: null,
         state: "",
         scheduled: true,
         kickoffAt: "2026-08-15T15:00:00.000Z",

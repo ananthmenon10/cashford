@@ -24,12 +24,14 @@ export type MatchesHomeTabPayload =
   | {
       empty: true;
       requestedComp: string | null;
+      requestedGw: number | null;
       selectedComp: string | null;
       freshness: "empty";
     }
   | {
       empty: false;
       requestedComp: string | null;
+      requestedGw: number | null;
       selectedComp: string;
       view: MatchesTabView;
       freshness: Exclude<MatchesHomeTabFreshness, "empty">;

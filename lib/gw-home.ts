@@ -101,7 +101,6 @@ export type HomeLeagueCardInput = {
   liveMatchCount?: number;
   finalMatchCount?: number;
   totalMatchCount?: number;
-  allGameweekNumbers?: readonly number[];
   /** Item 1: the S9 "Adopt Premier League" bottom action is only real for a captain whose league
    * has a live league-format competition ready and not yet joined — computed via
    * resolveWcTransition() by the caller (transitionState() === "captain_adopt"), not guessed
@@ -132,7 +131,6 @@ export type HomeLeagueCard = {
   competitionName: string;
   competitionSlug: string | null;
   gameweekNumber: number | null;
-  allGameweekNumbers: readonly number[];
   format: HomeLeagueCardInput["format"];
   archived: boolean;
   state: HomeLeagueCardResolvedState;
@@ -307,7 +305,6 @@ export function buildHomeLeagueCard(input: HomeLeagueCardInput): HomeLeagueCard 
     competitionName: input.competitionName,
     competitionSlug: input.competitionSlug ?? null,
     gameweekNumber: input.gameweekNumber,
-    allGameweekNumbers: input.allGameweekNumbers ?? [],
     format: input.format,
     archived: input.archived,
     state,
@@ -906,7 +903,6 @@ export async function loadHomeLeagueCards(
         liveMatchCount: activeFixtures.filter((fixture) => fixture.status === "live").length,
         finalMatchCount: activeFixtures.filter((fixture) => fixture.status === "finished").length,
         totalMatchCount: activeFixtures.length,
-        allGameweekNumbers: view.adjacentGameweeks.map((row) => row.number),
       });
     }),
   );
@@ -961,23 +957,6 @@ export function homeCardsForScope<T extends Pick<HomeLeagueCard, "archived" | "f
       )
     : [...cards];
   return [...visible.filter((card) => !card.archived), ...visible.filter((card) => card.archived)];
-}
-
-// ── Home hub: GW navigator (Option A · segmented strip, jump to any GW) ─────────────
-
-export type GwNavigatorTarget = { gameweekNumber: number; isCurrent: boolean };
-
-/** Every gameweek in the league is a reachable navigator target; the current one is flagged. */
-export function gwNavigatorTargets(
-  allGameweekNumbers: readonly number[],
-  currentGameweekNumber: number | null,
-): GwNavigatorTarget[] {
-  return [...new Set(allGameweekNumbers)]
-    .sort((a, b) => a - b)
-    .map((gameweekNumber) => ({
-      gameweekNumber,
-      isCurrent: gameweekNumber === currentGameweekNumber,
-    }));
 }
 
 // ── Home hub: entry-status copy A (eight-state canon) ───────────────────────────────
