@@ -2970,6 +2970,9 @@ matches and oldest first for post-match views. FPL and event labels come from `M
   `MATCH_COPY` keys all stay in place, so each returns once it has a design.
 - `MATCH_COPY.postPollNote` claimed "the three below" arrive on the four-hourly poll. With shot map
   and momentum hidden, only xG and Player of the Match remain, so the string drops the count.
+- The red-card timeline pill first used `bg-subtle text-loss`, which measured 3.3:1 in light mode
+  (under the AA floor) and shared the substitution pill's grey. It now uses the danger chip the odds
+  badge and `components/dues/SettlePlan.tsx` already use, raw hex included, for consistency.
 - The local browser check could not start Next: this sandbox rejects binds on both `0.0.0.0:3000`
   and `127.0.0.1:3100`. RTL page tests and the full Vitest run cover the page in this environment.
 - Ratings are proven with the realistic FotMob row in component tests. No live provider row was
