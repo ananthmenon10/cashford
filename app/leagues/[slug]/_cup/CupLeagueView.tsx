@@ -158,8 +158,10 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
   type TimedCard = CardData & { _kickoff: number };
   const groups = { upcoming: [] as TimedCard[], live: [] as TimedCard[], done: [] as TimedCard[] };
   for (const c of cards) groups[tabForState(c.state)].push(c);
-  // Done tab: most recent match first (cards are kickoff-ascending; Done reads better reversed).
-  groups.done.sort((a, b) => b._kickoff - a._kickoff);
+  // Done tab: kickoff-ascending; contestId breaks identical kickoff times deterministically.
+  groups.done.sort((a, b) =>
+    a._kickoff - b._kickoff || (a.contestId < b.contestId ? -1 : a.contestId > b.contestId ? 1 : 0),
+  );
 
   // Split upcoming into "Next 24h" vs "Later" by kickoff (= lock; lock_at is denormalized
   // to kickoff_at). filter() preserves the kickoff-ascending order. Then count predictions

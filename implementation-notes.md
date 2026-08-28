@@ -2792,20 +2792,32 @@ string tie-breaks for `external_id`, then fixture `id`.
 - Fixed `compareFixtureKickoff` so equal missing or invalid kickoff times fall through to the
   external-ID and row-ID tie-breaks instead of returning `NaN`.
 
+### Follow-up changes
+
+- The delivery owner’s late call changed the L1 segment labels from the mockup-style `GW3 · Live`
+  approach to `Now` / `Last` / `All` as the primary labels, with the old gameweek-and-state copy
+  demoted to supporting text. This overrides the original decision to follow the mockup.
+- Fixed the legacy cup done list to sort ascending on `_kickoff`, with `contestId` as the
+  deterministic tie-break for equal kickoff times because these `CardData` rows do not have the
+  `id` / `externalId` shape required by `compareFixtureKickoff`. Fixed the legacy home loader to
+  return its already kickoff-ascending `past` array and updated the matching `match-feed` comments.
+  `app/leagues/[slug]/_cup/CupLeagueView.tsx`, `lib/home-matches.ts`, and `lib/match-feed.ts`
+  remain unreachable legacy candidates for removal; none was deleted.
+
+### Follow-up verification
+
+- `npm run typecheck` — PASS (exit 0).
+- `npx vitest run` — PASS (exit 0), 100 test files / 1124 tests.
+- `npm run build` — PASS (exit 0), compiled successfully and generated 17/17 static pages.
+
 ### Deviations
 
-- `app/leagues/[slug]/_cup/CupLeagueView.tsx` was left unchanged. It is an underscore-prefixed
-  legacy path and has no route caller.
 - The internal arrays in `lib/analytics-corpus-load.ts`, `lib/poll-standings.ts`,
   `lib/analytics-feed-load.ts`, `lib/home-analytics.ts`, and the archived-card facts in
   `lib/gw-home.ts` were left unchanged. They support calculations or analytics, not visible match
   lists; changing their order could change those calculations.
 - `lib/knockout-data.ts` and `lib/knockout.ts` were left unchanged. Their order is bracket order,
   not kickoff order.
-- `lib/home-matches.ts` and `lib/match-feed.ts` were checked and left unchanged. They have no
-  caller from `app/` or a rendered component in this branch; `components/MatchesTab.tsx` only
-  re-exports `Phase4MatchesPage`. The old feed’s past-list reverse therefore remains in dead
-  code, with no screen impact.
 - `lib/wc-archive-load.ts` has separate calculation inputs for archive standings; those were left
   unchanged. Its visible archive match query now sorts through the shared comparator. When an
   archive fixture has no external ID, the comparator uses the nested fixture ID and falls back to

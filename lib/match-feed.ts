@@ -163,7 +163,7 @@ export function groupMatches(entries: FeedEntry[], fixturesById: Map<string, Fee
 }
 
 // Partition a sorted group list for the tab's two zones: the Live/Today hub (live) and the feed
-// (upcoming + past). Order is preserved; callers typically reverse `past` to read most-recent-first.
+// (upcoming + past). Order is preserved, including kickoff-ascending order for `past`.
 export function splitByPhase(groups: MatchGroup[]): {
   live: MatchGroup[];
   upcoming: MatchGroup[];
@@ -182,7 +182,7 @@ export function splitByPhase(groups: MatchGroup[]): {
 export interface MatchesView {
   live: MatchGroup[];     // phase "live" — the hub
   upcoming: MatchGroup[]; // phase "upcoming" — Next-24h timeline, kickoff ascending
-  past: MatchGroup[];     // phase "past" — Results timeline, most-recent FIRST
+  past: MatchGroup[];     // phase "past" — Results timeline, kickoff ascending
   // live fixtureId → the viewer's cross-league provisional net at the current score (null if
   // not computable, e.g. <2 entrants in every league this fixture is live in).
   provisionalByFixture: Record<string, number | null>;

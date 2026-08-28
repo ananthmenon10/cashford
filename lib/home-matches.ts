@@ -158,5 +158,5 @@ export async function loadMatchesView(supabase: RlsClient, admin: AdminClient, u
   const due = upcoming.filter((g) => g.needsPick && g.fixture.kickoffMs > nowMs && g.fixture.kickoffMs <= soonCutoff);
   const picksDue = due.length ? { count: due.length, earliestLockIso: due[0].fixture.kickoffIso } : null;
 
-  return { live, upcoming, past: [...past].reverse(), provisionalByFixture, picksDue };
+  return { live, upcoming, past, provisionalByFixture, picksDue };
 }

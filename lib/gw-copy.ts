@@ -331,10 +331,13 @@ export const GW_UI_COPY = {
   yourNet: "Your net",
   gameweekNavigation: "Gameweek navigation",
   allGameweeks: "All gameweeks",
-  allWeeks: "All weeks",
+  now: "Now",
+  last: "Last",
+  allWeeks: "All",
   noCurrentWeek: "No current week yet",
   noSettledWeek: "No settled week yet",
   gameweekSegment: (number: number, state: string) => `GW${number} · ${state}`,
+  gameweekAccessLabel: (primary: string, supporting: string) => `${primary} · ${supporting}`,
   gameweekAccessState: (lifecycle: string | null) => {
     switch (lifecycle) {
       case "CL1": return LEAGUE_SCREEN_COPY.open;

@@ -53,41 +53,64 @@ function rowMeta(row: GameweekRow): React.ReactNode {
   return row.deadlineAt ? <>{LEAGUE_SCREEN_COPY.upcomingDeadline} <LocalTime iso={row.deadlineAt} relative={false} includeYear={false} /></> : LEAGUE_SCREEN_COPY.upcoming;
 }
 
-function accessLabel(target: GameweekAccessTarget | null, emptyCopy: string): string {
-  return target
+type AccessLabel = {
+  primary: string;
+  supporting: string;
+  accessible: string;
+};
+
+function accessLabel(
+  target: GameweekAccessTarget | null,
+  primaryLabel: string,
+  emptyCopy: string,
+): AccessLabel {
+  const supporting = target
     ? GW_UI_COPY.gameweekSegment(target.number, GW_UI_COPY.gameweekAccessState(target.lifecycle))
     : emptyCopy;
+  return {
+    primary: primaryLabel,
+    supporting,
+    accessible: GW_UI_COPY.gameweekAccessLabel(primaryLabel, supporting),
+  };
 }
 
 function AccessSegment({
   target,
+  primaryLabel,
   emptyCopy,
   selected,
   href,
 }: {
   target: GameweekAccessTarget | null;
+  primaryLabel: string;
   emptyCopy: string;
   selected: boolean;
   href: string | null;
 }) {
-  const label = accessLabel(target, emptyCopy);
-  const className = `min-w-0 flex-1 rounded-cs2-sm px-2 py-2 text-center text-[11px] font-extrabold ${
+  const label = accessLabel(target, primaryLabel, emptyCopy);
+  const className = `min-w-0 flex-1 overflow-hidden rounded-cs2-sm px-2 py-1.5 text-center font-extrabold ${
     target && selected
       ? "bg-cs2-green-soft text-cs2-green"
       : target
         ? "text-cs2-ink-2 hover:bg-cs2-canvas"
         : "text-cs2-ink-3"
   }`;
+  const content = (
+    <>
+      <span className="block max-w-full truncate whitespace-nowrap text-[11px] leading-tight">{label.primary}</span>
+      <span className="block max-w-full truncate whitespace-nowrap text-[10px] font-semibold leading-[1.2] text-cs2-ink-3">{label.supporting}</span>
+    </>
+  );
   if (!target || !href) {
     return (
-      <button type="button" disabled aria-disabled="true" aria-label={label} className={className}>
-        {label}
+      <button type="button" disabled aria-disabled="true" aria-label={label.accessible} className={className}>
+        {content}
       </button>
     );
   }
   return (
-    <Link href={href} prefetch aria-label={label} aria-current={selected ? "page" : undefined} className={className}>
-      {label}
+    <Link href={href} prefetch aria-label={label.accessible} aria-current={selected ? "page" : undefined} className={className}>
+      {content}
     </Link>
   );
 }
@@ -113,12 +136,14 @@ export function GameweekStrip({
         <div className="flex items-stretch gap-1" role="group" aria-label={GW_UI_COPY.gameweekNavigation}>
           <AccessSegment
             target={gameweekAccess.now}
+            primaryLabel={GW_UI_COPY.now}
             emptyCopy={GW_UI_COPY.noCurrentWeek}
             selected={gameweekAccess.now?.number === gameweek?.number}
             href={gameweekAccess.now ? hrefFor(gameweekAccess.now.number) : null}
           />
           <AccessSegment
             target={gameweekAccess.last}
+            primaryLabel={GW_UI_COPY.last}
             emptyCopy={GW_UI_COPY.noSettledWeek}
             selected={gameweekAccess.last?.number === gameweek?.number}
             href={gameweekAccess.last ? hrefFor(gameweekAccess.last.number) : null}
@@ -129,7 +154,7 @@ export function GameweekStrip({
             onClick={() => setSheetOpen(true)}
             aria-expanded={sheetOpen}
             aria-controls="all-gameweeks-dialog"
-            className="min-w-0 flex-1 rounded-cs2-sm px-2 py-2 text-center text-[11px] font-extrabold text-cs2-ink-2 hover:bg-cs2-canvas"
+            className="min-w-0 flex-1 overflow-hidden rounded-cs2-sm px-2 py-1.5 text-center text-[11px] font-extrabold text-cs2-ink-2 hover:bg-cs2-canvas"
           >
             {GW_UI_COPY.allWeeks}
           </button>
