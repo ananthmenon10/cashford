@@ -76,7 +76,7 @@ export function SeasonTable({
   if (!view.rows.length && !view.totals.length) return <EmptyState copy={C29} />;
 
   const viewerTotal = view.totals.find((row) => row.userId === viewerId);
-  const rank = viewerTotal ? view.totals.findIndex((row) => row.userId === viewerId) + 1 : null;
+  const rank = viewerTotal?.rank ?? null;
   const points = viewerTotal?.points ?? view.rows.reduce((sum, row) => sum + (row.points ?? 0), 0);
   const exacts = viewerTotal?.exacts ?? view.rows.reduce((sum, row) => sum + (row.exacts ?? 0), 0);
   const entries = viewerTotal?.gameweeksEntered ?? view.rows.filter((row) => row.entryStatus === "locked_in").length;

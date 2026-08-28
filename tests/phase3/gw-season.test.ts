@@ -11,10 +11,12 @@ import { describe, expect, it } from "vitest";
 import {
   buildRunningTotals,
   buildSeasonRows,
+  loadSeasonView,
   projectMemberGameweeks,
   snapshotStats,
   type SeasonInputRow,
 } from "../../lib/gw-season";
+import type { LeagueIdentity } from "../../lib/gw-view";
 
 // Real version pair per R-1 (F2/F9): "dirty" is derived from inputVersion > settledVersion via
 // isGameweekResultDirty (lib/net-balance.ts), not an invented boolean. Default pair (1, 1) is
@@ -57,6 +59,31 @@ function snapshotRow(
     ...(stats ?? {}),
     ...overrides,
   });
+}
+
+function fakeSeasonReader(tables: Record<string, readonly Record<string, unknown>[]>) {
+  return {
+    from(table: string) {
+      const filters: Array<(row: Record<string, unknown>) => boolean> = [];
+      const rows = () =>
+        (tables[table] ?? []).filter((row) => filters.every((matches) => matches(row)));
+      const chain: any = {
+        select: () => chain,
+        eq: (field: string, value: unknown) => {
+          filters.push((row) => row[field] === value);
+          return chain;
+        },
+        in: (field: string, values: readonly unknown[]) => {
+          filters.push((row) => values.includes(row[field]));
+          return chain;
+        },
+        order: () => chain,
+        then: (resolve: (value: { data: Record<string, unknown>[]; error: null }) => unknown, reject?: (reason: unknown) => unknown) =>
+          Promise.resolve({ data: rows(), error: null }).then(resolve, reject),
+      };
+      return chain;
+    },
+  };
 }
 
 describe("buildSeasonRows — U25 departed members retained with history", () => {
@@ -314,6 +341,111 @@ describe("projectMemberGameweeks — the slim analytics projection", () => {
       goalError: 2,
       countedFixtures: 1,
     });
+  });
+});
+
+describe("loadSeasonView dues order", () => {
+  it("orders every league member by all-time dues and keeps shared ranks", async () => {
+    const memberRows = [
+      { league_id: "league-1", user_id: "a-viewer" },
+      { league_id: "league-1", user_id: "m-vishwa" },
+      { league_id: "league-1", user_id: "no-entry" },
+      { league_id: "league-1", user_id: "z-rishi" },
+    ];
+    const entries = ["a-viewer", "m-vishwa", "z-rishi"].map((userId) => ({
+      id: `entry-${userId}`,
+      gameweek_contest_id: "contest-1",
+      user_id: userId,
+      status: "locked_in",
+      profiles: { display_name: userId, username: userId },
+    }));
+    const entryResults = [
+      { userId: "a-viewer", netInr: 100, points: 10 },
+      { userId: "m-vishwa", netInr: 100, points: 0 },
+      { userId: "z-rishi", netInr: 300, points: 10 },
+    ].map((row) => ({
+      entry_id: `entry-${row.userId}`,
+      gameweek_contest_id: "contest-1",
+      points: row.points,
+      exacts: 0,
+      goal_error: 0,
+      net_inr: row.netInr,
+      is_winner: row.userId === "z-rishi",
+      per_fixture: [{ verdict: row.points > 0 ? "result" : "miss" }],
+      gameweek_entries: { user_id: row.userId },
+      "gameweek_entries.league_id": "league-1",
+    }));
+    const reader = fakeSeasonReader({
+      gameweek_contests: [{
+        id: "contest-1",
+        league_id: "league-1",
+        gameweek_id: "gw-1",
+        competition_id: "competition-1",
+        status: "settled",
+        deadline_at: "2026-07-31T12:00:00.000Z",
+        input_version: 1,
+        gameweek_results: [{ settled_version: 1 }],
+      }],
+      gameweeks: [{
+        id: "gw-1",
+        competition_id: "competition-1",
+        number: 1,
+        name: "Gameweek 1",
+        status: "locked",
+        deadline_at: "2026-07-31T12:00:00.000Z",
+      }],
+      member_competitions: memberRows.map(({ user_id }) => ({
+        league_id: "league-1",
+        competition_id: "competition-1",
+        user_id,
+      })),
+      league_members: memberRows,
+      gameweek_results: [{
+        gameweek_contest_id: "contest-1",
+        outcome: "settled",
+        settled_version: 1,
+        void_reason: null,
+      }],
+      gameweek_entries: entries,
+      gameweek_entry_results: entryResults,
+      contest_results: [{
+        user_id: "no-entry",
+        net_inr: 500,
+        "contests.league_id": "league-1",
+      }],
+    });
+    const identity: LeagueIdentity = {
+      league: {
+        id: "league-1",
+        name: "Friends",
+        slug: "friends",
+        createdBy: "a-viewer",
+        status: "active",
+      },
+      participation: {
+        status: "active",
+        format: "gameweek",
+        competitionId: "competition-1",
+        competitionName: "Premier League",
+        competitionSlug: "pl-2026-27",
+        eligibleFromGameweekId: null,
+      },
+    };
+
+    const view = await loadSeasonView(
+      reader as never,
+      reader as never,
+      identity,
+      "a-viewer",
+    );
+
+    expect(view.totals.map((row) => row.userId)).toEqual([
+      "no-entry",
+      "z-rishi",
+      "a-viewer",
+      "m-vishwa",
+    ]);
+    expect(view.totals.map((row) => row.rank)).toEqual([1, 2, 3, 3]);
   });
 });
 

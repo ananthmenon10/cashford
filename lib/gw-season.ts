@@ -4,6 +4,8 @@ import {
   loadGameweekView,
   type LeagueIdentity,
 } from "./gw-view";
+import { rankDues } from "./dues-rank";
+import { leagueNetByUser } from "./gameweek-db";
 
 export type SeasonInputRow = {
   gwNumber: number;
@@ -185,6 +187,7 @@ type CashfordClient = SupabaseClient<any, "cashford", any>;
 export type SeasonMemberTotal = {
   userId: string;
   name: string;
+  rank: number | null;
   points: number | "suppressed";
   exacts: number;
   goalError: number | null | "suppressed";
@@ -268,7 +271,7 @@ export async function loadSeasonView(
     return { rows: [], totals: [], memberGameweeks: [], viewerName: null };
   }
   const competitionId = identity.participation.competitionId;
-  const [contestsQuery, gameweeksQuery, membersQuery] = await Promise.all([
+  const [contestsQuery, gameweeksQuery, membersQuery, leagueMembersQuery] = await Promise.all([
     supabase
       .from("gameweek_contests")
       .select("id, gameweek_id, input_version, status, deadline_at")
@@ -284,10 +287,15 @@ export async function loadSeasonView(
       .select("user_id")
       .eq("league_id", identity.league.id)
       .eq("competition_id", competitionId),
+    supabase
+      .from("league_members")
+      .select("user_id")
+      .eq("league_id", identity.league.id),
   ]);
   fail(contestsQuery.error, "season-contests");
   fail(gameweeksQuery.error, "season-gameweeks");
   fail(membersQuery.error, "season-members");
+  fail(leagueMembersQuery.error, "season-league-members");
   const contests = (contestsQuery.data ?? []) as any[];
   const gameweeks = (gameweeksQuery.data ?? []) as any[];
   const contestIds = contests.map((contest) => contest.id);
@@ -321,6 +329,7 @@ export async function loadSeasonView(
   );
   const entries = (entriesQuery.data ?? []) as any[];
   const members = (membersQuery.data ?? []) as any[];
+  const leagueMembers = (leagueMembersQuery.data ?? []) as any[];
   const entryResults = new Map(
     (entryResultsQuery.data ?? []).map((result: any) => [result.entry_id, result]),
   );
@@ -334,7 +343,11 @@ export async function loadSeasonView(
     const profile = one<any>(entry.profiles);
     if (profile) names.set(entry.user_id, profile.display_name ?? profile.username);
   }
+  const leagueMemberIds = leagueMembers
+    .map((member) => member.user_id)
+    .filter((userId): userId is string => typeof userId === "string");
   const memberIds = new Set<string>([
+    ...leagueMemberIds,
     viewerId,
     ...members.map((member) => member.user_id),
     ...entries.map((entry) => entry.user_id),
@@ -353,6 +366,17 @@ export async function loadSeasonView(
     }
   }
   const viewerName = names.get(viewerId) ?? null;
+  const leagueNet = await leagueNetByUser(
+    supabase,
+    identity.league.id,
+    [...memberIds],
+  );
+  const seededLeagueNet = leagueNet === "suppressed"
+    ? leagueNet
+    : Object.fromEntries(
+        [...memberIds].map((memberId) => [memberId, leagueNet[memberId] ?? 0]),
+      );
+  const duesRanks = rankDues(seededLeagueNet);
 
   const dirtyViews = new Map<number, Awaited<ReturnType<typeof loadGameweekView>>>();
   for (const contest of contests) {
@@ -543,16 +567,17 @@ export async function loadSeasonView(
       return {
         userId,
         name: names.get(userId) ?? "Player",
+        rank: duesRanks?.[userId] ?? null,
         ...buildRunningTotals(rows),
         isViewer: userId === viewerId,
         hasEntries: rows.length > 0,
       };
     })
     .sort((a, b) => {
-      if (a.hasEntries !== b.hasEntries) return a.hasEntries ? -1 : 1;
-      if (a.points === "suppressed" && b.points !== "suppressed") return 1;
-      if (b.points === "suppressed" && a.points !== "suppressed") return -1;
-      return Number(b.points) - Number(a.points) || b.exacts - a.exacts || a.name.localeCompare(b.name);
+      if (a.rank == null && b.rank != null) return 1;
+      if (a.rank != null && b.rank == null) return -1;
+      if (a.rank == null || b.rank == null) return 0;
+      return a.rank - b.rank;
     });
 
   const memberGameweeks = projectMemberGameweeks(byUser);

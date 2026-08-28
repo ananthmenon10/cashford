@@ -17,6 +17,8 @@ import {
   type LeagueParticipationRow,
   type ResolvedLeagueParticipation,
 } from "./gw-participation";
+import { rankDues } from "./dues-rank";
+import { leagueNetByUser } from "./gameweek-db";
 import {
   resolveAppGameweek,
   resolveGameweekAccess,
@@ -387,6 +389,7 @@ export async function loadGameweekView(
     fixtureMetaQuery,
     winnerMetaQuery,
     memberCompetitionMetaQuery,
+    leagueMemberMetaQuery,
   ] = await Promise.all([
     gameweekIds.length
       ? supabase
@@ -405,10 +408,22 @@ export async function loadGameweekView(
       .select("user_id, left_at")
       .eq("league_id", identity.league.id)
       .eq("competition_id", participation.competitionId!),
+    supabase
+      .from("league_members")
+      .select("user_id")
+      .eq("league_id", identity.league.id),
   ]);
   fail(fixtureMetaQuery.error, "gameweek-fixture-metadata");
   fail(winnerMetaQuery.error, "gameweek-winner-metadata");
   fail(memberCompetitionMetaQuery.error, "gameweek-member-metadata");
+  fail(leagueMemberMetaQuery.error, "gameweek-league-member-metadata");
+  const leagueMemberIds = [
+    ...new Set(
+      (leagueMemberMetaQuery.data ?? [])
+        .map((row: any) => row.user_id)
+        .filter((id: unknown): id is string => typeof id === "string"),
+    ),
+  ];
   const eligibleMemberCount = (memberCompetitionMetaQuery.data ?? [])
     .filter((row: any) => row.left_at == null)
     .length;
@@ -596,23 +611,19 @@ export async function loadGameweekView(
     });
   }
 
-  const seasonTotals = new Map<string, { points: number; exacts: number }>();
-  for (const contest of contests) {
-    if (one(contest.gameweek_results)?.outcome !== "settled") continue;
-    for (const row of resultRowsByContest.get(contest.id) ?? []) {
-      const total = seasonTotals.get(row.userId) ?? { points: 0, exacts: 0 };
-      total.points += row.points ?? 0;
-      total.exacts += row.exacts ?? 0;
-      seasonTotals.set(row.userId, total);
-    }
-  }
-  const seasonRanked = [...seasonTotals.entries()]
-    .sort(
-      ([aId, a], [bId, b]) =>
-        b.points - a.points || b.exacts - a.exacts || aId.localeCompare(bId),
-    )
-    .map(([userId], index) => ({ userId, rank: index + 1 }));
-  const viewerSeasonRank = seasonRanked.find((row) => row.userId === userId)?.rank ?? null;
+  const leagueNet = await leagueNetByUser(
+    supabase,
+    identity.league.id,
+    leagueMemberIds,
+  );
+  const seededLeagueNet = leagueNet === "suppressed"
+    ? leagueNet
+    : Object.fromEntries(
+        leagueMemberIds.map((memberId) => [memberId, leagueNet[memberId] ?? 0]),
+      );
+  const duesRanks = rankDues(seededLeagueNet);
+  // Despite its historical name, this is the all-time league-dues rank used by the home card.
+  const viewerSeasonRank = duesRanks?.[userId] ?? null;
 
   const candidates = contests.flatMap((contest) => {
     const gameweek = gameweekById.get(contest.gameweek_id);

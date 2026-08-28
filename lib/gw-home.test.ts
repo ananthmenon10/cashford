@@ -209,6 +209,7 @@ describe("buildHomeLeagueCard", () => {
     expect(card.state).toBe("S2");
     expect(card.primary.title).toBe(LEAGUE_CARD_COPY.editGameweek(4));
     expect(card.primary.action?.label).toBe(LEAGUE_CARD_COPY.editPredictions);
+    expect(card.rail.positionLabel).toBe("League rank");
     expect(card.rail.position).toBe("#4");
     expect(card.duesLabel).toBe(LEAGUE_CARD_COPY.duesChip(1));
   });

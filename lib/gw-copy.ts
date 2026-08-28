@@ -84,7 +84,7 @@ export const LEAGUE_CARD_COPY = {
   competitionStatus: "Competition status",
   net: "Net",
   position: "Position",
-  seasonPosition: "Season rank",
+  seasonPosition: "League rank",
   gameweekPosition: "GW rank",
   finalRank: "Final rank",
   closes: "Closes",

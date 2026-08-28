@@ -331,6 +331,98 @@ async function loadPointGridLifecycle(
   );
 }
 
+async function loadWithDuesRank() {
+  const settledResult = {
+    gameweek_contest_id: "contest-1",
+    outcome: "settled",
+    settled_version: 1,
+    void_reason: null,
+    tiebreak_used: "none",
+  };
+  const members = [
+    { league_id: "league-1", user_id: "a-viewer", left_at: null },
+    { league_id: "league-1", user_id: "m-vishwa", left_at: null },
+    { league_id: "league-1", user_id: "z-rishi", left_at: null },
+  ];
+  const entries = members.map((member) => ({
+    id: `entry-${member.user_id}`,
+    gameweek_contest_id: "contest-1",
+    user_id: member.user_id,
+    status: "locked_in",
+    profiles: { display_name: member.user_id, username: member.user_id },
+  }));
+  const resultRows = [
+    { userId: "a-viewer", points: 10, exacts: 2, goalError: 0, netInr: 100 },
+    { userId: "z-rishi", points: 10, exacts: 2, goalError: 0, netInr: 300 },
+    { userId: "m-vishwa", points: 0, exacts: 0, goalError: 10, netInr: 100 },
+  ].map((row) => ({
+    entry_id: `entry-${row.userId}`,
+    gameweek_contest_id: "contest-1",
+    points: row.points,
+    exacts: row.exacts,
+    goal_error: row.goalError,
+    net_inr: row.netInr,
+    is_winner: row.userId === "z-rishi",
+    per_fixture: [{ fixtureId: "fixture-1", pts: row.points > 0 ? 3 : 0, verdict: row.points > 0 ? "exact" : "miss" }],
+    gameweek_entries: {
+      user_id: row.userId,
+      league_id: "league-1",
+      status: "locked_in",
+      profiles: { display_name: row.userId, username: row.userId },
+    },
+    "gameweek_entries.league_id": "league-1",
+  }));
+  const fixture = fixtureRow("fixture-1", "2026-07-31T13:00:00.000Z", 1);
+  const reader = fakeReader({
+    gameweek_contests: [{
+      id: "contest-1",
+      league_id: "league-1",
+      gameweek_id: "gw-1",
+      competition_id: "competition-1",
+      status: "settled",
+      stake_inr: 100,
+      deadline_at: "2026-07-31T12:00:00.000Z",
+      input_version: 1,
+      gameweek_results: [settledResult],
+    }],
+    gameweeks: [{
+      id: "gw-1",
+      competition_id: "competition-1",
+      number: 1,
+      name: "Gameweek 1",
+      status: "locked",
+      deadline_at: "2026-07-31T12:00:00.000Z",
+    }],
+    gameweek_fixtures: [{
+      ...fixture,
+      fixtures: {
+        ...(fixture.fixtures as Row),
+        status: "finished",
+        ft_home: 1,
+        ft_away: 0,
+      },
+    }],
+    gameweek_results: [settledResult],
+    gameweek_entry_results: resultRows,
+    member_competitions: members,
+    league_members: members,
+    gameweek_entries: entries,
+    gameweek_picks: [],
+    contest_results: [],
+    profiles: [],
+  });
+
+  return loadGameweekView(
+    reader as never,
+    reader as never,
+    IDENTITY,
+    "a-viewer",
+    undefined,
+    NOW,
+    false,
+  );
+}
+
 describe("loadGameweekView fixture ordering", () => {
   it("returns deliberately unsorted fixtures in ascending kickoff order", async () => {
     const view = await loadWithFixtures([
@@ -444,5 +536,11 @@ describe("loadGameweekView fixture ordering", () => {
     expect(view.lifecycle).toBe("CL1");
     expect(view.pointGrid).toBeUndefined();
     expect(view.fixtures).toHaveLength(1);
+  });
+
+  it("uses all-time league dues for the fallback rank instead of points and user id", async () => {
+    const view = await loadWithDuesRank();
+
+    expect(view.viewerSeasonRank).toBe(2);
   });
 });

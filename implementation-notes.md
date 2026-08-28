@@ -2977,3 +2977,27 @@ matches and oldest first for post-match views. FPL and event labels come from `M
   and `127.0.0.1:3100`. RTL page tests and the full Vitest run cover the page in this environment.
 - Ratings are proven with the realistic FotMob row in component tests. No live provider row was
   available, so rendering against real data remains unverified.
+
+## Plan 016 (2026-08-28) — overall rank by league dues
+
+Changed files: `lib/dues-rank.ts`, `lib/dues-rank.test.ts`, `lib/gw-view.ts`, `lib/gw-season.ts`,
+`components/gw/SeasonTable.tsx`, `lib/gw-copy.ts`, `lib/gw-home.test.ts`,
+`tests/phase3/gw-season.test.ts`, and `tests/phase4/gw-view-ordering.test.ts`.
+
+The new pure `rankDues` helper sorts all seeded members by descending all-time league net and
+assigns shared competition ranks. The gameweek view now seeds the ledger from every
+`league_members` row, so the home fallback rank includes zero-net members and both settlement
+eras. The season view uses the same rank map for its totals order, and `SeasonTable` reads the
+stored rank instead of deriving a dense position from the array index. The live gameweek rank
+still comes from the points-based standing. The home card keeps its existing fallback expression,
+and its season-position label now says `League rank`.
+
+### Deviations
+
+The season total’s existing `netInr` remains the current competition’s season net because
+Analytics consumes it and the season summary is labeled `Season net`. All-time league dues are
+kept as the rank-only input, which preserves that existing value while making the displayed rank
+match the home card’s league dues. A suppressed dues ledger produces a null rank; equal ranks
+retain member input order without a user-ID tiebreak.
+
+Known follow-up (016): `loadSeasonView` still calls `loadGameweekView` per dirty gameweek, and that now runs `leagueNetByUser` too, so the dues aggregation runs N+1 times. Cheap while dirty gameweeks ≤1; pass a precomputed rank map if it grows.
