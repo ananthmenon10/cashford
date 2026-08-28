@@ -15,6 +15,52 @@ import {
 
 export type Club = { id: string; name: string; crest?: string | null };
 export type ScoreProb = { h: number; a: number; p: number };
+export type MatchSide = "home" | "away";
+export type ScorerLine = {
+  team: MatchSide;
+  player: string;
+  minutes: number[];
+};
+export type TeamNewsStatus = "d" | "i" | "s" | "u" | "n";
+export type TeamNewsItem = {
+  player: string;
+  reason: string;
+  status: TeamNewsStatus;
+};
+export type MatchTimelineEvent = {
+  minute: number;
+  clock: string;
+  type:
+    | "goal"
+    | "own_goal"
+    | "pen"
+    | "miss_pen"
+    | "yellow"
+    | "red"
+    | "sub"
+    | "var";
+  team: MatchSide;
+  player: string;
+  assist: string | null;
+  detail: string | null;
+};
+export type MatchStatLabel =
+  | "shots"
+  | "onTarget"
+  | "corners"
+  | "possession"
+  | "xg";
+export type MatchStatRow = {
+  label: MatchStatLabel;
+  value: { h: number; a: number };
+};
+export type MatchCommentaryLine = { minute: string; text: string };
+export type MatchPlayerRating = {
+  player: string;
+  team: MatchSide;
+  rating: number;
+  goals?: number;
+};
 
 export type MatchDetailView = {
   state: "pre" | "live" | "post";
@@ -25,7 +71,7 @@ export type MatchDetailView = {
     status: string;
     kickoffAt: string | null;
     deadlineAt: string | null;
-    scorers?: Sourced<{ lines: unknown[] }>;
+    scorers?: Sourced<{ lines: ScorerLine[] }>;
   };
   yourCalls: Array<{
     league: LeagueRef;
@@ -74,15 +120,15 @@ export type MatchDetailView = {
     source: "espn" | "derived";
     note: string | null;
   }>;
-  teamNews?: Sourced<{ home: unknown[]; away: unknown[] }>;
-  keyEvents?: Sourced<{ timeline: unknown[] }>;
+  teamNews?: Sourced<{ home: TeamNewsItem[]; away: TeamNewsItem[] }>;
+  keyEvents?: Sourced<{ timeline: MatchTimelineEvent[] }>;
   teamStats?: Sourced<{
     phase: "live" | "final";
     minute: string | null;
-    rows: unknown[];
+    rows: MatchStatRow[];
   }>;
   playerStats?: Sourced<{ rows: unknown[] }>;
-  commentary?: Sourced<{ lines: Array<{ minute: string; text: string }> }>;
+  commentary?: Sourced<{ lines: MatchCommentaryLine[] }>;
   lineups?: Sourced<{ home: unknown; away: unknown }>;
   retrospective?: Sourced<{ line: string }>;
   xg?: Sourced<{
@@ -97,8 +143,8 @@ export type MatchDetailView = {
     provider: "FotMob" | "Understat";
   }>;
   ratings?: Sourced<{
-    potm: unknown;
-    others: unknown[];
+    potm: MatchPlayerRating;
+    others: MatchPlayerRating[];
     provider: string;
   }>;
   momentum?: Sourced<{ series: unknown[]; provider: string }>;
@@ -113,6 +159,185 @@ export type MatchDetailView = {
 };
 
 type BlockRow = Record<string, any> | null;
+
+type RawRow = Record<string, unknown>;
+
+function rawRow(value: unknown): RawRow | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as RawRow)
+    : null;
+}
+
+function finiteNumber(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function nonemptyText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function matchSide(value: unknown): MatchSide | null {
+  return value === "home" || value === "away" ? value : null;
+}
+
+function coerceScorerLines(value: unknown): ScorerLine[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const rows = value.flatMap((candidate): ScorerLine[] => {
+    const row = rawRow(candidate);
+    const team = matchSide(row?.team);
+    const player = nonemptyText(row?.player);
+    if (!team || !player || !Array.isArray(row?.minutes)) return [];
+    const minutes = row.minutes.flatMap((minute) => {
+      const parsed = finiteNumber(minute);
+      return parsed == null ? [] : [parsed];
+    });
+    if (!minutes.length) return [];
+    return [{ team, player, minutes }];
+  });
+  return rows.length ? rows : undefined;
+}
+
+function coerceTeamNews(value: unknown):
+  | { home: TeamNewsItem[]; away: TeamNewsItem[] }
+  | undefined {
+  const root = rawRow(value);
+  if (!root) return undefined;
+  const sideRows = (side: MatchSide): TeamNewsItem[] => {
+    if (!Array.isArray(root[side])) return [];
+    return root[side].flatMap((candidate): TeamNewsItem[] => {
+      const row = rawRow(candidate);
+      const player = nonemptyText(row?.player);
+      const status = row?.status;
+      const reason = nonemptyText(row?.reason);
+      if (
+        !player ||
+        !reason ||
+        (status !== "d" &&
+          status !== "i" &&
+          status !== "s" &&
+          status !== "u" &&
+          status !== "n")
+      ) {
+        return [];
+      }
+      return [{
+        player,
+        reason,
+        status,
+      }];
+    });
+  };
+  const home = sideRows("home");
+  const away = sideRows("away");
+  return home.length || away.length ? { home, away } : undefined;
+}
+
+function timelineType(value: unknown): MatchTimelineEvent["type"] | null {
+  return value === "goal" ||
+    value === "own_goal" ||
+    value === "pen" ||
+    value === "miss_pen" ||
+    value === "yellow" ||
+    value === "red" ||
+    value === "sub" ||
+    value === "var"
+    ? value
+    : null;
+}
+
+function coerceTimeline(value: unknown): MatchTimelineEvent[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const rows = value.flatMap((candidate): MatchTimelineEvent[] => {
+    const row = rawRow(candidate);
+    const minute = finiteNumber(row?.minute);
+    const clock = nonemptyText(row?.clock);
+    const type = timelineType(row?.type);
+    const team = matchSide(row?.team);
+    const player = nonemptyText(row?.player);
+    if (minute == null || !clock || !type || !team || !player) return [];
+    return [{
+      minute,
+      clock,
+      type,
+      team,
+      player,
+      assist: nonemptyText(row?.assist),
+      detail: nonemptyText(row?.detail),
+    }];
+  });
+  return rows.length ? rows : undefined;
+}
+
+function statLabel(value: string): value is MatchStatLabel {
+  return value === "shots" ||
+    value === "onTarget" ||
+    value === "corners" ||
+    value === "possession" ||
+    value === "xg";
+}
+
+function statPair(value: unknown): { h: number; a: number } | null {
+  const row = rawRow(value);
+  const home = finiteNumber(row?.h);
+  const away = finiteNumber(row?.a);
+  return home != null && away != null ? { h: home, a: away } : null;
+}
+
+function coerceTeamStats(value: unknown): MatchStatRow[] | undefined {
+  const root = rawRow(value);
+  if (!root) return undefined;
+  const rows = Object.entries(root).flatMap(([label, value]) => {
+    if (!statLabel(label)) return [];
+    const pair = statPair(value);
+    return pair ? [{ label, value: pair }] : [];
+  });
+  return rows.length ? rows : undefined;
+}
+
+function coerceCommentary(value: unknown): MatchCommentaryLine[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const rows = value.flatMap((candidate): MatchCommentaryLine[] => {
+    const row = rawRow(candidate);
+    const minute = typeof row?.minute === "string" ? row.minute.trim() : null;
+    const text = nonemptyText(row?.text);
+    if (minute == null || !text) return [];
+    return [{ minute, text }];
+  });
+  return rows.length ? rows : undefined;
+}
+
+function coercePlayerRating(value: unknown): MatchPlayerRating | null {
+  const row = rawRow(value);
+  const player = nonemptyText(row?.player);
+  const team = matchSide(row?.team);
+  const rating = finiteNumber(row?.rating);
+  if (!player || !team || rating == null) return null;
+  const goals = finiteNumber(row?.goals);
+  return { player, team, rating, ...(goals != null ? { goals } : {}) };
+}
+
+function coerceRatings(
+  potmValue: unknown,
+  values: unknown,
+): { potm: MatchPlayerRating; others: MatchPlayerRating[] } | undefined {
+  const potm = coercePlayerRating(potmValue);
+  if (!potm || !Array.isArray(values)) return undefined;
+  const rows = values.flatMap((value) => {
+    const row = coercePlayerRating(value);
+    return row ? [row] : [];
+  });
+  return {
+    potm,
+    others: rows.filter((row) => row.player !== potm.player),
+  };
+}
 
 export type MatchDetailInput = {
   now: Date;
@@ -215,16 +440,16 @@ export function buildMatchDetailView(
   }
 
   if (matchData?.scorers) {
-    view.header.scorers = arrayBlock(
-      matchData.scorers,
-      "lines",
+    const scorers = coerceScorerLines(matchData.scorers);
+    view.header.scorers = sourcedBlock(
+      scorers ? { lines: scorers } : null,
       {
         ok: matchData.scorers_ok,
         source: "ESPN",
         fetchedAt: matchData.scorers_fetched_at,
       },
       now,
-    ) as Sourced<{ lines: unknown[] }> | undefined;
+    );
   }
   if (input.state === "pre" && insights) {
     view.odds = sourcedBlock(
@@ -304,10 +529,7 @@ export function buildMatchDetailView(
       now,
     );
     view.teamNews = sourcedBlock(
-      insights.team_news &&
-        (insights.team_news.home?.length || insights.team_news.away?.length)
-        ? insights.team_news
-        : null,
+      coerceTeamNews(insights.team_news),
       {
         ok: insights.team_news_ok,
         source: insights.team_news_source ?? "FPL",
@@ -335,24 +557,17 @@ export function buildMatchDetailView(
   }
 
   if (input.state !== "pre" && matchData) {
-    view.keyEvents = arrayBlock(
-      matchData.key_events,
-      "timeline",
+    const timeline = coerceTimeline(matchData.key_events);
+    view.keyEvents = sourcedBlock(
+      timeline ? { timeline } : null,
       {
         ok: matchData.key_events_ok,
         source: "ESPN",
         fetchedAt: matchData.key_events_fetched_at,
       },
       now,
-    ) as Sourced<{ timeline: unknown[] }> | undefined;
-    const stats = Array.isArray(matchData.team_stats)
-      ? matchData.team_stats
-      : matchData.team_stats
-        ? Object.entries(matchData.team_stats).map(([label, value]) => ({
-            label,
-            value,
-          }))
-        : [];
+    );
+    const stats = coerceTeamStats(matchData.team_stats) ?? [];
     view.teamStats = sourcedBlock(
       stats.length
         ? {
@@ -379,18 +594,16 @@ export function buildMatchDetailView(
       },
       now,
     ) as Sourced<{ rows: unknown[] }> | undefined;
-    view.commentary = arrayBlock(
-      matchData.commentary,
-      "lines",
+    const commentary = coerceCommentary(matchData.commentary);
+    view.commentary = sourcedBlock(
+      commentary ? { lines: commentary } : null,
       {
         ok: matchData.commentary_ok,
         source: "ESPN",
         fetchedAt: matchData.commentary_fetched_at,
       },
       now,
-    ) as Sourced<{
-      lines: Array<{ minute: string; text: string }>;
-    }> | undefined;
+    );
   }
   if (matchData?.lineups) {
     view.lineups = sourcedBlock(
@@ -526,13 +739,14 @@ export function buildMatchDetailView(
       );
     }
     const source = input.slowRows.find((row) => row.provider === "fotmob");
-    if (source?.ratings?.length && source.potm) {
+    const ratings = source
+      ? coerceRatings(source.potm, source.ratings)
+      : undefined;
+    if (source && ratings) {
       view.ratings = sourcedBlock(
         {
-          potm: source.potm,
-          others: source.ratings.filter(
-            (rating: any) => rating.player !== source.potm.player,
-          ),
+          potm: ratings.potm,
+          others: ratings.others,
           provider: source.ratings_provider ?? "FotMob",
         },
         {

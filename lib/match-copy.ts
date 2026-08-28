@@ -33,6 +33,24 @@ export const MATCH_COPY = {
   editRule:
     "One fixture is never edited on its own — the whole gameweek is one entry.",
   dateTbc: "Date TBC",
+  missingValue: "—",
+  noNews: "No news",
+  statusOut: "Out",
+  statusDoubtful: "Doubtful",
+  statusSuspended: "Suspended",
+  eventGoal: "Goal",
+  eventOwnGoal: "Own goal",
+  eventPenalty: "Penalty",
+  eventPenaltyMissed: "Penalty missed",
+  eventYellowCard: "Yellow card",
+  eventRedCard: "Red card",
+  eventSubstitution: "Substitution",
+  eventVar: "VAR",
+  statShots: "Shots",
+  statOnTarget: "On target",
+  statCorners: "Corners",
+  statPossession: "Possession",
+  statXg: "xG",
   expectedGoals: "Expected goals",
   momentum: "Momentum · post-match only",
   fixturesAndResults: "Fixtures & results",
@@ -58,7 +76,7 @@ export const MATCH_COPY = {
   liveStatsNote:
     "ESPN · every 2 minutes · xG shows only when the feed carries it",
   postPollNote:
-    "The three below arrive on a four-hourly poll — within about 4h of full time.",
+    "Post-match data arrives within about 4h of full time.",
   correctedResult: "Corrected result",
   correctedResultAt: (date: string) => `Corrected result · ${date}`,
   home: "Home",
@@ -223,4 +241,77 @@ export const MATCH_COPY = {
     actualChance == null
       ? `The model's top score was ${top}; the match ended ${actual}.`
       : `The model gave ${actual} a ${actualChance}% chance. Its top score was ${top}.`,
+  minute: (minute: number) => `${minute}′`,
+  statValue: (value: number | null | undefined) =>
+    value == null || !Number.isFinite(value) ? "—" : String(value),
+  xgValue: (value: number | null | undefined) =>
+    value == null || !Number.isFinite(value) ? "—" : value.toFixed(2),
+  ratingValue: (value: number | null | undefined) =>
+    value == null || !Number.isFinite(value) ? "—" : value.toFixed(1),
+  xgMetadata: (
+    provider: string | null | undefined,
+    model: string | null | undefined,
+    afterFt: string | null | undefined,
+  ) => {
+    const parts = [provider, model, afterFt]
+      .map((part) => (typeof part === "string" ? part.trim() : ""))
+      .filter(Boolean);
+    return parts.length ? parts.join(" · ") : "—";
+  },
 } as const;
+
+export function fplStatusLabel(
+  status: "d" | "i" | "s" | "u" | "n",
+): string {
+  if (status === "s") return MATCH_COPY.statusSuspended;
+  if (status === "d") return MATCH_COPY.statusDoubtful;
+  return MATCH_COPY.statusOut;
+}
+
+export function timelineEventLabel(
+  type:
+    | "goal"
+    | "own_goal"
+    | "pen"
+    | "miss_pen"
+    | "yellow"
+    | "red"
+    | "sub"
+    | "var",
+): string {
+  switch (type) {
+    case "goal":
+      return MATCH_COPY.eventGoal;
+    case "own_goal":
+      return MATCH_COPY.eventOwnGoal;
+    case "pen":
+      return MATCH_COPY.eventPenalty;
+    case "miss_pen":
+      return MATCH_COPY.eventPenaltyMissed;
+    case "yellow":
+      return MATCH_COPY.eventYellowCard;
+    case "red":
+      return MATCH_COPY.eventRedCard;
+    case "sub":
+      return MATCH_COPY.eventSubstitution;
+    case "var":
+      return MATCH_COPY.eventVar;
+  }
+}
+
+export function matchStatLabel(
+  label: "shots" | "onTarget" | "corners" | "possession" | "xg",
+): string {
+  switch (label) {
+    case "shots":
+      return MATCH_COPY.statShots;
+    case "onTarget":
+      return MATCH_COPY.statOnTarget;
+    case "corners":
+      return MATCH_COPY.statCorners;
+    case "possession":
+      return MATCH_COPY.statPossession;
+    case "xg":
+      return MATCH_COPY.statXg;
+  }
+}

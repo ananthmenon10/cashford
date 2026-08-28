@@ -2942,3 +2942,35 @@ league, swapping on tap and staying hidden for a single league.
 Deviation: `LeagueTabs` in `HomeMatchesTab.tsx` copies the markup of the neighbouring `ScopeTabs`
 chips rather than sharing one component. It matches the pattern, tokens and roles; folding the two
 into one chip component is a follow-up, not part of this plan.
+
+## Plan 015 (2026-08-28) — typed match detail blocks
+
+Match detail now maps the visible insight payloads at the DTO boundary and renders typed modules for
+scorers, team news, the timeline, team stats, commentary, xG, ratings and retrospective content.
+Source and age footers remain on each block. The page no longer renders raw JSON. The hidden DTO
+projections and their copy keys stay available for later designs.
+
+Team stats now accepts only the parsed object shape and emits typed home/away rows. Private coercers
+drop bad rows and return `undefined` when no valid data remains. Commentary is newest first for live
+matches and oldest first for post-match views. FPL and event labels come from `MATCH_COPY`.
+
+### Verification
+
+- The DTO tests cover valid inputs and malformed rows for every new coercer.
+- The module tests cover ordering, source footers, empty team news, missing fields, absent blocks and
+  a realistic FotMob ratings row.
+- The page test renders pre, live and post states and finds no `pre` element.
+- The copy scan passes. No existing test used the removed team-stats array fallback.
+
+## Deviations
+
+- Hidden pending design — these blocks are no longer rendered on the match detail page and get no
+  JSON fallback: predicted XI, player stats, shot map, momentum, lineups (lineups had no render
+  before this change). Their DTO projections in `lib/match-detail.ts`, their pollers and their
+  `MATCH_COPY` keys all stay in place, so each returns once it has a design.
+- `MATCH_COPY.postPollNote` claimed "the three below" arrive on the four-hourly poll. With shot map
+  and momentum hidden, only xG and Player of the Match remain, so the string drops the count.
+- The local browser check could not start Next: this sandbox rejects binds on both `0.0.0.0:3000`
+  and `127.0.0.1:3100`. RTL page tests and the full Vitest run cover the page in this environment.
+- Ratings are proven with the realistic FotMob row in component tests. No live provider row was
+  available, so rendering against real data remains unverified.

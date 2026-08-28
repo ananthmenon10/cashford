@@ -1,28 +1,24 @@
 import Link from "next/link";
 import { MATCH_COPY } from "@/lib/match-copy";
 import type { MatchDetailView } from "@/lib/match-detail";
-import type { Sourced } from "@/lib/match-blocks";
 import { LocalTime } from "@/components/LocalTime";
-import { OddsModule, FormModule, H2HModule, TableModule } from "@/components/matches/MatchInsightModules";
+import {
+  CommentaryModule,
+  FormModule,
+  H2HModule,
+  OddsModule,
+  RatingsModule,
+  RetrospectiveModule,
+  ScorersLine,
+  TableModule,
+  TeamNewsModule,
+  TeamStatsModule,
+  TimelineModule,
+  XgModule,
+} from "@/components/matches/MatchInsightModules";
 
 const card =
   "rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]";
-
-function Source({ block }: { block: { source: string; age: string } }) {
-  return (
-    <div className="mt-3 border-t border-border pt-2 text-[11px] text-muted">
-      {block.source} · {block.age}
-    </div>
-  );
-}
-
-function JsonRows({ value }: { value: unknown }) {
-  return (
-    <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-xs leading-5 text-label">
-      {JSON.stringify(value, null, 2)}
-    </pre>
-  );
-}
 
 function Calls({ view }: { view: MatchDetailView }) {
   if (!view.yourCalls.length) return null;
@@ -98,24 +94,6 @@ function Room({
   );
 }
 
-function Block({
-  title,
-  block,
-  value,
-}: {
-  title: string;
-  block: Sourced<object>;
-  value: unknown;
-}) {
-  return (
-    <section className={card}>
-      <h2 className="font-extrabold">{title}</h2>
-      <JsonRows value={value} />
-      <Source block={block} />
-    </section>
-  );
-}
-
 export function Phase4MatchDetailPage({
   fixtureId,
   view,
@@ -152,9 +130,11 @@ export function Phase4MatchDetailPage({
               <LocalTime iso={view.room.deadlineAt} variant="time" relative={false} />
             </div>
           )}
-          {view.header.scorers && (
-            <JsonRows value={view.header.scorers.lines} />
-          )}
+          <ScorersLine
+            scorers={view.header.scorers}
+            home={view.header.home}
+            away={view.header.away}
+          />
         </header>
 
         <Calls view={view} />
@@ -184,33 +164,48 @@ export function Phase4MatchDetailPage({
             <FormModule form={view.form} home={view.header.home} away={view.header.away} />
             <H2HModule h2h={view.h2h} home={view.header.home} away={view.header.away} />
             <TableModule table={view.table} />
-            {view.teamNews && <Block title={MATCH_COPY.teamNews} block={view.teamNews} value={{ home: view.teamNews.home, away: view.teamNews.away }} />}
-            {view.predictedXi && <Block title={MATCH_COPY.predictedXi} block={view.predictedXi} value={{ home: view.predictedXi.home, away: view.predictedXi.away }} />}
+            <TeamNewsModule
+              teamNews={view.teamNews}
+              home={view.header.home}
+              away={view.header.away}
+            />
           </>
         )}
 
         {view.state === "post" && view.retrospective && (
-          <Block title={MATCH_COPY.retrospective} block={view.retrospective} value={view.retrospective.line} />
+          <RetrospectiveModule retrospective={view.retrospective} />
         )}
 
         {view.state !== "pre" && (
           <>
-            {view.keyEvents && <Block title={MATCH_COPY.timeline} block={view.keyEvents} value={view.keyEvents.timeline} />}
-            {view.teamStats && <Block title={MATCH_COPY.matchStats} block={view.teamStats} value={view.teamStats.rows} />}
-            {view.playerStats && <Block title={MATCH_COPY.playerStats} block={view.playerStats} value={view.playerStats.rows} />}
-            {view.commentary && <Block title={MATCH_COPY.commentary} block={view.commentary} value={view.commentary.lines} />}
+            <TimelineModule
+              keyEvents={view.keyEvents}
+              home={view.header.home}
+              away={view.header.away}
+            />
+            <TeamStatsModule teamStats={view.teamStats} />
+            <CommentaryModule
+              commentary={view.commentary}
+              state={view.state}
+            />
           </>
         )}
 
         {view.state === "post" && (
           <>
-            {(view.xg || view.shotMap || view.ratings || view.momentum) && (
+            {(view.xg || view.ratings) && (
               <div className="text-xs text-muted">{MATCH_COPY.postPollNote}</div>
             )}
-            {view.xg && <Block title={MATCH_COPY.expectedGoals} block={view.xg} value={{ home: view.xg.home, away: view.xg.away, model: view.xg.model, afterFt: view.xg.afterFt }} />}
-            {view.shotMap && <Block title={MATCH_COPY.shotMap} block={view.shotMap} value={view.shotMap.shots} />}
-            {view.ratings && <Block title={MATCH_COPY.playerOfMatch} block={view.ratings} value={{ potm: view.ratings.potm, others: view.ratings.others }} />}
-            {view.momentum && <Block title={MATCH_COPY.momentum} block={view.momentum} value={view.momentum.series} />}
+            <XgModule
+              xg={view.xg}
+              home={view.header.home}
+              away={view.header.away}
+            />
+            <RatingsModule
+              ratings={view.ratings}
+              home={view.header.home}
+              away={view.header.away}
+            />
           </>
         )}
         {view.notes.map((note) => (
