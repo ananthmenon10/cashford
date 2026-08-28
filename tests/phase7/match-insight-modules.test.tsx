@@ -20,6 +20,7 @@ import {
 } from "../../components/matches/MatchInsightModules";
 import type { MatchDetailView } from "../../lib/match-detail";
 import type { Club } from "../../lib/match-detail";
+import { fplStatusLabel } from "../../lib/match-copy";
 
 afterEach(() => cleanup());
 
@@ -230,7 +231,8 @@ describe("TeamNewsModule", () => {
     }, "FPL");
     render(<TeamNewsModule teamNews={teamNews} home={home} away={away} />);
     expect(screen.getByText("No news")).toBeInTheDocument();
-    expect(screen.getAllByText("Out")).toHaveLength(3);
+    expect(screen.getAllByText("Out")).toHaveLength(2);
+    expect(screen.getByText("Injured")).toBeInTheDocument();
     expect(screen.getByText("Doubtful")).toBeInTheDocument();
     expect(screen.getByText("Suspended")).toBeInTheDocument();
     expect(screen.getByText("Ankle injury")).toBeInTheDocument();
@@ -249,6 +251,16 @@ describe("TeamNewsModule", () => {
   it("renders nothing when team news is absent", () => {
     const { container } = render(<TeamNewsModule home={home} away={away} />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("fplStatusLabel", () => {
+  it("maps every FPL status letter to its approved label", () => {
+    expect(fplStatusLabel("d")).toBe("Doubtful");
+    expect(fplStatusLabel("i")).toBe("Injured");
+    expect(fplStatusLabel("s")).toBe("Suspended");
+    expect(fplStatusLabel("u")).toBe("Out");
+    expect(fplStatusLabel("n")).toBe("Out");
   });
 });
 

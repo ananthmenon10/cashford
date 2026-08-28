@@ -36,6 +36,7 @@ export const MATCH_COPY = {
   missingValue: "—",
   noNews: "No news",
   statusOut: "Out",
+  statusInjured: "Injured",
   statusDoubtful: "Doubtful",
   statusSuspended: "Suspended",
   eventGoal: "Goal",
@@ -263,6 +264,7 @@ export const MATCH_COPY = {
 export function fplStatusLabel(
   status: "d" | "i" | "s" | "u" | "n",
 ): string {
+  if (status === "i") return MATCH_COPY.statusInjured;
   if (status === "s") return MATCH_COPY.statusSuspended;
   if (status === "d") return MATCH_COPY.statusDoubtful;
   return MATCH_COPY.statusOut;

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { Phase4MatchDetailPage } from "../../components/Phase4MatchDetailPage";
 import type { MatchDetailView } from "../../lib/match-detail";
+import { MATCH_COPY } from "../../lib/match-copy";
 
 afterEach(() => cleanup());
 
@@ -58,7 +59,7 @@ function viewFor(state: MatchDetailView["state"]): MatchDetailView {
     });
     view.playerStats = sourced({ rows: [{ player: "Saka" }] });
     view.lineups = sourced({
-      home: { formation: "4-3-3" },
+      home: { formation: "4-3-3", players: ["Lineups-only player"] },
       away: { formation: "4-4-2" },
     });
     view.commentary = sourced({ lines: [{ minute: "12'", text: "Goal." }] });
@@ -99,6 +100,17 @@ describe("Phase4MatchDetailPage", () => {
         <Phase4MatchDetailPage fixtureId="fixture-1" view={viewFor(state)} />,
       );
       expect(container.querySelector("pre")).toBeNull();
+
+      const output = container.textContent ?? "";
+      if (state === "pre") {
+        expect(output).not.toContain(MATCH_COPY.predictedXi);
+      }
+      if (state === "post") {
+        expect(output).not.toContain(MATCH_COPY.playerStats);
+        expect(output).not.toContain(MATCH_COPY.shotMap);
+        expect(output).not.toContain(MATCH_COPY.momentum);
+        expect(output).not.toContain("Lineups-only player");
+      }
     },
   );
 });
