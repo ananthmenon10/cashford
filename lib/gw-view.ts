@@ -389,7 +389,6 @@ export async function loadGameweekView(
     fixtureMetaQuery,
     winnerMetaQuery,
     memberCompetitionMetaQuery,
-    leagueMemberMetaQuery,
   ] = await Promise.all([
     gameweekIds.length
       ? supabase
@@ -408,22 +407,10 @@ export async function loadGameweekView(
       .select("user_id, left_at")
       .eq("league_id", identity.league.id)
       .eq("competition_id", participation.competitionId!),
-    supabase
-      .from("league_members")
-      .select("user_id")
-      .eq("league_id", identity.league.id),
   ]);
   fail(fixtureMetaQuery.error, "gameweek-fixture-metadata");
   fail(winnerMetaQuery.error, "gameweek-winner-metadata");
   fail(memberCompetitionMetaQuery.error, "gameweek-member-metadata");
-  fail(leagueMemberMetaQuery.error, "gameweek-league-member-metadata");
-  const leagueMemberIds = [
-    ...new Set(
-      (leagueMemberMetaQuery.data ?? [])
-        .map((row: any) => row.user_id)
-        .filter((id: unknown): id is string => typeof id === "string"),
-    ),
-  ];
   const eligibleMemberCount = (memberCompetitionMetaQuery.data ?? [])
     .filter((row: any) => row.left_at == null)
     .length;
@@ -611,17 +598,8 @@ export async function loadGameweekView(
     });
   }
 
-  const leagueNet = await leagueNetByUser(
-    supabase,
-    identity.league.id,
-    leagueMemberIds,
-  );
-  const seededLeagueNet = leagueNet === "suppressed"
-    ? leagueNet
-    : Object.fromEntries(
-        leagueMemberIds.map((memberId) => [memberId, leagueNet[memberId] ?? 0]),
-      );
-  const duesRanks = rankDues(seededLeagueNet);
+  // Unseeded on purpose: only members with a settled result ("have played") get a rank.
+  const duesRanks = rankDues(await leagueNetByUser(supabase, identity.league.id));
   // Despite its historical name, this is the all-time league-dues rank used by the home card.
   const viewerSeasonRank = duesRanks?.[userId] ?? null;
 

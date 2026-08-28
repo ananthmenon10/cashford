@@ -271,7 +271,7 @@ export async function loadSeasonView(
     return { rows: [], totals: [], memberGameweeks: [], viewerName: null };
   }
   const competitionId = identity.participation.competitionId;
-  const [contestsQuery, gameweeksQuery, membersQuery, leagueMembersQuery] = await Promise.all([
+  const [contestsQuery, gameweeksQuery, membersQuery] = await Promise.all([
     supabase
       .from("gameweek_contests")
       .select("id, gameweek_id, input_version, status, deadline_at")
@@ -287,15 +287,10 @@ export async function loadSeasonView(
       .select("user_id")
       .eq("league_id", identity.league.id)
       .eq("competition_id", competitionId),
-    supabase
-      .from("league_members")
-      .select("user_id")
-      .eq("league_id", identity.league.id),
   ]);
   fail(contestsQuery.error, "season-contests");
   fail(gameweeksQuery.error, "season-gameweeks");
   fail(membersQuery.error, "season-members");
-  fail(leagueMembersQuery.error, "season-league-members");
   const contests = (contestsQuery.data ?? []) as any[];
   const gameweeks = (gameweeksQuery.data ?? []) as any[];
   const contestIds = contests.map((contest) => contest.id);
@@ -329,7 +324,6 @@ export async function loadSeasonView(
   );
   const entries = (entriesQuery.data ?? []) as any[];
   const members = (membersQuery.data ?? []) as any[];
-  const leagueMembers = (leagueMembersQuery.data ?? []) as any[];
   const entryResults = new Map(
     (entryResultsQuery.data ?? []).map((result: any) => [result.entry_id, result]),
   );
@@ -343,11 +337,7 @@ export async function loadSeasonView(
     const profile = one<any>(entry.profiles);
     if (profile) names.set(entry.user_id, profile.display_name ?? profile.username);
   }
-  const leagueMemberIds = leagueMembers
-    .map((member) => member.user_id)
-    .filter((userId): userId is string => typeof userId === "string");
   const memberIds = new Set<string>([
-    ...leagueMemberIds,
     viewerId,
     ...members.map((member) => member.user_id),
     ...entries.map((entry) => entry.user_id),
@@ -366,17 +356,8 @@ export async function loadSeasonView(
     }
   }
   const viewerName = names.get(viewerId) ?? null;
-  const leagueNet = await leagueNetByUser(
-    supabase,
-    identity.league.id,
-    [...memberIds],
-  );
-  const seededLeagueNet = leagueNet === "suppressed"
-    ? leagueNet
-    : Object.fromEntries(
-        [...memberIds].map((memberId) => [memberId, leagueNet[memberId] ?? 0]),
-      );
-  const duesRanks = rankDues(seededLeagueNet);
+  // Unseeded on purpose: only members with a settled result ("have played") get a rank.
+  const duesRanks = rankDues(await leagueNetByUser(supabase, identity.league.id));
 
   const dirtyViews = new Map<number, Awaited<ReturnType<typeof loadGameweekView>>>();
   for (const contest of contests) {

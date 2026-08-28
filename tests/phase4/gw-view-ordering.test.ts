@@ -331,7 +331,7 @@ async function loadPointGridLifecycle(
   );
 }
 
-async function loadWithDuesRank() {
+async function loadWithDuesRank(viewerId = "a-viewer") {
   const settledResult = {
     gameweek_contest_id: "contest-1",
     outcome: "settled",
@@ -344,6 +344,8 @@ async function loadWithDuesRank() {
     { league_id: "league-1", user_id: "m-vishwa", left_at: null },
     { league_id: "league-1", user_id: "z-rishi", left_at: null },
   ];
+  // Joined the league but never entered a gameweek — must get no rank.
+  const unplayed = { league_id: "league-1", user_id: "u-newbie", left_at: null };
   const entries = members.map((member) => ({
     id: `entry-${member.user_id}`,
     gameweek_contest_id: "contest-1",
@@ -404,8 +406,8 @@ async function loadWithDuesRank() {
     }],
     gameweek_results: [settledResult],
     gameweek_entry_results: resultRows,
-    member_competitions: members,
-    league_members: members,
+    member_competitions: [...members, unplayed],
+    league_members: [...members, unplayed],
     gameweek_entries: entries,
     gameweek_picks: [],
     contest_results: [],
@@ -416,7 +418,7 @@ async function loadWithDuesRank() {
     reader as never,
     reader as never,
     IDENTITY,
-    "a-viewer",
+    viewerId,
     undefined,
     NOW,
     false,
@@ -542,5 +544,11 @@ describe("loadGameweekView fixture ordering", () => {
     const view = await loadWithDuesRank();
 
     expect(view.viewerSeasonRank).toBe(2);
+  });
+
+  it("gives no rank to a member who has never played", async () => {
+    const view = await loadWithDuesRank("u-newbie");
+
+    expect(view.viewerSeasonRank).toBeNull();
   });
 });

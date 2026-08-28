@@ -351,6 +351,7 @@ describe("loadSeasonView dues order", () => {
       { league_id: "league-1", user_id: "m-vishwa" },
       { league_id: "league-1", user_id: "no-entry" },
       { league_id: "league-1", user_id: "z-rishi" },
+      { league_id: "league-1", user_id: "never-played" },
     ];
     const entries = ["a-viewer", "m-vishwa", "z-rishi"].map((userId) => ({
       id: `entry-${userId}`,
@@ -444,8 +445,10 @@ describe("loadSeasonView dues order", () => {
       "z-rishi",
       "a-viewer",
       "m-vishwa",
+      "never-played",
     ]);
-    expect(view.totals.map((row) => row.rank)).toEqual([1, 2, 3, 3]);
+    // A member with no settled result anywhere sits last and carries no rank.
+    expect(view.totals.map((row) => row.rank)).toEqual([1, 2, 3, 3, null]);
   });
 });
 

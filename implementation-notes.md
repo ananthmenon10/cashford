@@ -3001,3 +3001,5 @@ match the home card’s league dues. A suppressed dues ledger produces a null ra
 retain member input order without a user-ID tiebreak.
 
 Known follow-up (016): `loadSeasonView` still calls `loadGameweekView` per dirty gameweek, and that now runs `leagueNetByUser` too, so the dues aggregation runs N+1 times. Cheap while dirty gameweeks ≤1; pass a precomputed rank map if it grows.
+
+016 follow-up (Ananth): members who have never played get no rank. `leagueNetByUser` is now called unseeded, so only members with a settled result are ranked; the season table lists unplayed members last with no rank, the home card shows "You —". The N+1 note above still stands.
