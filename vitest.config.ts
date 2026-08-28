@@ -26,6 +26,7 @@ export default defineConfig({
       ["tests/phase6/analytics-module-components.test.tsx", "jsdom"],
       ["tests/phase6/home-tabs-context.test.tsx", "jsdom"],
       ["tests/phase6/home-matches-tab.test.tsx", "jsdom"],
+      ["tests/phase6/point-grid.test.tsx", "jsdom"],
       ["tests/phase7/match-insight-modules.test.tsx", "jsdom"],
     ],
   },

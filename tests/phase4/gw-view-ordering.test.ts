@@ -113,6 +113,132 @@ async function loadWithFixtures(rows: readonly Row[]) {
   );
 }
 
+async function loadWithGridFixtures(rows: readonly Row[]) {
+  const reader = fakeReader({
+    gameweek_contests: [{
+      id: "contest-1",
+      league_id: "league-1",
+      gameweek_id: "gw-1",
+      competition_id: "competition-1",
+      status: "locked",
+      stake_inr: 100,
+      deadline_at: "2026-07-31T12:00:00.000Z",
+      input_version: 1,
+      gameweek_results: [],
+    }],
+    gameweeks: [{
+      id: "gw-1",
+      competition_id: "competition-1",
+      number: 1,
+      name: "Gameweek 1",
+      status: "locked",
+      deadline_at: "2026-07-31T12:00:00.000Z",
+    }],
+    gameweek_fixtures: rows,
+    gameweek_entry_results: [],
+    member_competitions: [{ user_id: "viewer", left_at: null }],
+    gameweek_entries: [{
+      id: "entry-1",
+      user_id: "viewer",
+      status: "locked_in",
+      profiles: { display_name: "Viewer", username: "viewer" },
+    }],
+    gameweek_picks: [],
+    profiles: [],
+  });
+
+  return loadGameweekView(
+    reader as never,
+    reader as never,
+    IDENTITY,
+    "viewer",
+    undefined,
+    NOW,
+    false,
+  );
+}
+
+async function loadCl6WithGrid() {
+  const settledResult = {
+    gameweek_contest_id: "contest-1",
+    outcome: "settled",
+    settled_version: 1,
+    void_reason: null,
+    tiebreak_used: "none",
+  };
+  const entry = {
+    id: "entry-1",
+    gameweek_contest_id: "contest-1",
+    user_id: "viewer",
+    status: "locked_in",
+    profiles: { display_name: "Viewer", username: "viewer" },
+  };
+  const pick = {
+    entry_id: "entry-1",
+    fixture_id: "fixture-current",
+    pred_home: 2,
+    pred_away: 1,
+    "gameweek_entries.gameweek_contest_id": "contest-1",
+    gameweek_entries: { user_id: "viewer", gameweek_contest_id: "contest-1" },
+  };
+  const reader = fakeReader({
+    gameweek_contests: [{
+      id: "contest-1",
+      league_id: "league-1",
+      gameweek_id: "gw-1",
+      competition_id: "competition-1",
+      status: "settled",
+      stake_inr: 100,
+      deadline_at: "2026-07-31T12:00:00.000Z",
+      input_version: 2,
+      gameweek_results: [settledResult],
+    }],
+    gameweeks: [{
+      id: "gw-1",
+      competition_id: "competition-1",
+      number: 1,
+      name: "Gameweek 1",
+      status: "locked",
+      deadline_at: "2026-07-31T12:00:00.000Z",
+    }],
+    gameweek_fixtures: [{
+      ...fixtureRow("fixture-current", "2026-07-31T13:00:00.000Z", 1),
+      fixtures: {
+        ...(fixtureRow("fixture-current", "2026-07-31T13:00:00.000Z", 1).fixtures as Row),
+        status: "finished",
+        ft_home: 1,
+        ft_away: 0,
+      },
+    }],
+    gameweek_results: [settledResult],
+    gameweek_entry_results: [{
+      entry_id: "entry-1",
+      gameweek_contest_id: "contest-1",
+      points: 7,
+      exacts: 1,
+      goal_error: 0,
+      net_inr: 100,
+      is_winner: true,
+      per_fixture: [{ fixtureId: "fixture-current", pts: 3, verdict: "exact" }],
+      gameweek_entries: { user_id: "viewer", status: "locked_in", profiles: entry.profiles },
+    }],
+    member_competitions: [{ user_id: "viewer", left_at: null }],
+    gameweek_entries: [entry],
+    gameweek_picks: [pick],
+    profiles: [],
+  });
+
+  return loadGameweekView(
+    reader as never,
+    reader as never,
+    IDENTITY,
+    "viewer",
+    undefined,
+    NOW,
+    false,
+  );
+}
+
 describe("loadGameweekView fixture ordering", () => {
   it("returns deliberately unsorted fixtures in ascending kickoff order", async () => {
     const view = await loadWithFixtures([
@@ -156,5 +282,41 @@ describe("loadGameweekView fixture ordering", () => {
       "fixture-a-invalid",
       "fixture-b-missing",
     ]);
+  });
+
+  it("uses the same kickoff comparator for the point-grid rows", async () => {
+    const view = await loadWithGridFixtures([
+      fixtureRow("fixture-late", "2026-08-04T12:00:00.000Z", 40),
+      fixtureRow("fixture-equal-z", "2026-08-02T12:00:00.000Z", 7),
+      fixtureRow("fixture-equal-a", "2026-08-02T12:00:00.000Z", 7),
+      fixtureRow("fixture-early", "2026-08-01T12:00:00.000Z", 10),
+    ].map((row) => ({
+      ...row,
+      fixtures: {
+        ...(row.fixtures as Row),
+        status: "finished",
+        ft_home: 1,
+        ft_away: 0,
+      },
+    })));
+
+    expect(view.pointGrid?.rows.map((row) => row.fixture.fixtureId)).toEqual([
+      "fixture-early",
+      "fixture-equal-a",
+      "fixture-equal-z",
+      "fixture-late",
+    ]);
+  });
+
+  it("uses the settled snapshot for CL6 grids instead of recomputing current scores", async () => {
+    const view = await loadCl6WithGrid();
+
+    expect(view.lifecycle).toBe("CL6");
+    expect(view.pointGrid?.entrants[0]?.totalPoints).toBe(7);
+    expect(view.pointGrid?.rows[0]?.cells[0]).toEqual({
+      pick: [2, 1],
+      points: 3,
+      verdict: "exact",
+    });
   });
 });

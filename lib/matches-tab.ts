@@ -6,6 +6,7 @@ import {
 import { calendarDateKey } from "./datetime";
 import { toEspnClubName } from "./club-name-alias";
 import { sortFixturesByKickoff } from "./fixture-order";
+import type { PointGridView } from "./point-grid";
 
 export type LeagueRef = { id: string; slug: string; name: string };
 export type Cta = { label: string; href: string };
@@ -414,6 +415,8 @@ export type MatchesTabView = {
     provisional: boolean;
     recap?: { gwNumber: number; href: string };
   } | null;
+  /** Present only for CL2–CL6 focus contests; omitted on the existing list paths. */
+  pointGrids?: PointGridView[];
   winnersRecap: WinnersRecapView[] | null;
   fixtures: FixtureRowView[];
 };

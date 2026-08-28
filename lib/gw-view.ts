@@ -24,6 +24,8 @@ import {
   type GameweekAccess,
 } from "./gw-resolve-app";
 import { compareFixtureKickoff } from "./fixture-order";
+import { buildPointGrid } from "./point-grid";
+import { MATCH_COPY } from "./match-copy";
 
 export type GameweekContestCandidate = {
   gwNumber: number;
@@ -179,6 +181,8 @@ export type GameweekViewDTO = {
   viewerParticipation: ViewerParticipation;
   render: ReturnType<typeof resolveRender>;
   fixtures: GameweekViewFixture[];
+  /** Present only for CL2–CL6; other lifecycle paths keep the existing fixture list. */
+  pointGrid?: import("./point-grid").PointGridView;
   viewerEntry: {
     id: string;
     status: "entered" | "needs_update" | "locked_in" | "invalid";
@@ -221,6 +225,28 @@ export type LeagueIdentity = {
 function one<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
+}
+
+const POINT_GRID_LIFECYCLES = new Set(["CL2", "CL3", "CL4", "CL5", "CL6"]);
+
+function gridName(entry: any, names: ReadonlyMap<string, string>): string {
+  return names.get(entry.user_id) ?? MATCH_COPY.pointGridUnknownPlayer;
+}
+
+function gridSnapshot(result: any) {
+  const cells: Record<string, { points: 0 | 1 | 3 | null; verdict: "exact" | "result" | "miss" | "void" | null }> = {};
+  for (const row of Array.isArray(result?.per_fixture) ? result.per_fixture : []) {
+    if (!row?.fixtureId) continue;
+    const points = row.pts === 0 || row.pts === 1 || row.pts === 3 ? row.pts : null;
+    const verdict = row.verdict === "exact" || row.verdict === "result" || row.verdict === "miss" || row.verdict === "void"
+      ? row.verdict
+      : null;
+    cells[row.fixtureId] = { points, verdict };
+  }
+  return {
+    totalPoints: typeof result?.points === "number" ? result.points : result?.points == null ? null : Number(result.points),
+    cells,
+  };
 }
 
 function fail(error: { message?: string } | null, context: string) {
@@ -897,7 +923,7 @@ export async function loadGameweekView(
     ? await supabase
         .from("gameweek_entry_results")
         .select(
-          "entry_id, points, exacts, goal_error, net_inr, is_winner, gameweek_entries!gameweek_entry_results_entry_id_fkey!inner(user_id, status)",
+          "entry_id, points, exacts, goal_error, net_inr, is_winner, per_fixture, gameweek_entries!gameweek_entry_results_entry_id_fkey!inner(user_id, status)",
         )
         .eq("gameweek_contest_id", contest.id)
     : { data: [], error: null };
@@ -908,7 +934,7 @@ export async function loadGameweekView(
     : await supabase
         .from("gameweek_picks")
         .select(
-          "fixture_id, pred_home, pred_away, gameweek_entries!gameweek_picks_entry_id_fkey!inner(user_id, gameweek_contest_id)",
+          "entry_id, fixture_id, pred_home, pred_away, gameweek_entries!gameweek_picks_entry_id_fkey!inner(user_id, gameweek_contest_id)",
         )
         .eq("gameweek_entries.gameweek_contest_id", contest.id);
   fail(revealQuery.error, "revealed-picks");
@@ -939,6 +965,50 @@ export async function loadGameweekView(
       names.set(profile.id, profile.display_name ?? profile.username);
     }
   }
+
+  const gridPicksByEntry = new Map<string, { fixtureId: string; predHome: number; predAway: number }[]>();
+  for (const pick of (revealQuery.data ?? []) as any[]) {
+    if (!pick.entry_id) continue;
+    const rows = gridPicksByEntry.get(pick.entry_id) ?? [];
+    rows.push({
+      fixtureId: pick.fixture_id,
+      predHome: pick.pred_home,
+      predAway: pick.pred_away,
+    });
+    gridPicksByEntry.set(pick.entry_id, rows);
+  }
+  const pointGrid = POINT_GRID_LIFECYCLES.has(lifecycle)
+    ? buildPointGrid({
+        leagueId: identity.league.id,
+        leagueName: identity.league.name,
+        gameweekNumber: gameweek.number,
+        viewerId: userId,
+        mode: lifecycle === "CL5" || lifecycle === "CL6" ? "settled" : "live",
+        entries: entries.map((entry) => ({
+          entryId: entry.id,
+          userId: entry.user_id,
+          name: gridName(entry, names),
+          status: entry.status,
+          picks: gridPicksByEntry.get(entry.id) ?? [],
+        })),
+        fixtures: fixtures.map((fixture) => ({
+          fixtureId: fixture.fixtureId,
+          externalId: fixture.externalId,
+          homeName: fixture.homeName,
+          awayName: fixture.awayName,
+          kickoffAt: fixture.kickoffAt,
+          status: fixture.status,
+          minute: fixture.minute,
+          homeScore: fixture.homeScore,
+          awayScore: fixture.awayScore,
+          state: fixture.state,
+          matchHref: `/m/${fixture.fixtureId}`,
+        })),
+        snapshots: Object.fromEntries(
+          (snapshotQuery.data ?? []).map((row: any) => [row.entry_id, gridSnapshot(row)]),
+        ),
+      })
+    : undefined;
 
   let standings: GameweekStanding[] = [];
   if (lifecycle === "CL6" || lifecycle === "CL8" || lifecycle === "CL3" || lifecycle === "CL4") {
@@ -1052,6 +1122,7 @@ export async function loadGameweekView(
     viewerParticipation,
     render,
     fixtures,
+    ...(pointGrid ? { pointGrid } : {}),
     viewerEntry,
     viewerPicks: (viewerPicksQuery.data ?? []).map((pick: any) => ({
       fixtureId: pick.fixture_id,

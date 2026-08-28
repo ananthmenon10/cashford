@@ -23,8 +23,12 @@ import { NetPositionTable } from "@/components/dues/NetPositionTable";
 import { PendingPaymentCard } from "@/components/dues/PendingPaymentCard";
 import { SettlePlan } from "@/components/dues/SettlePlan";
 import { CompetitionTable } from "@/components/matches/CompetitionTable";
+import { PointGrid } from "@/components/matches/PointGrid";
+import type { PointGridView } from "@/lib/point-grid";
 
-export function LeagueGameweekPane({ view }: { view: GameweekViewDTO }) {
+type LeagueGameweekView = GameweekViewDTO & { pointGrid?: PointGridView };
+
+export function LeagueGameweekPane({ view }: { view: LeagueGameweekView }) {
   const now = new Date();
   return (
     <>
@@ -80,7 +84,7 @@ export function LeagueGameweekPane({ view }: { view: GameweekViewDTO }) {
             <span className="text-[10px] font-bold uppercase tracking-[.08em] text-cs2-ink-3">{LEAGUE_SCREEN_COPY.fixtures(view.fixtures.length)}</span>
           </div>
           <div className="rounded-cs2-md border border-cs2-line bg-cs2-paper px-4">
-            {view.fixtures.map((fixture) => (
+            {view.pointGrid ? <PointGrid grid={view.pointGrid} /> : view.fixtures.map((fixture) => (
               <FixtureRow key={fixture.fixtureId} fixture={fixture} picks={view.revealedPicks} />
             ))}
           </div>

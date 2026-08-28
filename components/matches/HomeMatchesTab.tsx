@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Countdown, LocalTime } from "@/components/LocalTime";
 import { useHomeTabsContext } from "@/components/HomeTabsContext";
+import { PointGrid } from "@/components/matches/PointGrid";
 import {
   groupFixturesByLocalDay,
   isLiveFixtureState,
@@ -343,6 +344,7 @@ function HomeMatchesBody({
     () => (timeZone ? groupFixturesByLocalDay(data.view.fixtures, timeZone) : []),
     [data.view.fixtures, timeZone],
   );
+  const pointGrids = data.view.pointGrids ?? [];
 
   return (
     <main className="px-4 py-4">
@@ -354,7 +356,7 @@ function HomeMatchesBody({
           </div>
           <div className="shrink-0 text-right font-mono text-[10px] font-semibold text-cs2-ink-3">
             <LocalTime iso={data.view.gw.deadlineAt} variant="time" relative={false} includeWeekday />
-            {data.view.gw.state === "pre" ? (
+            {data.view.gw.state === "pre" && !data.view.pointGrids?.length ? (
               <span className="mt-0.5 block text-cs2-amber">
                 <Countdown iso={data.view.gw.deadlineAt} prefix={MATCH_COPY.locksIn} />
               </span>
@@ -405,6 +407,18 @@ function HomeMatchesBody({
           </section>
         ) : null}
 
+        {data.view.pointGrids?.length ? (
+          <div className="space-y-4">
+            {pointGrids.map((grid) => (
+              <section key={grid.leagueId} className="space-y-2">
+                {pointGrids.length > 1 ? (
+                  <h2 className="text-[12px] font-extrabold text-cs2-ink">{grid.leagueName}</h2>
+                ) : null}
+                <PointGrid grid={grid} />
+              </section>
+            ))}
+          </div>
+        ) : <>
         {days.length ? (
           <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-[.08em] text-cs2-ink-3">
             <span>{MATCH_COPY.fixturesAndResults}</span>
@@ -424,6 +438,7 @@ function HomeMatchesBody({
             </div>
           </section>
         )) : <div className="rounded-cs2-lg border border-dashed border-cs2-line p-5 text-center text-[12px] font-semibold text-cs2-ink-3">{MATCH_COPY.matchesNoFixtures}</div>}
+        </>}
 
         <Link href="/matches" className="block rounded-cs2-md border border-cs2-line bg-cs2-paper px-4 py-3 text-center text-[12px] font-extrabold text-cs2-green cf-press">
           {MATCH_COPY.allMatchesAndTable}

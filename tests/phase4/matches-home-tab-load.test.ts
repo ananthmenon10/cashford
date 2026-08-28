@@ -552,6 +552,124 @@ describe("loadMatchesHomeTab focus, banner, and freshness", () => {
     expect(payload.view.yourGw?.rows.map((row) => row.kind)).toEqual(["settled", "provisional"]);
   });
 
+  it("builds separate entrant grids in the existing league-row order", async () => {
+    const data = dataset({
+      leagues: [
+        { id: "league-1", slug: "alpha", name: "Alpha" },
+        { id: "league-2", slug: "beta", name: "Beta" },
+      ],
+      gameweeks: [gw(1, PAST)],
+      contests: [
+        contest("contest-1", "league-1", "gw1", PAST, "locked"),
+        contest("contest-2", "league-2", "gw1", PAST, "locked"),
+      ],
+      fixtures: [
+        fixture("gw1", 2, "scheduled", "active", "2026-08-14T15:00:00.000Z"),
+        fixture("gw1", 1, "finished", "active", "2026-08-14T13:00:00.000Z"),
+      ],
+      entries: [
+        entry("contest-1", "league-1", "locked_in", "viewer"),
+        entry("contest-1", "league-1", "locked_in", "alpha-player"),
+        entry("contest-1", "league-1", "entered", "not-locked"),
+        entry("contest-2", "league-2", "locked_in", "beta-player"),
+      ],
+      picks: [
+        { entry_id: "entry-contest-1-viewer", fixture_id: "fixture-gw1-1", pred_home: 2, pred_away: 1 },
+        { entry_id: "entry-contest-1-viewer", fixture_id: "fixture-gw1-2", pred_home: 1, pred_away: 0 },
+        { entry_id: "entry-contest-1-alpha-player", fixture_id: "fixture-gw1-1", pred_home: 0, pred_away: 1 },
+        { entry_id: "entry-contest-2-beta-player", fixture_id: "fixture-gw1-1", pred_home: 2, pred_away: 1 },
+      ],
+    });
+
+    const payload = await load(data);
+    if (payload.empty) throw new Error("expected payload");
+    expect(payload.view.pointGrids?.map((grid) => grid.leagueId)).toEqual(["league-1", "league-2"]);
+    expect(payload.view.pointGrids?.[0]?.entrants.map((entrant) => entrant.userId)).toEqual([
+      "viewer",
+      "alpha-player",
+    ]);
+    expect(payload.view.pointGrids?.[0]?.rows.map((row) => row.fixture.fixtureId)).toEqual([
+      "fixture-gw1-1",
+      "fixture-gw1-2",
+    ]);
+    expect(payload.view.pointGrids?.[0]?.rows[0]?.cells[0]).toMatchObject({
+      pick: [2, 1],
+      points: 3,
+      verdict: "exact",
+    });
+  });
+
+  it("renders a CL2 grid with locked picks and no points before the first final", async () => {
+    const data = dataset({
+      gameweeks: [gw(1, PAST)],
+      contests: [contest("contest-1", "league-1", "gw1", PAST, "locked")],
+      fixtures: [fixture("gw1", 1, "scheduled")],
+      entries: [entry("contest-1", "league-1", "locked_in")],
+      picks: [{ entry_id: "entry-contest-1-viewer", fixture_id: "fixture-gw1-1", pred_home: 2, pred_away: 1 }],
+    });
+
+    const payload = await load(data);
+    if (payload.empty) throw new Error("expected payload");
+    expect(payload.view.pointGrids).toHaveLength(1);
+    expect(payload.view.pointGrids?.[0]?.rows[0]?.cells[0]).toEqual({
+      pick: [2, 1],
+      points: null,
+      verdict: null,
+    });
+    expect(payload.view.pointGrids?.[0]?.entrants[0]?.totalPoints).toBeNull();
+  });
+
+  it("uses the settled snapshot for a CL5 grid", async () => {
+    const priorEntry = entry("contest-1", "league-1", "locked_in");
+    const data = dataset({
+      gameweeks: [gw(1, PAST)],
+      contests: [contest("contest-1", "league-1", "gw1", PAST, "settled")],
+      fixtures: [fixture("gw1", 1, "finished")],
+      results: [result("contest-1")],
+      entries: [priorEntry],
+      entryResults: [{
+        ...entryResult(priorEntry.id, "contest-1"),
+        points: 7,
+        per_fixture: [{ fixtureId: "fixture-gw1-1", pts: 3, verdict: "exact" }],
+      }],
+      picks: [{ entry_id: priorEntry.id, fixture_id: "fixture-gw1-1", pred_home: 2, pred_away: 1 }],
+    });
+
+    const payload = await load(data);
+    if (payload.empty) throw new Error("expected payload");
+    expect(payload.view.pointGrids?.[0]?.entrants[0]?.totalPoints).toBe(7);
+    expect(payload.view.pointGrids?.[0]?.rows[0]?.cells[0]).toMatchObject({
+      points: 3,
+      verdict: "exact",
+    });
+  });
+
+  it("uses the settled snapshot for a CL6 grid while keeping the recalculating row", async () => {
+    const staleEntry = entry("contest-1", "league-1", "locked_in");
+    const data = dataset({
+      gameweeks: [gw(1, PAST)],
+      contests: [contest("contest-1", "league-1", "gw1", PAST, "settled", 2)],
+      fixtures: [fixture("gw1", 1, "finished")],
+      results: [result("contest-1", "settled", 1)],
+      entries: [staleEntry],
+      entryResults: [{
+        ...entryResult(staleEntry.id, "contest-1"),
+        points: 0,
+        per_fixture: [{ fixtureId: "fixture-gw1-1", pts: 0, verdict: "miss" }],
+      }],
+      picks: [{ entry_id: staleEntry.id, fixture_id: "fixture-gw1-1", pred_home: 2, pred_away: 1 }],
+    });
+
+    const payload = await load(data);
+    if (payload.empty) throw new Error("expected payload");
+    expect(payload.view.yourGw?.rows[0]?.kind).toBe("recalculating");
+    expect(payload.view.pointGrids?.[0]?.entrants[0]?.totalPoints).toBe(0);
+    expect(payload.view.pointGrids?.[0]?.rows[0]?.cells[0]).toMatchObject({
+      points: 0,
+      verdict: "miss",
+    });
+  });
+
   it("returns an empty payload for zero scopes and for a competition with no gameweeks", async () => {
     const zeroScope = await load(dataset({ leagues: [], links: [], members: [], gameweeks: [] }));
     expect(zeroScope).toEqual({ empty: true, requestedComp: null, requestedGw: null, selectedComp: null, freshness: "empty" });

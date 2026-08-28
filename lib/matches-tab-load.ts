@@ -22,11 +22,35 @@ import { ordinal } from "./view-format";
 import { MATCH_COPY } from "./match-copy";
 import { homeCompetitionScopes } from "./gw-home";
 import { compareFixtureKickoff } from "./fixture-order";
+import { buildPointGrid } from "./point-grid";
 
 type Client = Awaited<ReturnType<typeof import("./supabase/server").createClient>>;
 
 function one<T>(value: T | T[]): T {
   return Array.isArray(value) ? value[0] : value;
+}
+
+const POINT_GRID_LIFECYCLES = new Set(["CL2", "CL3", "CL4", "CL5", "CL6"]);
+
+function gridName(entry: any): string {
+  const profile = one(entry.profiles);
+  return profile?.display_name ?? profile?.username ?? MATCH_COPY.pointGridUnknownPlayer;
+}
+
+function gridSnapshot(result: any) {
+  const cells: Record<string, { points: 0 | 1 | 3 | null; verdict: "exact" | "result" | "miss" | "void" | null }> = {};
+  for (const row of Array.isArray(result?.per_fixture) ? result.per_fixture : []) {
+    if (!row?.fixtureId) continue;
+    const points = row.pts === 0 || row.pts === 1 || row.pts === 3 ? row.pts : null;
+    const verdict = row.verdict === "exact" || row.verdict === "result" || row.verdict === "miss" || row.verdict === "void"
+      ? row.verdict
+      : null;
+    cells[row.fixtureId] = { points, verdict };
+  }
+  return {
+    totalPoints: typeof result?.points === "number" ? result.points : result?.points == null ? null : Number(result.points),
+    cells,
+  };
 }
 
 type ScopeCandidate = {
@@ -503,6 +527,66 @@ export async function loadMatchesTabInternal(
     liveByContest,
   });
 
+  const pointGridByLeague = new Map<string, ReturnType<typeof buildPointGrid>>();
+  for (const contest of focusContests) {
+    if (!POINT_GRID_LIFECYCLES.has(contest.cl)) continue;
+    const league = leagueById.get(contest.league_id);
+    if (!league) continue;
+    const contestEntries = (entries ?? []).filter(
+      (entry: any) => entry.gameweek_contest_id === contest.id,
+    );
+    const snapshots = Object.fromEntries(
+      (entryResults ?? [])
+        .filter((result: any) => result.gameweek_contest_id === contest.id)
+        .map((result: any) => [result.entry_id, gridSnapshot(result)]),
+    );
+    pointGridByLeague.set(
+      league.id,
+      buildPointGrid({
+        leagueId: league.id,
+        leagueName: league.name,
+        gameweekNumber: focusRef.number,
+        viewerId: userId,
+        mode: contest.cl === "CL5" || contest.cl === "CL6" ? "settled" : "live",
+        entries: contestEntries.map((entry: any) => ({
+          entryId: entry.id,
+          userId: entry.user_id,
+          name: gridName(entry),
+          status: entry.status,
+          picks: (picksByEntry.get(entry.id) ?? []).map((pick: any) => ({
+            fixtureId: pick.fixture_id,
+            predHome: pick.pred_home,
+            predAway: pick.pred_away,
+          })),
+        })),
+        fixtures: focusMemberships.map((membership: any) => {
+          const fixture = membership.fixtures;
+          const voided = membership.effective_state === "void" || membership.state === "void";
+          const home = one(fixture?.home);
+          const away = one(fixture?.away);
+          return {
+            fixtureId: membership.fixture_id,
+            externalId: fixture?.external_id ?? null,
+            homeName: home?.name ?? "TBC",
+            awayName: away?.name ?? "TBC",
+            kickoffAt: fixture?.kickoff_at ?? null,
+            status: fixture?.status ?? "scheduled",
+            minute: fixture?.minute ?? null,
+            homeScore: fixture?.ft_home ?? null,
+            awayScore: fixture?.ft_away ?? null,
+            state: voided ? "void" as const : "active" as const,
+            matchHref: `/m/${membership.fixture_id}`,
+          };
+        }),
+        snapshots,
+      }),
+    );
+  }
+  const pointGrids = leagueRows.flatMap((row) => {
+    const grid = pointGridByLeague.get(row.league.id);
+    return grid ? [grid] : [];
+  });
+
   const fixtureRows: FixtureRowView[] = (membershipByGw.get(focusRef.id) ?? [])
     .filter((membership: any) => membership.fixtures)
     .sort(
@@ -701,6 +785,7 @@ export async function loadMatchesTabInternal(
           ...(settledRecap ? { recap: settledRecap } : {}),
         }
       : null,
+    ...(pointGrids.length ? { pointGrids } : {}),
     winnersRecap: recap.length ? recap : null,
     fixtures: fixtureRows,
   };

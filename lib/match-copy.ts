@@ -15,6 +15,13 @@ export const MATCH_COPY = {
   exact: "Exact",
   miss: "Miss",
   pointsPending: "— pts",
+  pointGridLabel: "Prediction grid",
+  pointGridShowName: (name: string) => `Show ${name}'s full name`,
+  pointGridHideName: (name: string) => `Hide ${name}'s full name`,
+  pointGridScrollMore: "Scroll for more picks",
+  pointGridNoEntrants: "No locked entries yet.",
+  pointGridUnknownPlayer: "Player",
+  pointGridPoints: (points: number) => `${points} pts`,
   tiebreak: (value: string) => `Tiebreak · ${value}`,
   lockRule: (gw: number) =>
     `Your picks lock at the GW${gw} deadline, not at kickoff.`,

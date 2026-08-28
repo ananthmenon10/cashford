@@ -45,6 +45,7 @@
     { "path": "components/Phase4MatchDetailPage.tsx", "mode": "jsx", "note": "Phase 4 match detail page" },
     { "path": "components/Phase4MatchesPage.tsx", "mode": "jsx", "note": "Phase 4 matches page" },
     { "path": "components/matches/HomeMatchesTab.tsx", "mode": "jsx", "note": "Plan 011 inline home Matches tab" },
+    { "path": "components/matches/PointGrid.tsx", "mode": "jsx", "note": "Phase 6 shared prediction grid" },
     { "path": "app/layout.tsx", "mode": "jsx", "note": "global signed-in feedback widget mount" },
     { "path": "app/dev/feedback/actions.ts", "mode": "strings", "note": "feedback resolve action" },
     { "path": "app/dev/feedback/page.tsx", "mode": "jsx", "note": "unresolved feedback debug view" },

@@ -2844,3 +2844,76 @@ string tie-breaks for `external_id`, then fixture `id`.
   and no other non-blank lifecycle. `CL7` remains terminal and is labelled `Void`, never
   `Settled`.
 - No database inspection or writes, browser smoke, commit, staging, push, or deploy was done.
+
+## Plan 014 — Matches point grid
+
+Implemented on `feature/cashford-2`. A locked gameweek's match list — on the home Matches tab and
+on the league Matches list — is now the A2 point grid. Rows are the gameweek's fixtures in kickoff
+order (shared `lib/fixture-order.ts` comparator); the left block carries both team names, the
+kickoff time or the live minute, and the actual score, with a dash before kickoff. One column per
+player who submitted a `locked_in` entry — never all league members. Each header shows initials
+and that player's gameweek total, and reveals the full name on tap. Each cell shows the pick plus
+0/1/3 points coloured by verdict (exact / result / miss / void); fixtures that have not kicked off
+show the pick and no points. The same grid stays after settlement. Open gameweeks are unchanged.
+
+New: `lib/point-grid.ts` (pure projection and grading) and `components/matches/PointGrid.tsx` (the
+shared renderer, used by both surfaces). Changed: `lib/gw-view.ts`, `lib/matches-tab-load.ts`,
+`lib/matches-tab.ts`, `lib/match-copy.ts`, `components/gw/LeaguePanes.tsx`,
+`components/matches/HomeMatchesTab.tsx`, the copy-scan manifest, two loader test files and
+`vitest.config.ts`. `components/gw/FixtureRow.tsx` stays as the open-gameweek list.
+
+Under five entrants the grid fills 390px with no horizontal scroll. At five or more, the
+fixture/score block and the viewer's own column are pinned and the rest scroll, with an edge cue
+at the boundary that clears at the end of the scroll.
+
+### Verification
+
+- `npm run typecheck` — PASS (exit 0).
+
+  ```text
+  > cashford@0.1.0 typecheck
+  > tsc --noEmit
+  ```
+
+- `npx vitest run` — PASS (exit 0).
+
+  ```text
+  Test Files  102 passed (102)
+  Tests  1149 passed (1149)
+  ```
+
+- `npm run build` — PASS (exit 0).
+
+  ```text
+  ✓ Compiled successfully in 2.0s
+  ✓ Generating static pages (17/17)
+  ```
+
+- New tests: `tests/phase4/point-grid.test.ts` (entrants-only columns, verdict and points mapping,
+  no points before kickoff, void handling, kickoff order) and `tests/phase6/point-grid.test.tsx`
+  (four entrants do not scroll, five pin the viewer column and scroll the rest, the edge cue
+  appears and clears, the header reveals the full name, the pinned viewer cell keeps its verdict).
+- Not verified: the layout claims on a real browser. jsdom does no layout, so "four columns fit at
+  390px" and the behaviour of the pinned columns during a real scroll still need staging QC.
+
+### Deviations
+
+- Grading for a live gameweek could not come from `lib/gameweek-points.ts`: `scoreGameweek` is
+  strict and throws on a partly-played gameweek, and that file may not be modified. `gradePick` in
+  `lib/point-grid.ts` mirrors its `gradeFinal` rule instead, with a comment on both halves of the
+  contract. Settled gameweeks still read the stored `per_fixture` snapshot, so settled figures come
+  from the real scoring path.
+- "Locked" was decided as lifecycles CL2–CL6. CL2 is locked before the first final and shows the
+  full grid with no points anywhere. CL6 (settled but stale) shows the same grid as CL5 from the
+  stored snapshot, and the existing recalculating note is untouched. CL0, CL1, CL7, CL8, CL9 and
+  CL10 render as before.
+- The home Matches tab spans every league the viewer holds in the selected competition, so it
+  renders one grid per league rather than merging users into shared columns — entrant sets, totals
+  and the pinned viewer column only mean anything within one league.
+- The mockup's per-fixture "Lead …" line and leader-cell highlight were left out; the plan does not
+  ask for them.
+- Fixed during review: the pinned viewer cell painted `bg-cs2-paper` over the verdict tint, and the
+  dark-theme `*-soft` tokens are translucent, so the pinned column would have bled the columns
+  scrolling under it. The tint now sits on a `before:` layer above an opaque base. Also fixed: CL6
+  first graded live instead of reading the settled snapshot, and the scroll edge cue was painting
+  over the pinned column.
