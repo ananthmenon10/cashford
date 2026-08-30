@@ -188,7 +188,7 @@ export async function loadAnalyticsFeed(
             competitionSlug: pair.competitionId,
           },
         };
-        const season = await loadSeasonView(supabase, admin, identity, viewerId);
+        const season = await loadSeasonView(supabase, admin, identity, viewerId, { scope: "viewer" });
         seasonViewByPair.set(key, season);
         const viewerTotal = season.totals.find((t) => t.isViewer);
         // Fix-round item 2: null (not a fabricated ₹0) when the viewer has no entries here.
@@ -235,7 +235,7 @@ export async function loadAnalyticsFeed(
       if (participation.format === "gameweek") {
         const key = `${league.id}:${participation.competitionId}`;
         const cached = seasonViewByPair.get(key);
-        const season = cached ?? (await loadSeasonView(supabase, admin, { league: { id: league.id, name: league.name, slug: league.slug, createdBy: "", status: "active" }, participation }, viewerId));
+        const season = cached ?? (await loadSeasonView(supabase, admin, { league: { id: league.id, name: league.name, slug: league.slug, createdBy: "", status: "active" }, participation }, viewerId, { scope: "viewer" }));
         const viewerTotal = season.totals.find((t) => t.isViewer) ?? null;
         myFormByLeague[league.id] = buildLiveMyForm(
           league.id,

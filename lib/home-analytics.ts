@@ -16,6 +16,36 @@ type RlsClient = Awaited<ReturnType<typeof createClient>>;
 
 const num = (v: unknown): number | null => (v == null ? null : Number(v));
 
+function fail(error: { message?: string } | null, context: string) {
+  if (error) throw new Error(`${context}: ${error.message ?? "query-failed"}`);
+}
+
+export async function viewerHasSettledCupHistory(
+  supabase: RlsClient,
+  userId: string,
+): Promise<boolean> {
+  const resultsQuery = await supabase
+    .from("contest_results")
+    .select("contest_id, contests!inner(fixtures!inner(ft_home, ft_away))")
+    .eq("user_id", userId)
+    .not("contests.fixtures.ft_home", "is", null)
+    .not("contests.fixtures.ft_away", "is", null);
+  fail(resultsQuery.error, "analytics-history-results");
+
+  const contestIds = (resultsQuery.data ?? []).map((row: { contest_id: string }) => row.contest_id);
+  if (contestIds.length === 0) return false;
+
+  const predictionsQuery = await supabase
+    .from("predictions")
+    .select("contest_id")
+    .eq("user_id", userId)
+    .in("contest_id", contestIds)
+    .limit(1);
+  fail(predictionsQuery.error, "analytics-history-predictions");
+  return (predictionsQuery.data ?? []).length > 0;
+}
+
+// No longer on the home path; retained for the legacy analytics view and its callers.
 export async function loadAnalyticsView(supabase: RlsClient, userId: string): Promise<AnalyticsView> {
   const emptyAcc = accuracy([]);
   const emptyGlobal = {

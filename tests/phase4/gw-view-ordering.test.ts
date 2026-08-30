@@ -331,7 +331,10 @@ async function loadPointGridLifecycle(
   );
 }
 
-async function loadWithDuesRank(viewerId = "a-viewer") {
+async function loadWithDuesRank(
+  viewerId = "a-viewer",
+  leagueNet?: Record<string, number> | "suppressed",
+) {
   const settledResult = {
     gameweek_contest_id: "contest-1",
     outcome: "settled",
@@ -422,6 +425,7 @@ async function loadWithDuesRank(viewerId = "a-viewer") {
     undefined,
     NOW,
     false,
+    leagueNet,
   );
 }
 
@@ -550,5 +554,11 @@ describe("loadGameweekView fixture ordering", () => {
     const view = await loadWithDuesRank("u-newbie");
 
     expect(view.viewerSeasonRank).toBeNull();
+  });
+
+  it("uses an injected unseeded dues map for the viewer rank", async () => {
+    const view = await loadWithDuesRank("a-viewer", { "a-viewer": 400 });
+
+    expect(view.viewerSeasonRank).toBe(1);
   });
 });

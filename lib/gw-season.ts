@@ -262,6 +262,9 @@ export async function loadSeasonView(
   admin: CashfordClient,
   identity: LeagueIdentity,
   viewerId: string,
+  // Viewer scope skips leagueNetByUser entirely: totals[].rank is always null, totals contains
+  // only the viewer's row, and memberGameweeks is always []. Do not use it where those are read.
+  opts?: { scope?: "full" | "viewer" },
 ): Promise<SeasonView> {
   if (
     identity.participation.status === "none" ||
@@ -270,6 +273,7 @@ export async function loadSeasonView(
   ) {
     return { rows: [], totals: [], memberGameweeks: [], viewerName: null };
   }
+  const viewerScope = opts?.scope === "viewer";
   const competitionId = identity.participation.competitionId;
   const [contestsQuery, gameweeksQuery, membersQuery] = await Promise.all([
     supabase
@@ -356,8 +360,13 @@ export async function loadSeasonView(
     }
   }
   const viewerName = names.get(viewerId) ?? null;
-  // Unseeded on purpose: only members with a settled result ("have played") get a rank.
-  const duesRanks = rankDues(await leagueNetByUser(supabase, identity.league.id));
+  let leagueNet: Awaited<ReturnType<typeof leagueNetByUser>> = {};
+  let duesRanks: ReturnType<typeof rankDues> = null;
+  if (!viewerScope) {
+    // Unseeded on purpose: only members with a settled result ("have played") get a rank.
+    leagueNet = await leagueNetByUser(supabase, identity.league.id);
+    duesRanks = rankDues(leagueNet);
+  }
 
   const dirtyViews = new Map<number, Awaited<ReturnType<typeof loadGameweekView>>>();
   for (const contest of contests) {
@@ -383,6 +392,10 @@ export async function loadSeasonView(
         gameweek.number,
         new Date(),
         false,
+        // Empty under viewer scope on purpose: loadGameweekView then skips its own leagueNetByUser
+        // call and viewerSeasonRank comes back null, which is safe here because these dirty views
+        // are only read for .standings.
+        leagueNet,
       ),
     );
   }
@@ -542,13 +555,14 @@ export async function loadSeasonView(
     [...rowsByGameweek.values()].sort((a, b) => b.gwNumber - a.gwNumber),
     viewerId,
   );
-  const totals = [...memberIds]
+  const totalUserIds = viewerScope ? [viewerId] : [...memberIds];
+  const totals = totalUserIds
     .map((userId) => {
       const rows = byUser.get(userId) ?? [];
       return {
         userId,
         name: names.get(userId) ?? "Player",
-        rank: duesRanks?.[userId] ?? null,
+        rank: viewerScope ? null : duesRanks?.[userId] ?? null,
         ...buildRunningTotals(rows),
         isViewer: userId === viewerId,
         hasEntries: rows.length > 0,
@@ -561,7 +575,7 @@ export async function loadSeasonView(
       return a.rank - b.rank;
     });
 
-  const memberGameweeks = projectMemberGameweeks(byUser);
+  const memberGameweeks = viewerScope ? [] : projectMemberGameweeks(byUser);
 
   return { rows: viewerRows, totals, memberGameweeks, viewerName };
 }

@@ -784,9 +784,11 @@ export async function loadHomeLeagueCards(
   const currentSeasonCompetition = await resolveCurrentSeasonCompetition(admin);
   return Promise.all(
     leagues.map(async (league) => {
+      // Drop the seed: netInr's ?? 0 preserves the old viewer zero, while unseeded dues ranks
+      // must reach gw-view unchanged.
       const [identity, leagueNet] = await Promise.all([
         loadLeagueIdentity(supabase, league.slug),
-        leagueNetByUser(supabase, league.id, [userId]),
+        leagueNetByUser(supabase, league.id),
       ]);
       const pendingQuery = await admin
         .from("payments")
@@ -881,6 +883,7 @@ export async function loadHomeLeagueCards(
         undefined,
         new Date(),
         false,
+        leagueNet,
       );
       const currentStanding = view.standings.find((standing) => standing.isViewer) ?? null;
       const gameweekNumber = view.gameweek?.number ?? null;

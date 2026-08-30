@@ -354,6 +354,8 @@ export async function loadGameweekView(
   requestedGameweek?: string | number | null,
   now: Date | string | number = new Date(),
   loadDepartedNames = true,
+  // Injected dues must stay unseeded too: only members with a settled result get a rank.
+  leagueNet?: Awaited<ReturnType<typeof leagueNetByUser>> | null,
 ): Promise<GameweekViewDTO> {
   if (
     identity.participation.status === "none" ||
@@ -599,7 +601,8 @@ export async function loadGameweekView(
   }
 
   // Unseeded on purpose: only members with a settled result ("have played") get a rank.
-  const duesRanks = rankDues(await leagueNetByUser(supabase, identity.league.id));
+  const duesNet = leagueNet ?? await leagueNetByUser(supabase, identity.league.id);
+  const duesRanks = rankDues(duesNet);
   // Despite its historical name, this is the all-time league-dues rank used by the home card.
   const viewerSeasonRank = duesRanks?.[userId] ?? null;
 

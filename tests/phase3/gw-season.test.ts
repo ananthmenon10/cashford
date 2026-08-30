@@ -440,6 +440,14 @@ describe("loadSeasonView dues order", () => {
       "a-viewer",
     );
 
+    const viewerScope = await loadSeasonView(
+      reader as never,
+      reader as never,
+      identity,
+      "a-viewer",
+      { scope: "viewer" },
+    );
+
     expect(view.totals.map((row) => row.userId)).toEqual([
       "no-entry",
       "z-rishi",
@@ -449,6 +457,29 @@ describe("loadSeasonView dues order", () => {
     ]);
     // A member with no settled result anywhere sits last and carries no rank.
     expect(view.totals.map((row) => row.rank)).toEqual([1, 2, 3, 3, null]);
+
+    const expectedViewerFields = {
+      netInr: 100,
+      gameweeksEntered: 1,
+      points: 10,
+      hasEntries: true,
+      correctPicks: 1,
+      incorrectPicks: 0,
+      voidPicks: 0,
+      countedFixtures: 1,
+    };
+    expect(viewerScope.totals).toHaveLength(1);
+    expect(viewerScope.totals[0]).toMatchObject({
+      userId: "a-viewer",
+      name: "a-viewer",
+      rank: null,
+      isViewer: true,
+      ...expectedViewerFields,
+    });
+    expect(viewerScope.totals[0]).toMatchObject(expectedViewerFields);
+    expect(viewerScope.memberGameweeks).toEqual([]);
+    expect(viewerScope.viewerName).toBe("a-viewer");
+    expect(viewerScope.rows).toEqual(view.rows);
   });
 });
 

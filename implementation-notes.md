@@ -3003,3 +3003,47 @@ retain member input order without a user-ID tiebreak.
 Known follow-up (016): `loadSeasonView` still calls `loadGameweekView` per dirty gameweek, and that now runs `leagueNetByUser` too, so the dues aggregation runs N+1 times. Cheap while dirty gameweeks ≤1; pass a precomputed rank map if it grows.
 
 016 follow-up (Ananth): members who have never played get no rank. `leagueNetByUser` is now called unseeded, so only members with a settled result are ranked; the season table lists unplayed members last with no rank, the home card shows "You —". The N+1 note above still stands.
+
+## Query-diet pass
+
+The home gameweek card now computes one unseeded `leagueNetByUser` map and passes it into
+`loadGameweekView`, so the view does not repeat the three dues queries. `loadSeasonView` hoists
+its raw dues map and reuses it for dirty gameweek views. Viewer-scoped season loads used by the
+analytics feed skip dues entirely, return only the viewer total, leave rank null, and return no
+member gameweeks.
+
+The home visibility gate now uses `viewerHasSettledCupHistory`: a finished contest result is first
+collected, then one viewer-prediction existence query runs only when needed. The old full
+`loadAnalyticsView` remains available but is no longer on the home path.
+
+For the changed `.from(...)` calls on `loadHomePage`, let G be the number of gameweek-format home
+cards, P the number of gameweek (league, competition) pairs loaded by the analytics feed, and D
+the number of dirty gameweeks in those pairs. With non-empty contest/member data, the old path was
+`8 + 6G + 3P + 3D`: eight full analytics queries, six dues queries per gameweek home card, and
+three dues queries for each season load and dirty gameweek view. The new path is `H + 3G`, where H
+is 0 when the cards already make analytics visible, 1 when the history result query finds no
+finished result, and 2 when it also checks predictions. The reduction is therefore
+`8 - H + 3G + 3P + 3D` calls; unchanged card, identity, feed, and page queries cancel on both
+sides.
+
+As a concrete one-league render with analytics visible from the card, one settled gameweek, no
+dirty weeks, and profile rows already embedded, the full path is 42 `.from(...)` calls before and
+28 after: before `1 + 8 + 1 + 2 + (3 + 1 + 13 + 3) + (1 + 6 + 3)`, after
+`1 + 0 + 1 + 2 + (3 + 1 + 13) + (1 + 6) + 0`.
+
+### Deviations
+
+- No behavior deviations. The viewer-scoped dirty-gameweek path passes an empty unseeded dues map
+  into `loadGameweekView` so it skips `leagueNetByUser` while keeping the existing dirty standings
+  work unchanged.
+- **Departed-names lookup NOT narrowed to the viewer id, despite the spec text.** The first draft
+  narrowed `missingIds` to `[viewerId]` under viewer scope, matching the spec's "narrow the
+  departed-names lookup to the viewer id only" line. Review caught that this breaks behavior
+  identity: the `names` map also feeds `winnerByContestId` → `rows[].winnerName`, and `rows` IS
+  returned and read under viewer scope — a departed winner's name would silently degrade to
+  "Player". Reverted to the original full-`memberIds` lookup for both scopes. This costs at most
+  one `admin.profiles` query either way (the query count arithmetic above already assumed the
+  full lookup, since the profiles query is 0-or-1 calls regardless of how many ids it filters on
+  — narrowing the id list was never a `.from(...)` call saving, only a row-count one).
+- The deletion of the now-unused `loadAnalyticsView` is deferred cleanup, as requested; its
+  loader and `analyticsViewHasHistory` remain in place.
