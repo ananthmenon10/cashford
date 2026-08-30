@@ -6,6 +6,7 @@ import type { AnalyticsModulesView } from "@/lib/analytics-modules";
 import { Rivalry } from "./Rivalry";
 import { PredictionHabits } from "./PredictionHabits";
 import { YouVsRoom } from "./YouVsRoom";
+import { WeeklyLabels } from "./WeeklyLabels";
 
 type LoadState = {
   pairKey: string | null;
@@ -112,11 +113,12 @@ export function AnalyticsModules({
   }
   if (!current.data) return null;
   const modules = current.data.modules;
-  if (!modules.youVsRoom && !modules.rivalry && !modules.habits) return null;
+  if (!modules.youVsRoom && !modules.weeklyLabels && !modules.rivalry && !modules.habits) return null;
 
   return (
     <div className="flex flex-col gap-3">
       <YouVsRoom module={modules.youVsRoom} />
+      <WeeklyLabels module={modules.weeklyLabels} />
       <Rivalry module={modules.rivalry} />
       <PredictionHabits module={modules.habits} />
     </div>

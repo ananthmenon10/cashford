@@ -14,7 +14,7 @@ vi.mock("@/lib/gw-season", () => ({ loadSeasonView }));
 vi.mock("@/lib/analytics-corpus-load", () => ({ loadSeasonPickCorpus }));
 
 import { GET } from "../../app/api/analytics/modules/route";
-import { emptyCorpus } from "../fixtures/analytics-corpus";
+import { emptyCorpus, result, settledFixture } from "../fixtures/analytics-corpus";
 
 const leagueId = "11111111-1111-4111-8111-111111111111";
 const competitionId = "22222222-2222-4222-8222-222222222222";
@@ -132,5 +132,65 @@ describe("GET /api/analytics/modules", () => {
       "receipts",
     ]);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
+  it("carries weekly labels and the corpus-backed rivalry swing", async () => {
+    loadSeasonView.mockResolvedValue({
+      rows: [],
+      totals: [],
+      memberGameweeks: [
+        {
+          userId: "user-1",
+          gwNumber: 1,
+          entered: true,
+          settled: true,
+          points: 3,
+          exacts: 1,
+          correctPicks: 1,
+          goalError: 0,
+          countedFixtures: 1,
+        },
+        {
+          userId: "rival",
+          gwNumber: 1,
+          entered: true,
+          settled: true,
+          points: 0,
+          exacts: 0,
+          correctPicks: 0,
+          goalError: 3,
+          countedFixtures: 1,
+        },
+      ],
+      viewerName: "Ananth",
+    });
+    loadSeasonPickCorpus.mockResolvedValue(emptyCorpus({
+      members: [
+        { userId: "user-1", name: "Ananth", isViewer: true },
+        { userId: "rival", name: "Rival", isViewer: false },
+      ],
+      gameweeks: [{ gwNumber: 1, entrantIds: ["user-1", "rival"] }],
+      fixtures: [settledFixture("f1", 1)],
+      results: [
+        result("user-1", 1, "f1", "exact"),
+        result("rival", 1, "f1", "miss"),
+      ],
+    }));
+
+    const response = await GET(request());
+    const body = await response.json();
+
+    expect(body.modules.weeklyLabels).toMatchObject({
+      gwNumber: 1,
+      entrantCount: 2,
+      countedFixtures: 1,
+    });
+    expect(body.modules.rivalry.byRivalId.rival.biggestSwing).toMatchObject({
+      gwNumber: 1,
+      fixtureId: "f1",
+      viewerPts: 3,
+      rivalPts: 0,
+    });
+    expect(loadSeasonPickCorpus).toHaveBeenCalledTimes(1);
   });
 });

@@ -3047,3 +3047,57 @@ dirty weeks, and profile rows already embedded, the full path is 42 `.from(...)`
   — narrowing the id list was never a `.from(...)` call saving, only a row-count one).
 - The deletion of the now-unused `loadAnalyticsView` is deferred cleanup, as requested; its
   loader and `analyticsViewHasHistory` remain in place.
+
+## Plan 017 — Analytics C2 cut (2026-08-30)
+
+### What changed
+
+`lib/analytics-labels.ts` builds the four latest-included-gameweek labels from the existing settled
+corpus. It uses the gameweek entrant list, counted final fixtures, stored exact verdicts, prediction
+shapes for one-goal misses and scoreline modes, and the shared outcome-mode rule for Maverick.
+`components/analytics/WeeklyLabels.tsx` renders the four cards, the suppressed state, the viewer’s
+mint award state, the gameweek summary, and the entrant-source footnote. All cards stay half-width
+in the two-column grid, including suppressed cards.
+
+`lib/analytics-rivalry.ts` adds the optional corpus-backed `biggestSwing` record to each rivalry.
+`components/analytics/Rivalry.tsx` renders its stored-points sentence in the bordered swing note
+when one exists. `lib/analytics-habits.ts` now exports the existing strict modal-outcome rule so
+Weekly Labels and Prediction Habits share the same consensus definition.
+
+`lib/analytics-copy.ts` holds the new label and swing copy. `lib/analytics-modules.ts`,
+`app/api/analytics/modules/route.ts`, and `components/analytics/AnalyticsModules.tsx` carry and
+render Weekly Labels in the 02 → 04 → 05 → 07 order, with no added database read. The component
+copy manifest registers `components/analytics/WeeklyLabels.tsx`.
+
+The Phase 6 tests cover label ties, empty bars, excluded gameweeks and fixtures, entrant scope,
+composite fixture keys, all four clean awards, swing selection and exclusions, component states,
+route payloads, and new copy functions.
+
+### Decisions
+
+Oracle clears at one stored exact. Nearly clears at two prediction-shaped one-goal misses. The
+Crowd clears at `ceil(60% of counted fixtures)` modal exact-scoreline picks, where the mode is a
+strict unique maximum with at least two picks. Maverick clears at two correct calls against a
+strict unique modal outcome. The first two bars come from the label definitions; the Crowd threshold
+comes from its counted-fixture share, and Maverick’s threshold comes from the label definition.
+
+The Crowd uses a modal scoreline while Maverick uses a modal outcome. Maverick reuses the strict
+outcome-mode helper from Prediction Habits so the two modules cannot disagree about consensus.
+Swing selection keeps the existing shared-gameweek window, then sorts by larger points gap, later
+gameweek, and fixture ID ascending. It reads stored `pts` values and excludes equal gaps, missing
+rows, void verdicts, and uncounted fixtures. The copy says “them” instead of the canon mock’s “him”.
+
+### Deviations
+
+- The plan says two gameweeks are settled, but the live database has exactly one: Solid Yenne Boys
+  GW1 and PES Bois GW1, each with 3 entrants and 10 counted fixtures. Modules 04 and 05’s swing
+  therefore render from one gameweek.
+- Plan item 3, the my-form sparkline and net trend, needed no work. It already shipped in `950e887`,
+  is covered by `tests/phase6/analytics-trend.test.ts`, and remains hidden until a second gameweek
+  settles.
+- Modules 06 and 03 remain deferred as the plan directs.
+- The supplied live value distributions matched a temporary corpus-shape sanity harness for both
+  leagues and all named swings. A direct read-only database check was blocked by the sandbox’s
+  network restriction, and the built app could not bind a local port (`EPERM`); component, route,
+  and full-suite checks remain green. Copy uses typographic apostrophes to follow the repository’s
+  copy checks, and the supplied layout correction keeps every label card in one half-width cell.

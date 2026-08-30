@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildRivalry, buildRivalryModule } from "../../lib/analytics-rivalry";
+import type { CorpusEntryResult } from "../../lib/analytics-corpus-load";
 import type { SeasonMemberGameweek } from "../../lib/gw-season";
+import { emptyCorpus, settledFixture } from "../fixtures/analytics-corpus";
 
 function row(
   userId: string,
@@ -19,6 +21,14 @@ function row(
     countedFixtures: 3,
     ...overrides,
   };
+}
+
+function entryResult(
+  userId: string,
+  gwNumber: number,
+  perFixture: CorpusEntryResult["perFixture"],
+): CorpusEntryResult {
+  return { userId, gwNumber, points: 0, exacts: 0, goalError: 0, perFixture };
 }
 
 describe("buildRivalry", () => {
@@ -104,5 +114,126 @@ describe("buildRivalry", () => {
     );
     expect(module?.options.map((option) => option.name)).toEqual(["Adam", "Zoe"]);
     expect(module?.defaultRivalId).toBe("rival-a");
+  });
+
+  it("selects the largest shared-fixture gap from stored points", () => {
+    const rows = [
+      row("viewer", 1),
+      row("rival", 1),
+      row("viewer", 2),
+      row("rival", 2),
+    ];
+    const corpus = emptyCorpus({
+      gameweeks: [
+        { gwNumber: 1, entrantIds: ["viewer", "rival"] },
+        { gwNumber: 2, entrantIds: ["viewer", "rival"] },
+      ],
+      fixtures: [
+        settledFixture("smaller", 1),
+        settledFixture("largest", 2),
+      ],
+      results: [
+        entryResult("viewer", 1, [{ fixtureId: "smaller", verdict: "exact", pts: 3 }]),
+        entryResult("rival", 1, [{ fixtureId: "smaller", verdict: "result", pts: 1 }]),
+        entryResult("viewer", 2, [{ fixtureId: "largest", verdict: "miss", pts: 0 }]),
+        entryResult("rival", 2, [{ fixtureId: "largest", verdict: "exact", pts: 3 }]),
+      ],
+    });
+
+    expect(buildRivalry(rows, "viewer", "rival", corpus)?.biggestSwing).toEqual({
+      gwNumber: 2,
+      fixtureId: "largest",
+      homeShort: "HOM",
+      awayShort: "AWY",
+      ftHome: 2,
+      ftAway: 1,
+      viewerPts: 0,
+      rivalPts: 3,
+    });
+  });
+
+  it("breaks equal swing gaps by later gameweek, then fixture id", () => {
+    const rows = [row("viewer", 1), row("rival", 1), row("viewer", 2), row("rival", 2)];
+    const corpus = emptyCorpus({
+      fixtures: [
+        settledFixture("zulu", 1),
+        settledFixture("zulu", 2),
+        settledFixture("alpha", 2),
+      ],
+      results: [
+        entryResult("viewer", 1, [{ fixtureId: "zulu", verdict: "exact", pts: 3 }]),
+        entryResult("rival", 1, [{ fixtureId: "zulu", verdict: "miss", pts: 0 }]),
+        entryResult("viewer", 2, [
+          { fixtureId: "zulu", verdict: "exact", pts: 3 },
+          { fixtureId: "alpha", verdict: "exact", pts: 3 },
+        ]),
+        entryResult("rival", 2, [
+          { fixtureId: "zulu", verdict: "miss", pts: 0 },
+          { fixtureId: "alpha", verdict: "miss", pts: 0 },
+        ]),
+      ],
+    });
+
+    expect(buildRivalry(rows, "viewer", "rival", corpus)?.biggestSwing?.fixtureId).toBe("alpha");
+  });
+
+  it("returns no swing when all shared fixture points are equal", () => {
+    const corpus = emptyCorpus({
+      fixtures: [settledFixture("equal", 1)],
+      results: [
+        entryResult("viewer", 1, [{ fixtureId: "equal", verdict: "result", pts: 1 }]),
+        entryResult("rival", 1, [{ fixtureId: "equal", verdict: "result", pts: 1 }]),
+      ],
+    });
+
+    expect(buildRivalry([row("viewer", 1), row("rival", 1)], "viewer", "rival", corpus)?.biggestSwing).toBeNull();
+  });
+
+  it("never selects a fixture from a non-shared gameweek", () => {
+    const rows = [
+      row("viewer", 1),
+      row("rival", 1),
+      row("viewer", 2),
+      row("rival", 2, { entered: false }),
+    ];
+    const corpus = emptyCorpus({
+      fixtures: [settledFixture("shared", 1), settledFixture("not-shared", 2)],
+      results: [
+        entryResult("viewer", 1, [{ fixtureId: "shared", verdict: "result", pts: 1 }]),
+        entryResult("rival", 1, [{ fixtureId: "shared", verdict: "miss", pts: 0 }]),
+        entryResult("viewer", 2, [{ fixtureId: "not-shared", verdict: "exact", pts: 3 }]),
+        entryResult("rival", 2, [{ fixtureId: "not-shared", verdict: "miss", pts: 0 }]),
+      ],
+    });
+
+    expect(buildRivalry(rows, "viewer", "rival", corpus)?.biggestSwing?.fixtureId).toBe("shared");
+  });
+
+  it.each(["viewer", "rival"] as const)(
+    "disqualifies a fixture when the %s verdict is void",
+    (voidSide) => {
+      const corpus = emptyCorpus({
+        fixtures: [settledFixture("valid", 1), settledFixture("voided", 1)],
+        results: [
+          entryResult("viewer", 1, [
+            { fixtureId: "valid", verdict: "result", pts: 1 },
+            { fixtureId: "voided", verdict: voidSide === "viewer" ? "void" : "exact", pts: voidSide === "viewer" ? 0 : 3 },
+          ]),
+          entryResult("rival", 1, [
+            { fixtureId: "valid", verdict: "miss", pts: 0 },
+            { fixtureId: "voided", verdict: voidSide === "rival" ? "void" : "miss", pts: 0 },
+          ]),
+        ],
+      });
+
+      expect(buildRivalry([row("viewer", 1), row("rival", 1)], "viewer", "rival", corpus)?.biggestSwing?.fixtureId).toBe("valid");
+    },
+  );
+
+  it("leaves biggestSwing null when the corpus argument is omitted", () => {
+    const rows = [row("viewer", 1), row("rival", 1)];
+
+    expect(buildRivalry(rows, "viewer", "rival")?.biggestSwing).toBeNull();
+    expect(buildRivalryModule(rows, "viewer", new Map([ ["rival", "Rival"] ]))?.byRivalId.rival.biggestSwing).toBeNull();
   });
 });

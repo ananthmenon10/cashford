@@ -1,4 +1,16 @@
+import type { SeasonPickCorpus } from "./analytics-corpus-load";
 import type { SeasonMemberGameweek } from "./gw-season";
+
+export type RivalrySwing = {
+  gwNumber: number;
+  fixtureId: string;
+  homeShort: string;
+  awayShort: string;
+  ftHome: number;
+  ftAway: number;
+  viewerPts: number;
+  rivalPts: number;
+};
 
 export type RivalryRecord = {
   won: number;
@@ -11,6 +23,7 @@ export type RivalryRecord = {
   excludedGameweeks: number[];
   currentRunLength: number;
   runOwner: "viewer" | "rival" | null;
+  biggestSwing: RivalrySwing | null;
 };
 
 export type AnalyticsRivalry = {
@@ -59,10 +72,77 @@ function byUserAndGameweek(rows: readonly SeasonMemberGameweek[]) {
   return map;
 }
 
+function storedFixtureResult(
+  corpus: SeasonPickCorpus,
+  userId: string,
+  gwNumber: number,
+  fixtureId: string,
+) {
+  for (const result of corpus.results) {
+    if (result.userId !== userId || result.gwNumber !== gwNumber) continue;
+    const row = result.perFixture.find((item) => item.fixtureId === fixtureId);
+    if (row) return row;
+  }
+  return null;
+}
+
+function biggestSwing(
+  corpus: SeasonPickCorpus | undefined,
+  sharedGameweeks: readonly number[],
+  viewerId: string,
+  rivalId: string,
+): RivalrySwing | null {
+  if (!corpus) return null;
+  const shared = new Set(sharedGameweeks);
+  let selected: (RivalrySwing & { gap: number }) | null = null;
+  for (const fixture of corpus.fixtures) {
+    if (
+      !shared.has(fixture.gwNumber) ||
+      fixture.state !== "final" ||
+      fixture.ftHome == null ||
+      fixture.ftAway == null
+    ) {
+      continue;
+    }
+    const viewerResult = storedFixtureResult(corpus, viewerId, fixture.gwNumber, fixture.fixtureId);
+    const rivalResult = storedFixtureResult(corpus, rivalId, fixture.gwNumber, fixture.fixtureId);
+    if (!viewerResult || !rivalResult || viewerResult.verdict === "void" || rivalResult.verdict === "void") {
+      continue;
+    }
+    const gap = Math.abs(viewerResult.pts - rivalResult.pts);
+    if (
+      gap === 0 ||
+      (selected &&
+        (gap < selected.gap ||
+          (gap === selected.gap && fixture.gwNumber < selected.gwNumber) ||
+          (gap === selected.gap &&
+            fixture.gwNumber === selected.gwNumber &&
+            fixture.fixtureId.localeCompare(selected.fixtureId) >= 0)))
+    ) {
+      continue;
+    }
+    selected = {
+      gap,
+      gwNumber: fixture.gwNumber,
+      fixtureId: fixture.fixtureId,
+      homeShort: fixture.homeShort,
+      awayShort: fixture.awayShort,
+      ftHome: fixture.ftHome,
+      ftAway: fixture.ftAway,
+      viewerPts: viewerResult.pts,
+      rivalPts: rivalResult.pts,
+    };
+  }
+  if (!selected) return null;
+  const { gap: _gap, ...swing } = selected;
+  return swing;
+}
+
 export function buildRivalry(
   memberGameweeks: readonly SeasonMemberGameweek[],
   viewerId: string,
   rivalId: string,
+  corpus?: SeasonPickCorpus,
 ): RivalryRecord | null {
   const byUser = byUserAndGameweek(memberGameweeks);
   const viewerRows = byUser.get(viewerId) ?? new Map();
@@ -129,6 +209,7 @@ export function buildRivalry(
     excludedGameweeks: [...excludedGameweeks].sort((a, b) => a - b),
     currentRunLength,
     runOwner: last === "viewer" ? "viewer" : last === "rival" ? "rival" : null,
+    biggestSwing: biggestSwing(corpus, sharedGameweeks, viewerId, rivalId),
   };
 }
 
@@ -136,12 +217,13 @@ export function buildRivalryModule(
   memberGameweeks: readonly SeasonMemberGameweek[],
   viewerId: string,
   names: ReadonlyMap<string, string>,
+  corpus?: SeasonPickCorpus,
 ): AnalyticsRivalry | null {
   const rivalIds = [...new Set(memberGameweeks.map((row) => row.userId))]
     .filter((userId) => userId !== viewerId);
   const records = new Map<string, RivalryRecord>();
   for (const rivalId of rivalIds) {
-    const record = buildRivalry(memberGameweeks, viewerId, rivalId);
+    const record = buildRivalry(memberGameweeks, viewerId, rivalId, corpus);
     if (record) records.set(rivalId, record);
   }
   if (records.size === 0) return null;

@@ -4,9 +4,12 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { YouVsRoom } from "../../components/analytics/YouVsRoom";
 import { Rivalry } from "../../components/analytics/Rivalry";
 import { PredictionHabits } from "../../components/analytics/PredictionHabits";
+import { WeeklyLabels } from "../../components/analytics/WeeklyLabels";
+import { ANALYTICS_COPY } from "../../lib/analytics-copy";
 import type { AnalyticsYouVsRoom } from "../../lib/analytics-room";
 import type { AnalyticsRivalry } from "../../lib/analytics-rivalry";
 import type { AnalyticsHabits } from "../../lib/analytics-habits";
+import type { AnalyticsWeeklyLabels } from "../../lib/analytics-labels";
 
 afterEach(() => cleanup());
 
@@ -37,9 +40,46 @@ const rivalry: AnalyticsRivalry = {
       excludedGameweeks: [],
       currentRunLength: 1,
       runOwner: "viewer",
+      biggestSwing: null,
     },
   },
   defaultRivalId: "rival",
+};
+
+const weeklyLabels: AnalyticsWeeklyLabels = {
+  gwNumber: 1,
+  entrantCount: 3,
+  countedFixtures: 10,
+  labels: [
+    {
+      key: "oracle",
+      emoji: "🔮",
+      name: "Oracle",
+      awarded: { userId: "u1", name: "Ananth", isViewer: true, value: 2, runnerUp: 1 },
+      notAwardedReason: null,
+    },
+    {
+      key: "nearly",
+      emoji: "😩",
+      name: "Nearly",
+      awarded: { userId: "rival", name: "Rival", isViewer: false, value: 4, runnerUp: 3 },
+      notAwardedReason: null,
+    },
+    {
+      key: "crowd",
+      emoji: "🐑",
+      name: "The Crowd",
+      awarded: null,
+      notAwardedReason: "Nobody cleared the bar for The Crowd this week.",
+    },
+    {
+      key: "maverick",
+      emoji: "🎲",
+      name: "Maverick",
+      awarded: null,
+      notAwardedReason: "Maverick ended level this week — no single winner.",
+    },
+  ],
 };
 
 const habits: AnalyticsHabits = {
@@ -68,6 +108,7 @@ describe("analytics module components", () => {
         <YouVsRoom module={null} />
         <Rivalry module={null} />
         <PredictionHabits module={null} />
+        <WeeklyLabels module={null} />
       </>,
     );
     expect(container).toBeEmptyDOMElement();
@@ -106,6 +147,54 @@ describe("analytics module components", () => {
     expect(screen.getByText("Won")).toBeInTheDocument();
     expect(screen.getByText("Lost")).toBeInTheDocument();
     expect(screen.getByText((_, element) => element?.textContent === "2–1")).toBeInTheDocument();
+    expect(screen.queryByText(/Biggest swing:/)).not.toBeInTheDocument();
+  });
+
+  it("renders the rivalry swing in the existing note block when present", () => {
+    const swing = {
+      gwNumber: 1,
+      fixtureId: "f1",
+      homeShort: "IPS",
+      awayShort: "SUN",
+      ftHome: 2,
+      ftAway: 1,
+      viewerPts: 3,
+      rivalPts: 0,
+    };
+    render(
+      <Rivalry
+        module={{
+          ...rivalry,
+          byRivalId: { rival: { ...rivalry.byRivalId.rival, biggestSwing: swing } },
+        }}
+      />,
+    );
+    expect(screen.getByText(ANALYTICS_COPY.rivalrySwing(1, "IPS", 2, 1, "SUN", 3, 0))).toBeInTheDocument();
+  });
+
+  it("renders four weekly labels in half-width cells with award and suppressed states", () => {
+    render(<WeeklyLabels module={weeklyLabels} />);
+
+    expect(screen.getByText(ANALYTICS_COPY.weeklyLabelsTitle)).toBeInTheDocument();
+    expect(screen.getByText(ANALYTICS_COPY.weeklyLabelsSub(1, 3, 10))).toBeInTheDocument();
+    expect(screen.getAllByTestId("weekly-label")).toHaveLength(4);
+    expect(screen.getAllByTestId("weekly-label-awarded")).toHaveLength(2);
+    expect(screen.getAllByTestId("weekly-label-off")).toHaveLength(2);
+
+    const viewerCard = screen.getAllByTestId("weekly-label-awarded").find((item) =>
+      item.textContent?.includes(ANALYTICS_COPY.weeklyLabelYou),
+    );
+    expect(viewerCard).toBeDefined();
+    expect(viewerCard?.parentElement).toHaveClass("bg-cs2-green-soft", "border-cs2-green-line");
+    expect(viewerCard?.querySelector(".text-cs2-green")).not.toBeNull();
+
+    for (const card of screen.getAllByTestId("weekly-label")) {
+      expect(card).not.toHaveClass("col-span-2");
+    }
+    for (const card of screen.getAllByTestId("weekly-label-off")) {
+      expect(card.parentElement).toHaveClass("border-dashed", "bg-cs2-canvas");
+      expect(card.querySelector(".opacity-40.grayscale")).not.toBeNull();
+    }
   });
 
   it("renders habits statistics and consensus without filling missing rows with zero", () => {

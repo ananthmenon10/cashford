@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { loadSeasonPickCorpus } from "@/lib/analytics-corpus-load";
 import { buildPredictionHabits } from "@/lib/analytics-habits";
+import { buildWeeklyLabels } from "@/lib/analytics-labels";
 import { loadSeasonView } from "@/lib/gw-season";
 import { buildRivalryModule } from "@/lib/analytics-rivalry";
 import { buildYouVsRoom } from "@/lib/analytics-room";
@@ -130,9 +131,9 @@ export async function GET(request: Request) {
               })),
             }
           : null,
-        rivalry: buildRivalryModule(memberGameweeks, auth.userId, names),
+        rivalry: buildRivalryModule(memberGameweeks, auth.userId, names, corpus),
         habits: buildPredictionHabits(corpus, auth.userId),
-        weeklyLabels: null,
+        weeklyLabels: buildWeeklyLabels(corpus, auth.userId),
         clubReads: null,
         receipts: null,
       },

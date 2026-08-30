@@ -72,6 +72,19 @@ export function Rivalry({ module }: { module: AnalyticsRivalry | null }) {
           {ANALYTICS_COPY.rivalryRun(record.runOwner === "viewer" ? "you" : "rival", record.currentRunLength)}
         </p>
       ) : null}
+      {record.biggestSwing ? (
+        <p className="mt-3 rounded-cs2-md border border-cs2-line-2 bg-cs2-canvas p-3 text-[12.5px] text-cs2-ink-2">
+          {ANALYTICS_COPY.rivalrySwing(
+            record.biggestSwing.gwNumber,
+            record.biggestSwing.homeShort,
+            record.biggestSwing.ftHome,
+            record.biggestSwing.ftAway,
+            record.biggestSwing.awayShort,
+            record.biggestSwing.viewerPts,
+            record.biggestSwing.rivalPts,
+          )}
+        </p>
+      ) : null}
     </section>
   );
 }

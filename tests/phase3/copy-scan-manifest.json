@@ -98,6 +98,7 @@
     { "path": "components/HomeTabsContext.tsx", "mode": "jsx", "note": "C1 analytics activation context" },
     { "path": "components/analytics/AnalyticsModules.tsx", "mode": "jsx", "note": "C1 analytics module fetch shell" },
     { "path": "components/analytics/YouVsRoom.tsx", "mode": "jsx", "note": "C1 module 02 presentation" },
+    { "path": "components/analytics/WeeklyLabels.tsx", "mode": "jsx", "note": "C2 module 04 presentation" },
     { "path": "components/analytics/Rivalry.tsx", "mode": "jsx", "note": "C1 module 05 presentation" },
     { "path": "components/analytics/PredictionHabits.tsx", "mode": "jsx", "note": "C1 module 07 presentation" },
     { "path": "components/matches/MatchInsightModules.tsx", "mode": "jsx", "note": "Step 9 (#16) odds/form/H2H/table match-detail modules — all copy routed through lib/match-copy.ts" },

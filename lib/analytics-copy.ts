@@ -84,6 +84,29 @@ export const ANALYTICS_COPY = {
   rivalryExcluded: (gameweeks: string) => `${gameweeks} left out of the rivalry window.`,
   rivalryRun: (owner: "you" | "rival", length: number) =>
     `${owner === "you" ? "You" : "Your rival"} lead${owner === "you" ? "" : "s"} the current run ${length}.`,
+  rivalrySwing: (gw: number, home: string, ftHome: number, ftAway: number, away: string, viewerPts: number, rivalPts: number) =>
+    `Biggest swing: GW${gw}, ${home} ${ftHome}–${ftAway} ${away} — you ${viewerPts}, them ${rivalPts}.`,
+  weeklyLabelsTitle: "Weekly labels",
+  weeklyLabelsSub: (gw: number, entrants: number, fixtures: number) =>
+    `GW${gw} · ${entrants} entrant${entrants === 1 ? "" : "s"} · ${fixtures} counted fixture${fixtures === 1 ? "" : "s"}`,
+  weeklyLabelOracle: "Oracle",
+  weeklyLabelNearly: "Nearly",
+  weeklyLabelCrowd: "The Crowd",
+  weeklyLabelMaverick: "Maverick",
+  weeklyLabelYou: "You",
+  weeklyLabelPlayer: "Player",
+  oracleReason: (n: number, runnerUp: number) =>
+    `${n} exact${n === 1 ? "" : "s"} — no one else got more than ${runnerUp}.`,
+  nearlyReason: (n: number) => `${n} one-goal miss${n === 1 ? "" : "es"}.`,
+  crowdReason: (n: number, total: number) =>
+    `${n} modal pick${n === 1 ? "" : "s"} out of ${total}.`,
+  maverickReason: (n: number) =>
+    `${n} correct call${n === 1 ? "" : "s"} against the room.`,
+  weeklyLabelNotAwarded: "Not awarded this week",
+  weeklyLabelTie: (name: string) => `${name} ended level this week — no single winner.`,
+  weeklyLabelNoBar: (name: string) => `Nobody cleared the bar for ${name} this week.`,
+  weeklyLabelsFootnote: (gw: number, entrants: number) =>
+    `Labels use GW${gw}’s ${entrants} entrant${entrants === 1 ? "" : "s"}, not today’s member list. A label is skipped when nobody clears its bar.`,
   habitsTitle: "Prediction habits",
   habitsPicks: (count: number) => `${count} settled pick${count === 1 ? "" : "s"}`,
   habitsMostCalled: "Most-called scoreline",

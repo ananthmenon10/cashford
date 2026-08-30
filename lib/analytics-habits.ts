@@ -30,21 +30,30 @@ export type AnalyticsHabits = {
   sentence: { againstCorrect: number; againstCount: number } | null;
 };
 
-type Outcome = "home" | "draw" | "away";
+export type PredictionOutcome = "home" | "draw" | "away";
 
 function fixtureKey(gwNumber: number, fixtureId: string): string {
   return `${gwNumber}:${fixtureId}`;
 }
 
-function outcome(home: number | null, away: number | null): Outcome | null {
+function outcome(home: number | null, away: number | null): PredictionOutcome | null {
   if (home == null || away == null) return null;
   if (home === away) return "draw";
   return home > away ? "home" : "away";
 }
 
-function predictionOutcome(pick: CorpusPick): Outcome {
+export function predictionOutcome(pick: CorpusPick): PredictionOutcome {
   if (pick.predHome === pick.predAway) return "draw";
   return pick.predHome > pick.predAway ? "home" : "away";
+}
+
+export function modalOutcome(picks: readonly CorpusPick[]): PredictionOutcome | null {
+  const modes = new Map<PredictionOutcome, number>();
+  for (const pick of picks) {
+    const predicted = predictionOutcome(pick);
+    modes.set(predicted, (modes.get(predicted) ?? 0) + 1);
+  }
+  return uniqueTop([...modes.keys()], (value) => modes.get(value) ?? 0);
 }
 
 function scorelineCounts(picks: readonly CorpusPick[]) {
@@ -144,12 +153,7 @@ export function buildPredictionHabits(
   let againstWithVerdict = 0;
   for (const pick of viewerPicks) {
     const roomPicks = picksByFixture.get(fixtureKey(pick.gwNumber, pick.fixtureId)) ?? [];
-    const modes = new Map<Outcome, number>();
-    for (const roomPick of roomPicks) {
-      const predicted = predictionOutcome(roomPick);
-      modes.set(predicted, (modes.get(predicted) ?? 0) + 1);
-    }
-    const modal = uniqueTop([...modes.keys()], (value) => modes.get(value) ?? 0);
+    const modal = modalOutcome(roomPicks);
     if (!modal) {
       noConsensus += 1;
       continue;
