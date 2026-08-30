@@ -91,6 +91,8 @@ export type HomeLeagueCardInput = {
   enteredCount: number;
   eligibleCount: number;
   viewerRank: number | null;
+  /** Which table viewerRank came from: this gameweek's standings or the league dues table. */
+  viewerRankScope?: "gameweek" | "league" | null;
   viewerNetInr: number | null;
   secondary: readonly HomeLeagueCardSecondaryFact[];
   pendingPaymentCount: number;
@@ -216,6 +218,15 @@ function netTone(value: number | "suppressed"): HomeLeagueCard["rail"]["netTone"
   return "neutral";
 }
 
+function positionLabel(input: HomeLeagueCardInput): string {
+  if (input.viewerRank == null) return LEAGUE_CARD_COPY.position;
+  if (input.viewerRankScope === "gameweek" && input.gameweekNumber != null) {
+    return LEAGUE_CARD_COPY.gameweekPosition(input.gameweekNumber);
+  }
+  if (input.viewerRankScope === "league") return LEAGUE_CARD_COPY.seasonPosition;
+  return LEAGUE_CARD_COPY.position;
+}
+
 function viewerPosition(rank: number | null): string {
   return rank == null ? LEAGUE_CARD_COPY.missingValue : LEAGUE_CARD_COPY.rank(rank);
 }
@@ -320,7 +331,7 @@ export function buildHomeLeagueCard(input: HomeLeagueCardInput): HomeLeagueCard 
     rail: {
       net,
       netTone: netTone(input.netInr),
-      positionLabel: LEAGUE_CARD_COPY.position,
+      positionLabel: positionLabel(input),
       position: viewerPosition(input.viewerRank),
       positionTone: input.viewerRank == null ? "muted" as const : "normal" as const,
     },
@@ -354,9 +365,7 @@ export function buildHomeLeagueCard(input: HomeLeagueCardInput): HomeLeagueCard 
         entered ? LEAGUE_CARD_COPY.editPredictions : LEAGUE_CARD_COPY.makePredictions,
       ),
     };
-    if (entered) {
-      base.rail.positionLabel = LEAGUE_CARD_COPY.seasonPosition;
-    } else {
+    if (!entered) {
       base.rail.position = LEAGUE_CARD_COPY.missingValue;
       base.rail.positionTone = "muted";
       base.context = standardContext({ ...input, viewerRank: null });
@@ -367,7 +376,6 @@ export function buildHomeLeagueCard(input: HomeLeagueCardInput): HomeLeagueCard 
   } else if (state === "S2") {
     base.tone = "open";
     base.badge = LEAGUE_CARD_COPY.enteredBadge;
-    base.rail.positionLabel = LEAGUE_CARD_COPY.seasonPosition;
     base.primary = {
       kicker: LEAGUE_CARD_COPY.nextAction,
       title: LEAGUE_CARD_COPY.editGameweek(input.gameweekNumber ?? 0),
@@ -382,7 +390,6 @@ export function buildHomeLeagueCard(input: HomeLeagueCardInput): HomeLeagueCard 
     if ((input.liveMatchCount ?? 0) > 0) {
       base.tone = "live";
       base.badge = LEAGUE_CARD_COPY.liveBadge;
-      base.rail.positionLabel = LEAGUE_CARD_COPY.gameweekPosition;
       base.primary = {
         kicker: LEAGUE_CARD_COPY.gameweekStatus,
         title: LEAGUE_CARD_COPY.liveGameweek(input.liveMatchCount ?? 0),
@@ -404,7 +411,6 @@ export function buildHomeLeagueCard(input: HomeLeagueCardInput): HomeLeagueCard 
     const won = state === "S4";
     base.tone = won ? "settled" : "loss";
     base.badge = LEAGUE_CARD_COPY.settledBadge;
-    base.rail.positionLabel = LEAGUE_CARD_COPY.gameweekPosition;
     base.primary = {
       kicker: LEAGUE_CARD_COPY.gameweekResult,
       title: LEAGUE_CARD_COPY.settledGameweek(input.gameweekNumber ?? 0),
@@ -530,8 +536,7 @@ export function buildHomeLeagueCard(input: HomeLeagueCardInput): HomeLeagueCard 
     } else if (input.lifecycle === "CL1") {
       base.tone = "open";
       base.badge = LEAGUE_CARD_COPY.enteredBadge;
-      base.rail.positionLabel = LEAGUE_CARD_COPY.seasonPosition;
-      base.primary = {
+        base.primary = {
         kicker: LEAGUE_CARD_COPY.gameweekStatus,
         title: C6(number),
         detail: C9,
@@ -565,7 +570,6 @@ export function buildHomeLeagueCard(input: HomeLeagueCardInput): HomeLeagueCard 
       const viewerNet = input.viewerNetInr;
       base.tone = viewerNet != null && viewerNet < 0 ? "loss" : "settled";
       base.badge = LEAGUE_CARD_COPY.settledBadge;
-      base.rail.positionLabel = LEAGUE_CARD_COPY.gameweekPosition;
       base.primary = {
         kicker: LEAGUE_CARD_COPY.gameweekResult,
         title: LEAGUE_CARD_COPY.settledGameweek(number),
@@ -895,6 +899,11 @@ export async function loadHomeLeagueCards(
         enteredCount: view.enteredCount,
         eligibleCount: view.eligibleCount,
         viewerRank: currentStanding?.rank ?? view.viewerSeasonRank ?? null,
+        viewerRankScope: currentStanding?.rank != null
+          ? "gameweek"
+          : view.viewerSeasonRank != null
+            ? "league"
+            : null,
         viewerNetInr: currentStanding?.netInr ?? null,
         secondary: secondaryFactsFromView(view),
         pendingPaymentCount,

@@ -187,6 +187,7 @@ describe("buildHomeLeagueCard", () => {
       lifecycle: "CL3",
       viewerParticipation: "VP4",
       viewerRank: 4,
+      viewerRankScope: "gameweek",
       pendingPaymentCount: 1,
       liveMatchCount: 3,
     });
@@ -194,6 +195,7 @@ describe("buildHomeLeagueCard", () => {
     expect(card.state).toBe("S3");
     expect(card.badge).toBe(LEAGUE_CARD_COPY.liveBadge);
     expect(card.primary.title).toBe(LEAGUE_CARD_COPY.liveGameweek(3));
+    expect(card.rail.positionLabel).toBe("GW4 Position");
     expect(card.rail.position).toBe("#4");
     expect(card.duesLabel).toBe(LEAGUE_CARD_COPY.duesChip(1));
   });
@@ -203,13 +205,14 @@ describe("buildHomeLeagueCard", () => {
       lifecycle: "CL1",
       viewerParticipation: "VP2",
       viewerRank: 4,
+      viewerRankScope: "league",
       pendingPaymentCount: 1,
     });
 
     expect(card.state).toBe("S2");
     expect(card.primary.title).toBe(LEAGUE_CARD_COPY.editGameweek(4));
     expect(card.primary.action?.label).toBe(LEAGUE_CARD_COPY.editPredictions);
-    expect(card.rail.positionLabel).toBe("League rank");
+    expect(card.rail.positionLabel).toBe("League Position");
     expect(card.rail.position).toBe("#4");
     expect(card.duesLabel).toBe(LEAGUE_CARD_COPY.duesChip(1));
   });
