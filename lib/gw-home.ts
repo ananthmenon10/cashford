@@ -219,12 +219,15 @@ function netTone(value: number | "suppressed"): HomeLeagueCard["rail"]["netTone"
 }
 
 function positionLabel(input: HomeLeagueCardInput): string {
-  if (input.viewerRank == null) return LEAGUE_CARD_COPY.position;
-  if (input.viewerRankScope === "gameweek" && input.gameweekNumber != null) {
+  if (
+    input.viewerRank != null &&
+    input.viewerRankScope === "gameweek" &&
+    input.gameweekNumber != null
+  ) {
     return LEAGUE_CARD_COPY.gameweekPosition(input.gameweekNumber);
   }
-  if (input.viewerRankScope === "league") return LEAGUE_CARD_COPY.seasonPosition;
-  return LEAGUE_CARD_COPY.position;
+  // No rank, or a league-scoped one: the slot is always the league position.
+  return LEAGUE_CARD_COPY.seasonPosition;
 }
 
 function viewerPosition(rank: number | null): string {
