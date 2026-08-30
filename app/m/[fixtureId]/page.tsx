@@ -11,7 +11,7 @@ export default async function MatchDetailPage({
   searchParams,
 }: {
   params: Promise<{ fixtureId: string }>;
-  searchParams: Promise<{ league?: string }>;
+  searchParams: Promise<{ league?: string; tab?: string }>;
 }) {
   const [{ fixtureId }, query] = await Promise.all([params, searchParams]);
   const session = await createClient();
@@ -27,5 +27,5 @@ export default async function MatchDetailPage({
     query.league,
   );
   if (!view) notFound();
-  return <Phase4MatchDetailPage fixtureId={fixtureId} view={view} />;
+  return <Phase4MatchDetailPage fixtureId={fixtureId} view={view} initialTab={query.tab} />;
 }

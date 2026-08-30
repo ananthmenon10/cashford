@@ -3101,3 +3101,44 @@ rows, void verdicts, and uncounted fixtures. The copy says “them” instead of
   network restriction, and the built app could not bind a local port (`EPERM`); component, route,
   and full-suite checks remain green. Copy uses typographic apostrophes to follow the repository’s
   copy checks, and the supplied layout correction keeps every label card in one half-width cell.
+
+## Plan 018 — Job 1 (2026-08-30)
+
+The match-detail boundary now returns typed player-stat, lineup, and shot blocks. The pure match
+block builders derive player xG, cumulative xG races, B7 spotlights, B5 event ledgers, and keeper
+names. The golden fixture backs the new coercer and builder tests; no fetch path or React component
+changed.
+
+### Deviations
+
+- Shared row, lineup, shot, and side types live in `lib/match-types.ts` and are re-exported by
+  `lib/match-detail.ts`. This keeps `lib/match-blocks.ts` free of a runtime import cycle while
+  preserving the requested public type exports.
+- `keeperNames` accepts the player-stat rows as an optional second argument (and also accepts a
+  row array as its first argument) because the saves-based fallback has no input otherwise. When
+  lineups exist, only the first formation-ordered player on each side is treated as a keeper.
+- Shot-to-row joins use exact full names first. The fallback compares normalized final whitespace
+  tokens after removing combining marks and lowercasing, and only joins when one stats row on that
+  team has the surname. Unmatched shots remain in shot-level totals but never create a stats row.
+- A Danger ledger entry uses its matched shot count for the required numeric `count` field and
+  keeps the unrounded xG in `xg`; the B5 renderer can use xG for its displayed value.
+
+## Plan 018 — Jobs 2 and 3 (2026-08-30)
+
+The match page is now tabs. `components/matches/MatchTabs.tsx` is the client shell: a chip row plus
+every panel in the DOM, inactive ones marked `hidden`. `Phase4MatchDetailPage` stays a server
+component and builds the tab array per state, so a tab only appears when its block has data and a
+fixture with nothing beyond Overview gets no tab bar. `app/m/[fixtureId]/page.tsx` reads `?tab=`
+and passes it as `initialTab`; clicks rewrite the query with `history.replaceState`, merging into
+the existing string so `?league=` survives. Three render blocks landed alongside:
+`LineupsBlock` (A1 pitch pins), `PlayerStatsBlock` (B7 spotlights then the B5 ledger) and
+`ShotsBlock` (C1 map + C2 xG race + C4 outcome ledger, inline SVG, no chart library).
+
+### Deviations
+
+- B7's team-compare bars are cut. They crowded the card at 360px and the plan allowed the cut.
+- The post-match poll note is tied to the module it explains: it renders in Stats when
+  `view.ratings` exists and in Shots when `view.xg` exists, rather than once per page. The plan
+  said the note "moves with" those modules but did not cover Stats and Shots diverging.
+- `LineupsBlock` falls back to an even split by count when a formation string does not parse, so a
+  bad formation never drops a player or crashes the tab.

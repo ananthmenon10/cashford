@@ -2,9 +2,25 @@
 // moneyline dumps to de-vigged 1X2 probabilities (already stored on fixture_insights as
 // p_home/p_draw/p_away — see lib/espn-insights.ts buildInsightsRow), and the graceful-absent
 // behaviour every module in components/matches/MatchInsightModules.tsx depends on.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildMatchDetailView, type MatchDetailInput } from "../../lib/match-detail";
 import { MATCH_COPY } from "../../lib/match-copy";
+
+const sample = JSON.parse(
+  readFileSync(
+    resolve(
+      process.cwd(),
+      "docs/design/throwaway/match-blocks-sample-data.json",
+    ),
+    "utf8",
+  ),
+) as {
+  player_stats: unknown[];
+  lineups: { home: unknown; away: unknown };
+  shots: unknown[];
+};
 
 const NOW = new Date("2026-08-10T12:00:00.000Z");
 const KICKOFF = "2026-08-15T14:00:00.000Z";
@@ -433,10 +449,10 @@ describe("buildMatchDetailView — visible match-detail DTO rows", () => {
           model_source_kickoff_at: KICKOFF,
         },
         matchData: {
-          player_stats: [{ player: "Player", team: "home" }],
+          player_stats: sample.player_stats,
           player_stats_ok: true,
           player_stats_fetched_at: "2026-08-15T17:00:00.000Z",
-          lineups: { home: { formation: "4-3-3" }, away: { formation: "4-4-2" } },
+          lineups: sample.lineups,
           lineups_ok: true,
           lineups_fetched_at: "2026-08-15T17:00:00.000Z",
         },
@@ -446,7 +462,7 @@ describe("buildMatchDetailView — visible match-detail DTO rows", () => {
             predicted_xi: { home: { formation: "4-3-3" }, away: { formation: "4-4-2" } },
             predicted_xi_ok: true,
             predicted_xi_fetched_at: "2026-08-10T10:00:00.000Z",
-            shots: [{ team: "home", minute: 10 }],
+            shots: sample.shots,
             shots_ok: true,
             shots_fetched_at: "2026-08-15T17:00:00.000Z",
             momentum: [{ minute: 10, value: 1 }],
@@ -476,5 +492,38 @@ describe("buildMatchDetailView — visible match-detail DTO rows", () => {
     expect(view.shotMap).toBeDefined();
     expect(view.momentum).toBeDefined();
     expect(preView.predictedXi).toBeDefined();
+
+    const garbageView = buildMatchDetailView(
+      baseInput({
+        state: "post",
+        fixture: {
+          ...baseInput().fixture,
+          score: [1, 0],
+          finishedAt: "2026-08-15T16:00:00.000Z",
+        },
+        matchData: {
+          player_stats: [{ player: "Player", team: "neutral" }],
+          player_stats_ok: true,
+          player_stats_fetched_at: "2026-08-15T17:00:00.000Z",
+          lineups: {
+            home: { formation: "4-3-3" },
+            away: { formation: "4-4-2" },
+          },
+          lineups_ok: true,
+          lineups_fetched_at: "2026-08-15T17:00:00.000Z",
+        },
+        slowRows: [
+          {
+            provider: "fotmob",
+            shots: [{ team: "home", minute: 10 }],
+            shots_ok: true,
+            shots_fetched_at: "2026-08-15T17:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(garbageView.playerStats).toBeUndefined();
+    expect(garbageView.lineups).toBeUndefined();
+    expect(garbageView.shotMap).toBeUndefined();
   });
 });

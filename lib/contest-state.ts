@@ -76,6 +76,27 @@ export function liveLabel(statusDetail?: string | null, minute?: number | null):
   return minute ? `${minute}'` : "Live";
 }
 
+// Human label for the match-detail header. ESPN's status_detail is an enum
+// name (STATUS_FULL_TIME); never show it raw.
+export function matchStatusLabel(
+  status: string,
+  statusDetail?: string | null,
+  minute?: number | null,
+): string {
+  if (status === "live") return `${liveLabel(statusDetail, minute)} · LIVE`;
+  if (status === "finished") {
+    if (statusDetail === "STATUS_FINAL_AET") return "Full time · AET";
+    if (statusDetail === "STATUS_FINAL_PEN") return "Full time · Pens";
+    return "Full time";
+  }
+  if (status === "scheduled") return "Kick-off to come";
+  if (status === "postponed") return "Postponed";
+  if (status === "cancelled") return "Cancelled";
+  if (status === "abandoned") return "Abandoned";
+  const raw = (statusDetail ?? status).replace(/^STATUS_/, "").replace(/_/g, " ").toLowerCase();
+  return raw ? raw[0].toUpperCase() + raw.slice(1) : status;
+}
+
 export const ROUND_LABEL: Record<string, string> = {
   group: "Group", r32: "Round of 32", r16: "Round of 16",
   qf: "Quarter-final", sf: "Semi-final", third: "3rd place", final: "Final",

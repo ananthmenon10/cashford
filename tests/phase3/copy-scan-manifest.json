@@ -102,6 +102,10 @@
     { "path": "components/analytics/Rivalry.tsx", "mode": "jsx", "note": "C1 module 05 presentation" },
     { "path": "components/analytics/PredictionHabits.tsx", "mode": "jsx", "note": "C1 module 07 presentation" },
     { "path": "components/matches/MatchInsightModules.tsx", "mode": "jsx", "note": "Step 9 (#16) odds/form/H2H/table match-detail modules — all copy routed through lib/match-copy.ts" },
+    { "path": "components/matches/LineupsBlock.tsx", "mode": "jsx", "note": "Plan 018 lineups block — all copy routed through lib/match-copy.ts" },
+    { "path": "components/matches/PlayerStatsBlock.tsx", "mode": "jsx", "note": "Plan 018 player stats block — all copy routed through lib/match-copy.ts" },
+    { "path": "components/matches/ShotsBlock.tsx", "mode": "jsx", "note": "Plan 018 shots block — all copy routed through lib/match-copy.ts" },
+    { "path": "components/matches/MatchTabs.tsx", "mode": "jsx", "note": "Plan 018 tab shell — all copy routed through lib/match-copy.ts" },
     { "path": "app/rules/page.tsx", "mode": "jsx", "note": "Step 9 (#13) gameweek-era rules rewrite — all copy routed through lib/rules-copy.ts" }
   ],
   "excluded": [

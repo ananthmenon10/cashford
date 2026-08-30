@@ -1,7 +1,9 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { MATCH_COPY } from "@/lib/match-copy";
 import type { MatchDetailView } from "@/lib/match-detail";
 import { LocalTime } from "@/components/LocalTime";
+import { LineupsBlock } from "@/components/matches/LineupsBlock";
 import {
   CommentaryModule,
   FormModule,
@@ -16,6 +18,9 @@ import {
   TimelineModule,
   XgModule,
 } from "@/components/matches/MatchInsightModules";
+import { MatchTabs } from "@/components/matches/MatchTabs";
+import { PlayerStatsBlock } from "@/components/matches/PlayerStatsBlock";
+import { ShotsBlock } from "@/components/matches/ShotsBlock";
 
 const card =
   "rounded-card border border-border bg-surface p-4 shadow-[0_2px_8px_rgba(15,23,42,.04)]";
@@ -94,17 +99,264 @@ function Room({
   );
 }
 
-export function Phase4MatchDetailPage({
+function CashfordLayer({
   fixtureId,
   view,
 }: {
   fixtureId: string;
   view: MatchDetailView;
 }) {
-  const score = view.header.score;
   return (
-    <main className="min-h-screen bg-bg">
-      <div className="mx-auto max-w-[560px] space-y-4 px-4 py-5">
+    <>
+      <Calls view={view} />
+      {view.whatIf && (
+        <section className={`${card} border-live`}>
+          {view.whatIf.line}
+        </section>
+      )}
+      {view.raceLink && (
+        <Link href={view.raceLink.href} className={`block ${card}`}>
+          <div className="font-bold">{view.raceLink.league.name}</div>
+          <div className="mt-1 text-sm text-muted">
+            {view.raceLink.standingLine} · {MATCH_COPY.liveRace}
+          </div>
+        </Link>
+      )}
+      <Room fixtureId={fixtureId} view={view} />
+    </>
+  );
+}
+
+export function Phase4MatchDetailPage({
+  fixtureId,
+  view,
+  initialTab,
+}: {
+  fixtureId: string;
+  view: MatchDetailView;
+  initialTab?: string;
+}) {
+  const score = view.header.score;
+  const postStatsAvailable = Boolean(view.teamStats || view.playerStats);
+  const postPollNote = (
+    <div className="text-xs text-muted">{MATCH_COPY.postPollNote}</div>
+  );
+  const tabs: Array<{ id: string; label: string; content: ReactNode }> = [
+    {
+      id: "overview",
+      label: MATCH_COPY.tabOverview,
+      content: (
+        <>
+          <CashfordLayer fixtureId={fixtureId} view={view} />
+          {view.state === "live" && (
+            <TimelineModule
+              keyEvents={view.keyEvents}
+              home={view.header.home}
+              away={view.header.away}
+            />
+          )}
+          {view.state === "post" && (
+            <>
+              <RetrospectiveModule retrospective={view.retrospective} />
+              <TimelineModule
+                keyEvents={view.keyEvents}
+                home={view.header.home}
+                away={view.header.away}
+              />
+            </>
+          )}
+        </>
+      ),
+    },
+  ];
+
+  if (view.state === "pre") {
+    const hasInsights = Boolean(
+      view.odds ||
+        view.model ||
+        view.form ||
+        view.h2h ||
+        view.table ||
+        view.teamNews,
+    );
+    if (hasInsights) {
+      tabs.push({
+        id: "insights",
+        label: MATCH_COPY.tabInsights,
+        content: (
+          <>
+            <OddsModule
+              odds={view.odds}
+              model={view.model}
+              home={view.header.home}
+              away={view.header.away}
+            />
+            <FormModule
+              form={view.form}
+              home={view.header.home}
+              away={view.header.away}
+            />
+            <H2HModule
+              h2h={view.h2h}
+              home={view.header.home}
+              away={view.header.away}
+            />
+            <TableModule table={view.table} />
+            <TeamNewsModule
+              teamNews={view.teamNews}
+              home={view.header.home}
+              away={view.header.away}
+            />
+          </>
+        ),
+      });
+    }
+    if (view.lineups) {
+      tabs.push({
+        id: "lineups",
+        label: MATCH_COPY.tabLineups,
+        content: (
+          <LineupsBlock
+            lineups={view.lineups}
+            home={view.header.home}
+            away={view.header.away}
+          />
+        ),
+      });
+    }
+  }
+
+  if (view.state === "live") {
+    if (view.lineups) {
+      tabs.push({
+        id: "lineups",
+        label: MATCH_COPY.tabLineups,
+        content: (
+          <LineupsBlock
+            lineups={view.lineups}
+            home={view.header.home}
+            away={view.header.away}
+          />
+        ),
+      });
+    }
+    if (view.teamStats) {
+      tabs.push({
+        id: "stats",
+        label: MATCH_COPY.tabStats,
+        content: (
+          <>
+            <TeamStatsModule teamStats={view.teamStats} />
+            {view.playerStats ? (
+              <PlayerStatsBlock
+                playerStats={view.playerStats}
+                shotMap={view.shotMap}
+                lineups={view.lineups}
+                home={view.header.home}
+                away={view.header.away}
+              />
+            ) : null}
+          </>
+        ),
+      });
+    }
+    if (view.commentary) {
+      tabs.push({
+        id: "plays",
+        label: MATCH_COPY.tabPlays,
+        content: (
+          <CommentaryModule commentary={view.commentary} state={view.state} />
+        ),
+      });
+    }
+  }
+
+  if (view.state === "post") {
+    if (view.lineups) {
+      tabs.push({
+        id: "lineups",
+        label: MATCH_COPY.tabLineups,
+        content: (
+          <LineupsBlock
+            lineups={view.lineups}
+            home={view.header.home}
+            away={view.header.away}
+          />
+        ),
+      });
+    }
+    if (postStatsAvailable) {
+      tabs.push({
+        id: "stats",
+        label: MATCH_COPY.tabStats,
+        content: (
+          <>
+            {view.ratings ? postPollNote : null}
+            <TeamStatsModule teamStats={view.teamStats} />
+            {view.playerStats ? (
+              <PlayerStatsBlock
+                playerStats={view.playerStats}
+                shotMap={view.shotMap}
+                lineups={view.lineups}
+                home={view.header.home}
+                away={view.header.away}
+              />
+            ) : null}
+            <RatingsModule
+              ratings={view.ratings}
+              home={view.header.home}
+              away={view.header.away}
+            />
+          </>
+        ),
+      });
+    }
+    if (view.shotMap) {
+      tabs.push({
+        id: "shots",
+        label: MATCH_COPY.tabShots,
+        content: (
+          <>
+            {view.xg ? postPollNote : null}
+            <ShotsBlock
+              shotMap={view.shotMap}
+              home={view.header.home}
+              away={view.header.away}
+            />
+            <XgModule
+              xg={view.xg}
+              home={view.header.home}
+              away={view.header.away}
+            />
+          </>
+        ),
+      });
+    }
+    if (view.commentary) {
+      tabs.push({
+        id: "plays",
+        label: MATCH_COPY.tabPlays,
+        content: (
+          <CommentaryModule commentary={view.commentary} state={view.state} />
+        ),
+      });
+    }
+  }
+
+  const compactScore = (
+    <div className="flex min-w-0 items-center justify-between gap-3 px-4 py-2.5">
+      <strong className="min-w-0 truncate text-[13px]">
+        {view.header.home.name} {score ? `${score[0]}–${score[1]}` : MATCH_COPY.missingValue} {view.header.away.name}
+      </strong>
+      <span className="shrink-0 font-mono text-[10px] font-bold text-muted">
+        {view.header.status}
+      </span>
+    </div>
+  );
+
+  return (
+    <main className="min-h-screen overflow-x-hidden bg-bg">
+      <div className="mx-auto min-w-0 max-w-[560px] space-y-4 px-4 py-5">
         <Link href="/matches" className="text-sm font-bold text-primary-press">
           ← {MATCH_COPY.fixturesAndResults}
         </Link>
@@ -137,77 +389,10 @@ export function Phase4MatchDetailPage({
           />
         </header>
 
-        <Calls view={view} />
-        {view.whatIf && (
-          <section className={`${card} border-live`}>
-            {view.whatIf.line}
-          </section>
-        )}
-        {view.raceLink && (
-          <Link href={view.raceLink.href} className={`block ${card}`}>
-            <div className="font-bold">{view.raceLink.league.name}</div>
-            <div className="mt-1 text-sm text-muted">
-              {view.raceLink.standingLine} · {MATCH_COPY.liveRace}
-            </div>
-          </Link>
-        )}
-        <Room fixtureId={fixtureId} view={view} />
+        <MatchTabs tabs={tabs} initialTab={initialTab ?? "overview"}>
+          {compactScore}
+        </MatchTabs>
 
-        {view.state === "pre" && (
-          <>
-            {(view.odds || view.model || view.form || view.h2h || view.table || view.teamNews) && (
-              <div className="text-xs font-extrabold uppercase tracking-wide text-muted">
-                {MATCH_COPY.insights}
-              </div>
-            )}
-            <OddsModule odds={view.odds} model={view.model} home={view.header.home} away={view.header.away} />
-            <FormModule form={view.form} home={view.header.home} away={view.header.away} />
-            <H2HModule h2h={view.h2h} home={view.header.home} away={view.header.away} />
-            <TableModule table={view.table} />
-            <TeamNewsModule
-              teamNews={view.teamNews}
-              home={view.header.home}
-              away={view.header.away}
-            />
-          </>
-        )}
-
-        {view.state === "post" && view.retrospective && (
-          <RetrospectiveModule retrospective={view.retrospective} />
-        )}
-
-        {view.state !== "pre" && (
-          <>
-            <TimelineModule
-              keyEvents={view.keyEvents}
-              home={view.header.home}
-              away={view.header.away}
-            />
-            <TeamStatsModule teamStats={view.teamStats} />
-            <CommentaryModule
-              commentary={view.commentary}
-              state={view.state}
-            />
-          </>
-        )}
-
-        {view.state === "post" && (
-          <>
-            {(view.xg || view.ratings) && (
-              <div className="text-xs text-muted">{MATCH_COPY.postPollNote}</div>
-            )}
-            <XgModule
-              xg={view.xg}
-              home={view.header.home}
-              away={view.header.away}
-            />
-            <RatingsModule
-              ratings={view.ratings}
-              home={view.header.home}
-              away={view.header.away}
-            />
-          </>
-        )}
         {view.notes.map((note) => (
           <div key={note} className="text-xs text-muted">{note}</div>
         ))}

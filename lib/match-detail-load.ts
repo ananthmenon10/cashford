@@ -2,6 +2,7 @@
 // Service-role reads are limited to fixture/reference caches that authenticated users may select.
 import { buildMatchDetailView, type MatchDetailView } from "./match-detail";
 import { buildLiveInput, liveMoney } from "./gw-live-money";
+import { matchStatusLabel } from "./contest-state";
 import type { LeagueRef } from "./matches-tab";
 import { MATCH_COPY } from "./match-copy";
 import { collapseGameweekFixtures } from "./gw-fixtures";
@@ -385,10 +386,7 @@ export async function loadMatchDetail(
         crest: away?.flag_url ?? null,
       },
       score,
-      status:
-        fixture.status === "live"
-          ? `${fixture.minute ?? ""}' · LIVE`
-          : fixture.status_detail ?? fixture.status,
+      status: matchStatusLabel(fixture.status, fixture.status_detail, fixture.minute),
       kickoffAt: fixture.kickoff_at,
       finishedAt: fixture.finished_at,
     },

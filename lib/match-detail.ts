@@ -1,8 +1,23 @@
 import {
-  arrayBlock,
   sourcedBlock,
   type Sourced,
 } from "./match-blocks";
+import type {
+  MatchLineupPlayer,
+  MatchLineupSide,
+  MatchPlayerStatRow,
+  MatchShot,
+  MatchShotResult,
+  MatchSide,
+} from "./match-types";
+export type {
+  MatchLineupPlayer,
+  MatchLineupSide,
+  MatchPlayerStatRow,
+  MatchShot,
+  MatchShotResult,
+  MatchSide,
+} from "./match-types";
 import type { LeagueRef } from "./matches-tab";
 import { MATCH_COPY } from "./match-copy";
 import { modelUsable } from "./insights-cadence";
@@ -15,7 +30,6 @@ import {
 
 export type Club = { id: string; name: string; crest?: string | null };
 export type ScoreProb = { h: number; a: number; p: number };
-export type MatchSide = "home" | "away";
 export type ScorerLine = {
   team: MatchSide;
   player: string;
@@ -127,9 +141,9 @@ export type MatchDetailView = {
     minute: string | null;
     rows: MatchStatRow[];
   }>;
-  playerStats?: Sourced<{ rows: unknown[] }>;
+  playerStats?: Sourced<{ rows: MatchPlayerStatRow[] }>;
   commentary?: Sourced<{ lines: MatchCommentaryLine[] }>;
-  lineups?: Sourced<{ home: unknown; away: unknown }>;
+  lineups?: Sourced<{ home: MatchLineupSide; away: MatchLineupSide }>;
   retrospective?: Sourced<{ line: string }>;
   xg?: Sourced<{
     home: number;
@@ -139,7 +153,7 @@ export type MatchDetailView = {
     afterFt: string;
   }>;
   shotMap?: Sourced<{
-    shots: unknown[];
+    shots: MatchShot[];
     provider: "FotMob" | "Understat";
   }>;
   ratings?: Sourced<{
@@ -299,6 +313,93 @@ function coerceTeamStats(value: unknown): MatchStatRow[] | undefined {
     return pair ? [{ label, value: pair }] : [];
   });
   return rows.length ? rows : undefined;
+}
+
+export function coercePlayerStats(
+  value: unknown,
+): MatchPlayerStatRow[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const rows = value.flatMap((candidate): MatchPlayerStatRow[] => {
+    const row = rawRow(candidate);
+    const name = nonemptyText(row?.player ?? row?.name);
+    const team = matchSide(row?.team);
+    if (!name || !team) return [];
+    const number = (key: string): number => finiteNumber(row?.[key]) ?? 0;
+    return [{
+      name,
+      team,
+      goals: number("goals"),
+      assists: number("assists"),
+      totalShots: number("totalShots"),
+      shotsOnTarget: number("shotsOnTarget"),
+      saves: number("saves"),
+      goalsConceded: number("goalsConceded"),
+      yellowCards: number("yellowCards"),
+      redCards: number("redCards"),
+    }];
+  });
+  return rows.length ? rows : undefined;
+}
+
+function coerceLineupSide(value: unknown): MatchLineupSide | undefined {
+  const root = rawRow(value);
+  const formation = nonemptyText(root?.formation);
+  if (!formation || !Array.isArray(root?.players)) return undefined;
+  const players = root.players.flatMap((candidate): MatchLineupPlayer[] => {
+    const row = rawRow(candidate);
+    const name = nonemptyText(row?.name ?? row?.player);
+    if (!name) return [];
+    return [{
+      name,
+      shirt: finiteNumber(row?.shirt),
+    }];
+  });
+  return players.length >= 7 ? { formation, players } : undefined;
+}
+
+export function coerceLineups(value: unknown):
+  | { home: MatchLineupSide; away: MatchLineupSide }
+  | undefined {
+  const root = rawRow(value);
+  if (!root) return undefined;
+  const home = coerceLineupSide(root.home);
+  const away = coerceLineupSide(root.away);
+  return home && away ? { home, away } : undefined;
+}
+
+function shotResult(value: unknown): MatchShotResult {
+  return value === "goal" ||
+    value === "saved" ||
+    value === "blocked" ||
+    value === "off_target"
+    ? value
+    : "other";
+}
+
+export function coerceShots(value: unknown): MatchShot[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const shots = value.flatMap((candidate): MatchShot[] => {
+    const row = rawRow(candidate);
+    const x = finiteNumber(row?.x);
+    const y = finiteNumber(row?.y);
+    const xg = finiteNumber(row?.xg);
+    const minute = finiteNumber(row?.minute);
+    const player = nonemptyText(row?.player);
+    const team = matchSide(row?.team);
+    if (x == null || y == null || xg == null || minute == null || !player || !team) {
+      return [];
+    }
+    return [{
+      x: Math.min(1, Math.max(0, x)),
+      y: Math.min(1, Math.max(0, y)),
+      xg: Math.max(0, xg),
+      minute,
+      player,
+      team,
+      result: shotResult(row?.result),
+    }];
+  });
+  return shots.length ? shots : undefined;
 }
 
 function coerceCommentary(value: unknown): MatchCommentaryLine[] | undefined {
@@ -584,16 +685,16 @@ export function buildMatchDetailView(
       },
       now,
     );
-    view.playerStats = arrayBlock(
-      matchData.player_stats,
-      "rows",
+    const playerStats = coercePlayerStats(matchData.player_stats);
+    view.playerStats = sourcedBlock(
+      playerStats ? { rows: playerStats } : null,
       {
         ok: matchData.player_stats_ok,
         source: "ESPN",
         fetchedAt: matchData.player_stats_fetched_at,
       },
       now,
-    ) as Sourced<{ rows: unknown[] }> | undefined;
+    );
     const commentary = coerceCommentary(matchData.commentary);
     view.commentary = sourcedBlock(
       commentary ? { lines: commentary } : null,
@@ -606,13 +707,9 @@ export function buildMatchDetailView(
     );
   }
   if (matchData?.lineups) {
+    const lineups = coerceLineups(matchData.lineups);
     view.lineups = sourcedBlock(
-      matchData.lineups.home && matchData.lineups.away
-        ? {
-            home: matchData.lineups.home,
-            away: matchData.lineups.away,
-          }
-        : null,
+      lineups,
       {
         ok: matchData.lineups_ok,
         source: "ESPN",
@@ -721,22 +818,25 @@ export function buildMatchDetailView(
           ),
       );
     if (shotsSource) {
-      view.shotMap = sourcedBlock(
-        {
-          shots: shotsSource.shots,
-          provider:
-            shotsSource.provider === "fotmob"
-              ? ("FotMob" as const)
-              : ("Understat" as const),
-        },
-        {
-          ok: true,
-          source:
-            shotsSource.provider === "fotmob" ? "FotMob" : "Understat",
-          fetchedAt: shotsSource.shots_fetched_at,
-        },
-        now,
-      );
+      const shots = coerceShots(shotsSource.shots);
+      if (shots) {
+        view.shotMap = sourcedBlock(
+          {
+            shots,
+            provider:
+              shotsSource.provider === "fotmob"
+                ? ("FotMob" as const)
+                : ("Understat" as const),
+          },
+          {
+            ok: true,
+            source:
+              shotsSource.provider === "fotmob" ? "FotMob" : "Understat",
+            fetchedAt: shotsSource.shots_fetched_at,
+          },
+          now,
+        );
+      }
     }
     const source = input.slowRows.find((row) => row.provider === "fotmob");
     const ratings = source

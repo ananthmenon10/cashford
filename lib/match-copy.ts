@@ -259,6 +259,87 @@ export const MATCH_COPY = {
       .filter(Boolean);
     return parts.length ? parts.join(" · ") : "—";
   },
+  // Plan 018 — block copy
+  lineups: "Lineups",
+  lineupsKicker: "Same shape, two starting XIs",
+  lineupAway: "Away",
+  lineupStarterCount: (count: number) =>
+    `${count} ${count === 1 ? "starter" : "starters"}`,
+  topPerformers: "Top performers",
+  spotlights: "Spotlights",
+  playerEvents: "Player events",
+  playerEventsKicker: "Banked this match",
+  highestXg: "Highest xG",
+  scorerSpotlight: "Scorers",
+  creatorSpotlight: "Creators",
+  keeperSpotlight: "Best keeper",
+  dangerLeader: "danger leader",
+  goalsFrom: "goals from",
+  assistsFrom: "assists from",
+  goalsCategory: "Goals",
+  assistsCategory: "Assists",
+  cardsCategory: "Cards",
+  keeperCategory: "Keeper",
+  dangerCategory: "Danger",
+  goalsMeta: "scored",
+  assistsMeta: "created",
+  cardsMeta: "shown",
+  keeperMeta: "saves / conceded",
+  dangerMeta: "top xG leaders",
+  none: "None",
+  goalCount: (count: number) =>
+    `${count} ${count === 1 ? "goal" : "goals"}`,
+  assistCount: (count: number) =>
+    `${count} ${count === 1 ? "assist" : "assists"}`,
+  cardCount: (count: number) =>
+    `${count} ${count === 1 ? "card" : "cards"}`,
+  saveCount: (count: number) =>
+    `${count} ${count === 1 ? "save" : "saves"}`,
+  concededCount: (count: number) =>
+    `${count} ${count === 1 ? "goal conceded" : "goals conceded"}`,
+  xgEntry: (value: number) => `${value.toFixed(2)} xG`,
+  yellowCard: "Yellow card",
+  redCard: "Red card",
+  yellowCardMark: (count: number) => `Y${count > 1 ? count : ""}`,
+  redCardMark: (count: number) => `R${count > 1 ? count : ""}`,
+  shotMapKicker: "Spatial view · xG controls dot size",
+  shotMapAttempts: (count: number) => `${count} attempts`,
+  shotMapAriaLabel: (count: number, home: string, away: string) =>
+    `Shot map for all ${count} ${home} and ${away} shots`,
+  shotDotAriaLabel: (
+    player: string,
+    team: string,
+    minute: number,
+    result: string,
+    xg: number,
+  ) => `${player} · ${team} · ${minute}′ · ${result} · xG ${xg.toFixed(3)}`,
+  pitchAwayGoal: (team: string) => `${team} goal ←`,
+  pitchCentre: "centre",
+  pitchHomeGoal: (team: string) => `${team} goal →`,
+  combinedXg: (count: number) => `combined xG · ${count} attempts`,
+  xgRaceAriaLabel: (home: string, away: string) =>
+    `Cumulative xG race for ${home} and ${away}`,
+  outcomeSummary: (total: number, attempts: number, goals: number) =>
+    `${total.toFixed(2)} xG total across ${attempts} attempts, including ${goals} goals.`,
+  shotDetail: "Selected shot",
+  shotDetailMinute: "Minute",
+  shotDetailPlayer: "Player",
+  shotDetailTeam: "Team",
+  shotDetailResult: "Result",
+  shotDetailXg: "xG",
+  shotGoal: "Goal",
+  shotSaved: "Saved",
+  shotBlocked: "Blocked",
+  shotOffTarget: "Off target",
+  shotOther: "Other",
+  // Plan 018 — tabs
+  tabOverview: "Overview",
+  tabInsights: "Insights",
+  tabLineups: "Lineups",
+  tabStats: "Stats",
+  tabShots: "Shots",
+  tabPlays: "Plays",
+  matchTabsAriaLabel: "Match sections",
 } as const;
 
 export function fplStatusLabel(
