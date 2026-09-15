@@ -26,6 +26,14 @@ function fingerprint(
   return `${home ?? "null"}-${away ?? "null"}@${revisions}`;
 }
 
+// Only the cached-row fields the loop below reads. `select("*")` shipped the
+// player_stats/commentary/key_events JSON for every fixture on every tick;
+// see docs/plans/2026-09-15-019-tick-egress-plan.md. `lineups` stays: the
+// `lineups_ok && lineups` guard needs the value, not just a flag. Written as a
+// literal because supabase-js parses the select string at the type level.
+export const MATCH_DATA_CACHE_COLUMNS =
+  "fixture_id, frozen_at, stale_retry_at, lineups_ok, lineups, lineups_fetched_at, key_events_fetched_at, team_stats_fetched_at, source_version";
+
 export async function pollMatchData(
   admin: Admin,
   fetcher: SummaryFetcher,
@@ -48,7 +56,7 @@ export async function pollMatchData(
       if (!rows.length) return;
       const ids = rows.map((fixture: any) => fixture.id);
       const [{ data: cache }, { data: revisionRows }] = await Promise.all([
-        admin.from("fixture_match_data").select("*").in("fixture_id", ids),
+        admin.from("fixture_match_data").select(MATCH_DATA_CACHE_COLUMNS).in("fixture_id", ids),
         admin.from("result_revisions").select("fixture_id").in("fixture_id", ids),
       ]);
       const byId = new Map((cache ?? []).map((row: any) => [row.fixture_id, row]));
