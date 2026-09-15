@@ -63,8 +63,13 @@ resolve from TBD) · `contests` (one per league per fixture) · `predictions` ·
 - `lib/odds-model.ts` — Poisson model: de-vig 1X2 → λ split → scoreline grid → top scores, BTTS,
   clean sheets, `pOver`. **Pure + unit-tested** (odds shapes are unstable; keep it defensive).
 - **Cron:** `app/api/cron/tick/route.ts` (GET/POST, `CRON_SECRET` auth) is driven by **Supabase pg_cron**
-  (`net.http_post`). Runs `pollScores → lockDueContests → settleFinishedContests → pollInsights`. No
-  Vercel cron config.
+  (`net.http_post`, every minute). Every tick: `syncFpl → lockDueContests → settleFinishedContests →
+  gameweekMaintenance → dispatchGameweekSettlements → insights writer`. The fixture pollers
+  (`pollScores`, knockout resolution, Phase 4 block) run every minute only while a fixture is live,
+  within 2 h of kick-off, or within 5 h after it (`lib/tick-mode.ts`); otherwise every 10 minutes.
+  Phase 4 pollers are pre-gated by one `sync_state` read (`lib/phase4-due.ts`). Reads of
+  `fixture_match_data` must name their columns — `select("*")` there was the Sept 2026 egress
+  overage. No Vercel cron config.
 
 ## Verify before "done"
 `npm run typecheck` (tsc) · `npm run build` (next build) · `npm test` / `npx vitest run`. For UI,

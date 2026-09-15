@@ -3142,3 +3142,28 @@ the existing string so `?league=` survives. Three render blocks landed alongside
   said the note "moves with" those modules but did not cover Stats and Shots diverging.
 - `LineupsBlock` falls back to an even split by count when a formation string does not parse, so a
   bad formation never drops a player or crashes the tab.
+
+## Plan 019 — Tick egress cut (2026-09-15)
+
+Supabase free-plan egress hit 12 GB against a 5.5 GB cap. ~0.5 GB/day came from the tick's
+`fixture_match_data` `select("*")` reads (~300 KB gzip × ~1,750/day). Fixes: named columns in
+`reconcileMatchCache` and `pollMatchData` (`RECONCILE_CACHE_COLUMNS` / `MATCH_DATA_CACHE_COLUMNS`);
+one `sync_state` read before the Phase 4 claims (`lib/phase4-due.ts`, `readPhase4Due`); quiet mode
+(`lib/tick-mode.ts`, `resolveTickMode` / `shouldRunFixturePollers`) that runs the fixture pollers
+every 10 min when no match sits within −5 h/+2 h of kick-off. The tick response gained `tickMode`,
+`fixturePollers` and `phase4DueSource`.
+
+### Deviations
+
+- Quiet mode does not gate FPL sync, locks, settlement or gameweek maintenance (deadline and
+  payout latency unchanged). Only fixture-data freshness lags, by ≤10 min, outside match windows.
+- The insights writer claim stays ungated; it is one RPC and self-schedules.
+- `CRON_SECRET` is stored in plaintext in `cron.job` by design (pg_net needs it). Rotating it
+  means updating both the Vercel env var and the cron job command; not done here.
+- The column lists are literal strings, not `[...].join(", ")`. supabase-js widens the row type
+  when the select string is not a literal, and a SCORE_STAMPS test pins the reconcile list.
+- `phase4DueSource` sits at the top level of the tick response, not inside `phase4`.
+- `scripts/phase4-ro-observer.mjs` now forces a manual tick via `?secret=`, so the observer never
+  measures a quiet tick.
+- `resolveTickMode` treats a non-array probe payload as active. Every doubt fails open to the old
+  every-minute behaviour.
