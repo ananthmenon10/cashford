@@ -31,7 +31,10 @@ export async function resolveTickMode(admin: Admin, now = new Date()): Promise<T
       )
       .limit(1);
     if (error) return { mode: "active", reason: `probe error: ${error.message}` };
-    if (Array.isArray(data) && data.length > 0) return { mode: "active", reason: "fixture near" };
+    // Only an actual empty result set proves nothing is near. A shape we did not
+    // expect fails open like every other doubt, never quiet.
+    if (!Array.isArray(data)) return { mode: "active", reason: "probe returned a non-array payload" };
+    if (data.length > 0) return { mode: "active", reason: "fixture near" };
     return { mode: "quiet", reason: "no fixture near" };
   } catch (err) {
     return { mode: "active", reason: `probe threw: ${err instanceof Error ? err.message : "unknown"}` };

@@ -51,6 +51,13 @@ describe("resolveTickMode", () => {
     expect(mode.mode).toBe("quiet");
   });
 
+  it("fails open to active when the probe returns a non-array payload", async () => {
+    // Every other failure path fails open. A null data with no error must not be
+    // the one branch that falls closed and silences the fixture pollers.
+    const { admin } = probeAdmin({ data: null, error: null });
+    expect((await resolveTickMode(admin as never, NOW)).mode).toBe("active");
+  });
+
   it("fails open to active when the probe errors or throws", async () => {
     expect((await resolveTickMode(probeAdmin({ data: null, error: { message: "x" } }).admin as never, NOW)).mode).toBe("active");
     expect((await resolveTickMode(probeAdmin("throw").admin as never, NOW)).mode).toBe("active");

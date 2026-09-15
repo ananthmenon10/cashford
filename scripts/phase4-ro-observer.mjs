@@ -950,7 +950,13 @@ const client = new pg.Client({
 await client.connect();
 try {
   const beforeObservation = await atomicSnapshot(client);
-  const response = await fetch(tickUrl, {
+  // Force a full tick. Without ?secret= the route treats this as a scheduled call,
+  // and a quiet tick (no fixture live, near kick-off, or just finished) skips the
+  // fixture pollers: `poll` comes back `{ skipped: "quiet" }` and `phase4` loses its
+  // nine per-poller entries, which every assertion below would fail on.
+  const manualTickUrl = new URL(tickUrl);
+  manualTickUrl.searchParams.set("secret", cronSecret);
+  const response = await fetch(manualTickUrl, {
     method: "POST",
     headers: { authorization: `Bearer ${cronSecret}` },
   });
