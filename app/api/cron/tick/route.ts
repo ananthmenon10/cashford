@@ -13,7 +13,9 @@ import {
   claimInsightsWriter,
   isMissingInsightsWriterRpcError,
   releasePhase4Lease,
+  skippedPollOutcome,
 } from "@/lib/poll-lease";
+import { readPhase4Due } from "@/lib/phase4-due";
 import { reconcileMatchCache } from "@/lib/reconcile-match-cache";
 import { pollMatchData } from "@/lib/poll-match-data";
 import { pollCommentary } from "@/lib/poll-commentary";
@@ -120,20 +122,25 @@ async function handle(req: NextRequest) {
       writes: 0,
     };
   });
+  // One sync_state read replaces up to eight claim RPCs that would answer
+  // "not_due". The claim inside each poller is still the lock.
+  const due = await readPhase4Due(admin);
+  const gated = <T>(key: Parameters<typeof due.isDue>[0], run: () => Promise<T>) =>
+    phase4Step(async () => (due.isDue(key) ? run() : skippedPollOutcome("not_due")));
   const phase4 = {
     insights: leasedInsights,
-    reconcile: await phase4Step(() => reconcileMatchCache(admin)),
-    matchData: await phase4Step(() =>
+    reconcile: await gated("espn_reconcile", () => reconcileMatchCache(admin)),
+    matchData: await gated("espn_match_data", () =>
       pollMatchData(admin, summaryFetcher),
     ),
-    commentary: await phase4Step(() =>
+    commentary: await gated("espn_commentary", () =>
       pollCommentary(admin, summaryFetcher),
     ),
-    standings: await phase4Step(() => pollStandings(admin)),
-    derivedStandings: await phase4Step(() => deriveStandings(admin)),
-    teamNews: await phase4Step(() => pollTeamNews(admin)),
-    understat: await phase4Step(() => pollUnderstat(admin)),
-    fotmob: await phase4Step(() => pollSlowProviders(admin)),
+    standings: await gated("espn_standings", () => pollStandings(admin)),
+    derivedStandings: await gated("derived_standings", () => deriveStandings(admin)),
+    teamNews: await gated("team_news", () => pollTeamNews(admin)),
+    understat: await gated("understat_xg", () => pollUnderstat(admin)),
+    fotmob: await gated("fotmob_slow", () => pollSlowProviders(admin)),
   };
   return NextResponse.json({
     ok: true,
@@ -147,6 +154,7 @@ async function handle(req: NextRequest) {
     gwSettles,
     insights,
     phase4,
+    phase4DueSource: due.source,
     summary: summaryFetcher.stats(),
     at: new Date().toISOString(),
   });

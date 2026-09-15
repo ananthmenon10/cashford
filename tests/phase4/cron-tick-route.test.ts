@@ -1,13 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const { rpc } = vi.hoisted(() => ({
+const { rpc, from } = vi.hoisted(() => ({
   rpc: vi.fn(),
+  from: vi.fn(() => ({
+    select: () => ({
+      // no rows -> every key due
+      in: async () => ({
+        data: [] as Array<{ key: string; next_due_at: string | null }>,
+        error: null as { message: string } | null,
+      }),
+    }),
+  })),
 }));
 
 vi.mock("@/lib/supabase/service", () => ({
   createServiceRoleClient: vi.fn(() => ({
     rpc,
+    from,
   })),
 }));
 vi.mock("@/lib/settle-contest", () => ({
@@ -346,5 +356,30 @@ describe("cron tick missing-writer-RPC regression", () => {
 
     expect(response.status).toBe(200);
     expect(order).toEqual(["settlement-complete", "claim-invoked"]);
+  });
+  it("skips a Phase 4 poller whose sync_state row is not due, without calling it", async () => {
+    // Route regression: dropping the due gate pays a claim RPC per poller every tick.
+    from.mockImplementationOnce(() => ({
+      select: () => ({
+        in: async () => ({
+          data: [{ key: "espn_reconcile", next_due_at: "2999-01-01T00:00:00.000Z" }],
+          error: null,
+        }),
+      }),
+    }));
+    vi.mocked(reconcileMatchCache).mockResolvedValue({ lease: "claimed", fetches: 0, writes: 0 });
+
+    const response = await GET(
+      new NextRequest("http://localhost/api/cron/tick?secret=phase4-test-secret"),
+    );
+    const body = (await response.json()) as {
+      phase4: Record<string, { lease?: string }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(vi.mocked(reconcileMatchCache)).not.toHaveBeenCalled();
+    expect(body.phase4.reconcile.lease).toBe("not_due");
+    // The other pollers had no row, so they were still attempted.
+    expect(vi.mocked(pollMatchData)).toHaveBeenCalledTimes(1);
   });
 });
