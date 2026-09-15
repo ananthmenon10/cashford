@@ -3156,14 +3156,21 @@ every 10 min when no match sits within −5 h/+2 h of kick-off. The tick respons
 ### Deviations
 
 - Quiet mode does not gate FPL sync, locks, settlement or gameweek maintenance (deadline and
-  payout latency unchanged). Only fixture-data freshness lags, by ≤10 min, outside match windows.
+  payout latency unchanged). The money path stays every minute. What lags outside the active
+  window, by ≤10 min, is fixture-data freshness **and** finished-score corrections: `lib/espn.ts`
+  keeps re-polling finished fixtures for 48 h (`CORRECTION_HORIZON_MS`), but the active window is
+  only 5 h after kick-off, so a correction landing after that is picked up on the next 10-minute
+  tick rather than the next minute. Accepted: the window was left at 5 h deliberately, and a
+  correction that late is a scoreline amendment, not a live score.
 - The insights writer claim stays ungated; it is one RPC and self-schedules.
 - `CRON_SECRET` is stored in plaintext in `cron.job` by design (pg_net needs it). Rotating it
   means updating both the Vercel env var and the cron job command; not done here.
 - The column lists are literal strings, not `[...].join(", ")`. supabase-js widens the row type
   when the select string is not a literal, and a SCORE_STAMPS test pins the reconcile list.
 - `phase4DueSource` sits at the top level of the tick response, not inside `phase4`.
-- `scripts/phase4-ro-observer.mjs` now forces a manual tick via `?secret=`, so the observer never
-  measures a quiet tick.
+- `scripts/phase4-ro-observer.mjs` forces a manual tick so it never measures a quiet one. It does
+  that with the `x-tick-manual: 1` header on its existing Bearer-authorized POST, not `?secret=`,
+  which would put `CRON_SECRET` in the URL and from there in the Vercel request logs. The route
+  accepts either, and reads the header only after `authorized()` has already passed.
 - `resolveTickMode` treats a non-array probe payload as active. Every doubt fails open to the old
   every-minute behaviour.

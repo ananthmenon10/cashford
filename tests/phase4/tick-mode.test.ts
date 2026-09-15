@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ACTIVE_AFTER_KICKOFF_MS,
   ACTIVE_BEFORE_KICKOFF_MS,
@@ -31,6 +31,16 @@ function probeAdmin(result: { data: unknown; error: unknown } | "throw") {
 }
 
 describe("resolveTickMode", () => {
+  // Failing open is invisible in the response: a probe that fails every tick looks
+  // exactly like a match window. The log line is the only signal, so pin it.
+  let logged: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    logged = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    logged.mockRestore();
+  });
+
   it("is active when the probe returns a fixture", async () => {
     const { admin, filters } = probeAdmin({ data: [{ id: "fx-1" }], error: null });
     const mode = await resolveTickMode(admin as never, NOW);
@@ -56,11 +66,30 @@ describe("resolveTickMode", () => {
     // the one branch that falls closed and silences the fixture pollers.
     const { admin } = probeAdmin({ data: null, error: null });
     expect((await resolveTickMode(admin as never, NOW)).mode).toBe("active");
+    expect(logged).toHaveBeenCalledWith(
+      "[tick] fixtures probe failed, failing open to active",
+      { message: "probe returned a non-array payload" },
+    );
   });
 
   it("fails open to active when the probe errors or throws", async () => {
     expect((await resolveTickMode(probeAdmin({ data: null, error: { message: "x" } }).admin as never, NOW)).mode).toBe("active");
+    expect(logged).toHaveBeenCalledWith(
+      "[tick] fixtures probe failed, failing open to active",
+      { message: "x" },
+    );
+    logged.mockClear();
     expect((await resolveTickMode(probeAdmin("throw").admin as never, NOW)).mode).toBe("active");
+    expect(logged).toHaveBeenCalledWith(
+      "[tick] fixtures probe failed, failing open to active",
+      expect.objectContaining({ message: "network" }),
+    );
+  });
+
+  it("does not log when the probe answers cleanly", async () => {
+    await resolveTickMode(probeAdmin({ data: [], error: null }).admin as never, NOW);
+    await resolveTickMode(probeAdmin({ data: [{ id: "fx-1" }], error: null }).admin as never, NOW);
+    expect(logged).not.toHaveBeenCalled();
   });
 });
 

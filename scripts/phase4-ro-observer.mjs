@@ -950,15 +950,17 @@ const client = new pg.Client({
 await client.connect();
 try {
   const beforeObservation = await atomicSnapshot(client);
-  // Force a full tick. Without ?secret= the route treats this as a scheduled call,
-  // and a quiet tick (no fixture live, near kick-off, or just finished) skips the
+  // x-tick-manual forces a full tick. Without it the route treats this as a scheduled
+  // call, and a quiet tick (no fixture live, near kick-off, or just finished) skips the
   // fixture pollers: `poll` comes back `{ skipped: "quiet" }` and `phase4` loses its
-  // nine per-poller entries, which every assertion below would fail on.
-  const manualTickUrl = new URL(tickUrl);
-  manualTickUrl.searchParams.set("secret", cronSecret);
-  const response = await fetch(manualTickUrl, {
+  // nine per-poller entries, which every assertion below would fail on. The header, not
+  // ?secret=, so CRON_SECRET never enters the URL and from there the Vercel request logs.
+  const response = await fetch(tickUrl, {
     method: "POST",
-    headers: { authorization: `Bearer ${cronSecret}` },
+    headers: {
+      authorization: `Bearer ${cronSecret}`,
+      "x-tick-manual": "1",
+    },
   });
   const body = await response.json();
   assert(response.ok && body.ok === true, `tick failed with ${response.status}`);

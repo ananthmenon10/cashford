@@ -14,6 +14,12 @@ export const ACTIVE_BEFORE_KICKOFF_MS = 2 * 3600e3;
 export const ACTIVE_AFTER_KICKOFF_MS = 5 * 3600e3;
 export const QUIET_RUN_EVERY_MINUTES = 10;
 
+// Failing open is silent by design: an always-failing probe looks exactly like a
+// permanent match window. Log it so the cost shows up in the Vercel logs.
+function logProbeFailure(err: unknown) {
+  console.error("[tick] fixtures probe failed, failing open to active", err);
+}
+
 export async function resolveTickMode(admin: Admin, now = new Date()): Promise<TickMode> {
   const since = new Date(now.getTime() - ACTIVE_AFTER_KICKOFF_MS).toISOString();
   const until = new Date(now.getTime() + ACTIVE_BEFORE_KICKOFF_MS).toISOString();
@@ -30,13 +36,20 @@ export async function resolveTickMode(admin: Admin, now = new Date()): Promise<T
         ].join(","),
       )
       .limit(1);
-    if (error) return { mode: "active", reason: `probe error: ${error.message}` };
+    if (error) {
+      logProbeFailure(error);
+      return { mode: "active", reason: `probe error: ${error.message}` };
+    }
     // Only an actual empty result set proves nothing is near. A shape we did not
     // expect fails open like every other doubt, never quiet.
-    if (!Array.isArray(data)) return { mode: "active", reason: "probe returned a non-array payload" };
+    if (!Array.isArray(data)) {
+      logProbeFailure({ message: "probe returned a non-array payload" });
+      return { mode: "active", reason: "probe returned a non-array payload" };
+    }
     if (data.length > 0) return { mode: "active", reason: "fixture near" };
     return { mode: "quiet", reason: "no fixture near" };
   } catch (err) {
+    logProbeFailure(err);
     return { mode: "active", reason: `probe threw: ${err instanceof Error ? err.message : "unknown"}` };
   }
 }

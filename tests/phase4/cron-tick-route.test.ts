@@ -86,7 +86,7 @@ import { pollStandings, deriveStandings } from "@/lib/poll-standings";
 import { pollTeamNews } from "@/lib/poll-team-news";
 import { pollUnderstat } from "@/lib/poll-understat";
 import { pollSlowProviders } from "@/lib/poll-slow-providers";
-import { pollScores } from "@/lib/espn";
+import { pollScores, resolveKnockoutBracket } from "@/lib/espn";
 import { syncFpl, gameweekMaintenance } from "@/lib/sync-fpl";
 import { dispatchGameweekSettlements } from "@/lib/gameweek-db";
 import { resolveTickMode } from "@/lib/tick-mode";
@@ -467,6 +467,69 @@ describe("cron tick missing-writer-RPC regression", () => {
       expect(body.fixturePollers).toBe("ran");
       expect(vi.mocked(pollScores)).toHaveBeenCalledTimes(1);
       expect(vi.mocked(reconcileMatchCache)).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("treats an authorized x-tick-manual header as a manual tick in quiet mode", async () => {
+    // Route regression: the read-only observer forces a full tick with this header so
+    // CRON_SECRET never enters the URL, where Vercel request logs would keep it.
+    vi.mocked(resolveTickMode).mockResolvedValueOnce({ mode: "quiet", reason: "no fixture near" });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T12:07:00.000Z"));
+    try {
+      const response = await GET(
+        new NextRequest("http://localhost/api/cron/tick", {
+          headers: {
+            authorization: "Bearer phase4-test-secret",
+            "x-tick-manual": "1",
+          },
+        }),
+      );
+      const body = (await response.json()) as {
+        tickMode: { mode: string };
+        fixturePollers: string;
+        phase4: Record<string, unknown>;
+      };
+      expect(response.status).toBe(200);
+      expect(body.tickMode.mode).toBe("quiet");
+      expect(body.fixturePollers).toBe("ran");
+      expect(body.phase4.skipped).toBeUndefined();
+      expect(vi.mocked(pollScores)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(reconcileMatchCache)).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not treat the manual header as manual without valid auth", async () => {
+    // Route regression: the header must never be an authentication bypass.
+    const response = await GET(
+      new NextRequest("http://localhost/api/cron/tick", {
+        headers: { "x-tick-manual": "1" },
+      }),
+    );
+    expect(response.status).toBe(401);
+    expect(vi.mocked(pollScores)).not.toHaveBeenCalled();
+  });
+
+  it("throttles knockout resolution on a quiet tick that lands on a 15-minute mark", async () => {
+    // Route regression: dropping runFixturePollers from the knockout gate would call
+    // ESPN at :15 and :45 on quiet ticks, which is the egress this plan cut.
+    vi.mocked(resolveTickMode).mockResolvedValueOnce({ mode: "quiet", reason: "no fixture near" });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T12:15:00.000Z"));
+    try {
+      const response = await GET(
+        new NextRequest("http://localhost/api/cron/tick", {
+          headers: { authorization: "Bearer phase4-test-secret" },
+        }),
+      );
+      const body = (await response.json()) as { ko: { skipped?: string }; fixturePollers: string };
+      expect(body.fixturePollers).toBe("quiet");
+      expect(body.ko).toEqual({ skipped: "throttled" });
+      expect(vi.mocked(resolveKnockoutBracket)).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }

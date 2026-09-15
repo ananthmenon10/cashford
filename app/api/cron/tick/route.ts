@@ -62,8 +62,14 @@ async function handle(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const admin = createServiceRoleClient();
   const now = new Date();
-  // Manual ?secret= triggers always run everything.
-  const manual = req.nextUrl.searchParams.get("secret") !== null;
+  // Manual triggers always run everything. An ops curl uses ?secret=; automated
+  // callers that already authenticate with the Bearer header (the read-only
+  // observer) send x-tick-manual instead, so CRON_SECRET never lands in a URL and
+  // from there in Vercel request logs. Both paths are past authorized() already,
+  // so the header is a mode switch, never a way in.
+  const manual =
+    req.nextUrl.searchParams.get("secret") !== null ||
+    req.headers.get("x-tick-manual") === "1";
   // One fixtures probe decides whether any match is live, near kick-off, or just
   // finished. Outside those windows the fixture pollers have nothing new to fetch,
   // so they run every tenth minute instead of every minute. A failed probe is active.

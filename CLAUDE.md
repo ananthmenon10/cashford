@@ -66,7 +66,11 @@ resolve from TBD) · `contests` (one per league per fixture) · `predictions` ·
   (`net.http_post`, every minute). Every tick: `syncFpl → lockDueContests → settleFinishedContests →
   gameweekMaintenance → dispatchGameweekSettlements → insights writer`. The fixture pollers
   (`pollScores`, knockout resolution, Phase 4 block) run every minute only while a fixture is live,
-  within 2 h of kick-off, or within 5 h after it (`lib/tick-mode.ts`); otherwise every 10 minutes.
+  within 2 h of kick-off, or within 5 h after it (`lib/tick-mode.ts`); otherwise every 10 minutes, so
+  outside that window fixture data **and** late finished-score corrections lag up to 10 minutes. The
+  money path (FPL sync, locks, settlement, gameweek maintenance) is never gated and stays every minute.
+  A manual override runs everything: `?secret=` for an ops curl, or the header `x-tick-manual: 1` on a
+  Bearer-authorized call (what `scripts/phase4-ro-observer.mjs` uses, to keep the secret out of URLs).
   Phase 4 pollers are pre-gated by one `sync_state` read (`lib/phase4-due.ts`). Reads of
   `fixture_match_data` must name their columns — `select("*")` there was the Sept 2026 egress
   overage. No Vercel cron config.
