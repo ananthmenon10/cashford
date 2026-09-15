@@ -2,7 +2,7 @@ import { runPhase4Poller } from "./phase4-poll-runtime";
 
 type Admin = ReturnType<typeof import("./supabase/service").createServiceRoleClient>;
 
-const SCORE_STAMPS = [
+export const SCORE_STAMPS = [
   "key_events_fetched_at",
   "scorers_fetched_at",
   "team_stats_fetched_at",

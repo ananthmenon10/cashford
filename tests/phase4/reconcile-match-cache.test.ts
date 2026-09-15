@@ -12,7 +12,7 @@ vi.mock("@/lib/phase4-poll-runtime", () => ({
   ),
 }));
 
-import { reconcileMatchCache, RECONCILE_CACHE_COLUMNS } from "@/lib/reconcile-match-cache";
+import { reconcileMatchCache, RECONCILE_CACHE_COLUMNS, SCORE_STAMPS } from "@/lib/reconcile-match-cache";
 
 type Call = { table: string; columns: string };
 
@@ -66,13 +66,23 @@ describe("reconcileMatchCache column discipline", () => {
     const referenced = new Set(
       [...source.matchAll(/\brow\.([a-z_]+)/g)].map((m) => m[1]),
     );
-    // SCORE_STAMPS are read via row[column]; list them explicitly.
-    for (const stamp of [
-      "key_events_fetched_at", "scorers_fetched_at", "team_stats_fetched_at",
-      "player_stats_fetched_at", "commentary_fetched_at",
-    ]) referenced.add(stamp);
+    // SCORE_STAMPS are read via row[column], never as row.<name>.
+    for (const stamp of SCORE_STAMPS) referenced.add(stamp);
     const selected = new Set(RECONCILE_CACHE_COLUMNS.split(",").map((c) => c.trim()));
     for (const field of referenced) expect(selected, `missing ${field}`).toContain(field);
+  });
+
+  it("selects every SCORE_STAMPS column, so a new stamp cannot drift out", () => {
+    // RECONCILE_CACHE_COLUMNS is a literal (supabase-js type-parses the select
+    // string), so nothing else ties it to SCORE_STAMPS. This test does.
+    const selected = RECONCILE_CACHE_COLUMNS.split(", ");
+    for (const stamp of SCORE_STAMPS) {
+      expect(selected, `SCORE_STAMPS entry ${stamp} is not selected`).toContain(stamp);
+    }
+    for (const scalar of ["fixture_id", "source_kickoff_at", "frozen_at"]) {
+      expect(selected, `missing ${scalar}`).toContain(scalar);
+    }
+    expect(selected).toHaveLength(SCORE_STAMPS.length + 3);
   });
 
   it("still resets a row whose kickoff moved, using only the named columns", async () => {
