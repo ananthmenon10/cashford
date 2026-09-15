@@ -3164,7 +3164,7 @@ every 10 min when no match sits within −5 h/+2 h of kick-off. The tick respons
   correction that late is a scoreline amendment, not a live score.
 - The insights writer claim stays ungated; it is one RPC and self-schedules.
 - `CRON_SECRET` is stored in plaintext in `cron.job` by design (pg_net needs it). Rotating it
-  means updating both the Vercel env var and the cron job command; not done here.
+  means updating both the Vercel env var and the cron job command; rotated 2026-09-15 (Vercel env replaced, prod redeployed, `cron.alter_job(1, …)` updated, local `.env.local` updated).
 - The column lists are literal strings, not `[...].join(", ")`. supabase-js widens the row type
   when the select string is not a literal, and a SCORE_STAMPS test pins the reconcile list.
 - `phase4DueSource` sits at the top level of the tick response, not inside `phase4`.
