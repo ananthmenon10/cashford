@@ -10,6 +10,16 @@ const SCORE_STAMPS = [
   "commentary_fetched_at",
 ] as const;
 
+// Only the columns the loop below reads. `select("*")` pulled the lineups,
+// player_stats, commentary and key_events JSON for every cached fixture on
+// every tick (~2 MB raw, ~300 KB on the wire) and was the largest single
+// source of Supabase egress in Sept 2026.
+// Written as a literal, not joined from SCORE_STAMPS: supabase-js parses the
+// select string at the type level, and a joined `string` loses row typing.
+// The tail must stay in step with SCORE_STAMPS above.
+export const RECONCILE_CACHE_COLUMNS =
+  "fixture_id, source_kickoff_at, frozen_at, key_events_fetched_at, scorers_fetched_at, team_stats_fetched_at, player_stats_fetched_at, commentary_fetched_at";
+
 function latestScoreStamp(row: Record<string, any>): number {
   return Math.max(
     0,
@@ -27,7 +37,7 @@ export async function reconcileMatchCache(admin: Admin) {
     async (counter) => {
       const { data: cached, error } = await admin
         .from("fixture_match_data")
-        .select("*");
+        .select(RECONCILE_CACHE_COLUMNS);
       if (error) throw new Error(`reconcile cache read: ${error.message}`);
       if (!cached?.length) return;
       const ids = cached.map((row: any) => row.fixture_id);
@@ -42,7 +52,7 @@ export async function reconcileMatchCache(admin: Admin) {
           .in("fixture_id", ids),
       ]);
       const fixtureById = new Map(
-        (fixtures ?? []).map((row: any) => [row.id, row]),
+        (fixtures ?? []).map((fixture: any) => [fixture.id, fixture]),
       );
       const revisionById = new Map<string, any[]>();
       for (const revision of revisions ?? []) {
