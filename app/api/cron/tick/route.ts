@@ -17,6 +17,7 @@ import {
 } from "@/lib/poll-lease";
 import { readPhase4Due } from "@/lib/phase4-due";
 import { reconcileMatchCache } from "@/lib/reconcile-match-cache";
+import { resolveTickMode, shouldRunFixturePollers } from "@/lib/tick-mode";
 import { pollMatchData } from "@/lib/poll-match-data";
 import { pollCommentary } from "@/lib/poll-commentary";
 import { deriveStandings, pollStandings } from "@/lib/poll-standings";
@@ -60,15 +61,24 @@ async function phase4Step<T>(run: () => Promise<T>) {
 async function handle(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const admin = createServiceRoleClient();
+  const now = new Date();
+  // Manual ?secret= triggers always run everything.
+  const manual = req.nextUrl.searchParams.get("secret") !== null;
+  // One fixtures probe decides whether any match is live, near kick-off, or just
+  // finished. Outside those windows the fixture pollers have nothing new to fetch,
+  // so they run every tenth minute instead of every minute. A failed probe is active.
+  const tickMode = await resolveTickMode(admin, now);
+  const runFixturePollers = shouldRunFixturePollers(tickMode, now, manual);
   // Order matters (§6): FPL first so fixture/gameweek shape is current before scores land,
   // then legacy cup settlement, then gameweek stamping, then insights warming.
   const fpl = await syncFpl(admin);              // FPL: gameweeks/fixtures (lease-gated, ~6h)
-  const poll = await pollScores(admin);          // ESPN: live scores + near-term KO team resolution
+  const poll = runFixturePollers
+    ? await pollScores(admin)                    // ESPN: live scores + near-term KO team resolution
+    : { skipped: "quiet" };
   // Fill the upcoming bracket (R16/QF/SF/final) as soon as ESPN knows it — not just ±12h
   // out. Runs at :00/:15/:30/:45 (cron fires every minute) to stay light on the ESPN API;
-  // the resolver itself no-ops when nothing is pending. Manual ?secret= triggers always run.
-  const manual = req.nextUrl.searchParams.get("secret") !== null;
-  const ko = manual || new Date().getMinutes() % 15 === 0
+  // the resolver itself no-ops when nothing is pending.
+  const ko = manual || (runFixturePollers && now.getMinutes() % 15 === 0)
     ? await resolveKnockoutBracket(admin)
     : { skipped: "throttled" };
   const locks = await lockDueContests(admin);    // open → locked (void <2)
@@ -122,29 +132,40 @@ async function handle(req: NextRequest) {
       writes: 0,
     };
   });
-  // One sync_state read replaces up to eight claim RPCs that would answer
-  // "not_due". The claim inside each poller is still the lock.
-  const due = await readPhase4Due(admin);
-  const gated = <T>(key: Parameters<typeof due.isDue>[0], run: () => Promise<T>) =>
-    phase4Step(async () => (due.isDue(key) ? run() : skippedPollOutcome("not_due")));
-  const phase4 = {
-    insights: leasedInsights,
-    reconcile: await gated("espn_reconcile", () => reconcileMatchCache(admin)),
-    matchData: await gated("espn_match_data", () =>
-      pollMatchData(admin, summaryFetcher),
-    ),
-    commentary: await gated("espn_commentary", () =>
-      pollCommentary(admin, summaryFetcher),
-    ),
-    standings: await gated("espn_standings", () => pollStandings(admin)),
-    derivedStandings: await gated("derived_standings", () => deriveStandings(admin)),
-    teamNews: await gated("team_news", () => pollTeamNews(admin)),
-    understat: await gated("understat_xg", () => pollUnderstat(admin)),
-    fotmob: await gated("fotmob_slow", () => pollSlowProviders(admin)),
-  };
+  // The Phase 4 pollers only have new data around match windows, so a quiet tick
+  // skips the whole block — including the sync_state read, which has nothing to act on.
+  let phase4DueSource: string | undefined;
+  async function runPhase4Block() {
+    // One sync_state read replaces up to eight claim RPCs that would answer
+    // "not_due". The claim inside each poller is still the lock.
+    const due = await readPhase4Due(admin);
+    phase4DueSource = due.source;
+    const gated = <T>(key: Parameters<typeof due.isDue>[0], run: () => Promise<T>) =>
+      phase4Step(async () => (due.isDue(key) ? run() : skippedPollOutcome("not_due")));
+    return {
+      insights: leasedInsights,
+      reconcile: await gated("espn_reconcile", () => reconcileMatchCache(admin)),
+      matchData: await gated("espn_match_data", () =>
+        pollMatchData(admin, summaryFetcher),
+      ),
+      commentary: await gated("espn_commentary", () =>
+        pollCommentary(admin, summaryFetcher),
+      ),
+      standings: await gated("espn_standings", () => pollStandings(admin)),
+      derivedStandings: await gated("derived_standings", () => deriveStandings(admin)),
+      teamNews: await gated("team_news", () => pollTeamNews(admin)),
+      understat: await gated("understat_xg", () => pollUnderstat(admin)),
+      fotmob: await gated("fotmob_slow", () => pollSlowProviders(admin)),
+    };
+  }
+  const phase4 = runFixturePollers
+    ? await runPhase4Block()
+    : { skipped: "quiet", insights: leasedInsights };
   return NextResponse.json({
     ok: true,
     fotmobEnabled: process.env.FOTMOB_ENABLED === "true",
+    tickMode,
+    fixturePollers: runFixturePollers ? "ran" : "quiet",
     fpl,
     poll,
     ko,
@@ -154,7 +175,7 @@ async function handle(req: NextRequest) {
     gwSettles,
     insights,
     phase4,
-    phase4DueSource: due.source,
+    phase4DueSource,
     summary: summaryFetcher.stats(),
     at: new Date().toISOString(),
   });

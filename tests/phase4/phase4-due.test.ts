@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { isDueAt, readPhase4Due } from "@/lib/phase4-due";
 import { PHASE4_SYNC_KEYS } from "@/lib/poll-keys";
 
@@ -67,16 +67,37 @@ describe("readPhase4Due", () => {
   });
 
   it("falls back to everything-due when the read errors", async () => {
-    const { admin } = adminReturning({ data: null, error: { message: "boom" } });
-    const due = await readPhase4Due(admin as never, NOW);
-    expect(due.source).toBe("fallback");
-    for (const key of PHASE4_SYNC_KEYS) expect(due.isDue(key)).toBe(true);
+    // A permanently failing read looks identical to "everything due" in the response,
+    // so the log line is the only signal that the optimisation has gone dark.
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { admin } = adminReturning({ data: null, error: { message: "boom" } });
+      const due = await readPhase4Due(admin as never, NOW);
+      expect(due.source).toBe("fallback");
+      for (const key of PHASE4_SYNC_KEYS) expect(due.isDue(key)).toBe(true);
+      expect(logged).toHaveBeenCalledWith(
+        "[tick] sync_state read failed, treating all Phase 4 keys as due",
+        { message: "boom" },
+      );
+    } finally {
+      logged.mockRestore();
+    }
   });
 
   it("falls back to everything-due when the read throws", async () => {
-    const admin = { from() { throw new Error("network"); } };
-    const due = await readPhase4Due(admin as never, NOW);
-    expect(due.source).toBe("fallback");
-    expect(due.isDue("espn_reconcile")).toBe(true);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const thrown = new Error("network");
+      const admin = { from() { throw thrown; } };
+      const due = await readPhase4Due(admin as never, NOW);
+      expect(due.source).toBe("fallback");
+      expect(due.isDue("espn_reconcile")).toBe(true);
+      expect(logged).toHaveBeenCalledWith(
+        "[tick] sync_state read failed, treating all Phase 4 keys as due",
+        thrown,
+      );
+    } finally {
+      logged.mockRestore();
+    }
   });
 });

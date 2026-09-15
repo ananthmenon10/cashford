@@ -66,10 +66,17 @@ vi.mock("@/lib/poll-understat", () => ({
 vi.mock("@/lib/poll-slow-providers", () => ({
   pollSlowProviders: vi.fn(async () => ({})),
 }));
+vi.mock("@/lib/tick-mode", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/tick-mode")>();
+  return {
+    ...actual,
+    resolveTickMode: vi.fn(async () => ({ mode: "active" as const, reason: "test" })),
+  };
+});
 
 import { GET } from "../../app/api/cron/tick/route";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { settleFinishedContests } from "@/lib/settle-contest";
+import { lockDueContests, settleFinishedContests } from "@/lib/settle-contest";
 import { pollInsights } from "@/lib/espn-insights";
 import { pollInsightsLeased } from "@/lib/poll-insights";
 import { reconcileMatchCache } from "@/lib/reconcile-match-cache";
@@ -79,6 +86,10 @@ import { pollStandings, deriveStandings } from "@/lib/poll-standings";
 import { pollTeamNews } from "@/lib/poll-team-news";
 import { pollUnderstat } from "@/lib/poll-understat";
 import { pollSlowProviders } from "@/lib/poll-slow-providers";
+import { pollScores } from "@/lib/espn";
+import { syncFpl, gameweekMaintenance } from "@/lib/sync-fpl";
+import { dispatchGameweekSettlements } from "@/lib/gameweek-db";
+import { resolveTickMode } from "@/lib/tick-mode";
 
 describe("cron tick missing-writer-RPC regression", () => {
   beforeEach(() => {
@@ -381,5 +392,103 @@ describe("cron tick missing-writer-RPC regression", () => {
     expect(body.phase4.reconcile.lease).toBe("not_due");
     // The other pollers had no row, so they were still attempted.
     expect(vi.mocked(pollMatchData)).toHaveBeenCalledTimes(1);
+  });
+  it("in quiet mode off the 10-minute boundary, skips scores and Phase 4 but still runs FPL, locks, settlement and gameweeks", async () => {
+    // Route regression: gating the every-minute steps behind quiet mode would delay locks and payouts.
+    vi.mocked(resolveTickMode).mockResolvedValueOnce({ mode: "quiet", reason: "no fixture near" });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T12:07:00.000Z"));
+    try {
+      const response = await GET(
+        new NextRequest("http://localhost/api/cron/tick", {
+          headers: { authorization: "Bearer phase4-test-secret" },
+        }),
+      );
+      const body = (await response.json()) as {
+        poll: { skipped?: string };
+        phase4: { skipped?: string; insights?: unknown };
+        phase4DueSource?: string;
+        tickMode: { mode: string };
+        fixturePollers: string;
+      };
+      expect(response.status).toBe(200);
+      expect(body.tickMode.mode).toBe("quiet");
+      expect(body.fixturePollers).toBe("quiet");
+      expect(body.poll).toEqual({ skipped: "quiet" });
+      expect(body.phase4.skipped).toBe("quiet");
+      expect(body.phase4.insights).toBeDefined();
+      expect(body.phase4DueSource).toBeUndefined();
+      expect(vi.mocked(pollScores)).not.toHaveBeenCalled();
+      expect(vi.mocked(reconcileMatchCache)).not.toHaveBeenCalled();
+      expect(vi.mocked(pollMatchData)).not.toHaveBeenCalled();
+      expect(vi.mocked(syncFpl)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(lockDueContests)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(settleFinishedContests)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(gameweekMaintenance)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(dispatchGameweekSettlements)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(pollInsightsLeased)).toHaveBeenCalledTimes(0);
+      expect(vi.mocked(createServiceRoleClient).mock.results[0]?.value).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("in quiet mode on the 10-minute boundary, runs the fixture pollers", async () => {
+    // Route regression: a quiet tick that never reaches a boundary would freeze fixture data.
+    vi.mocked(resolveTickMode).mockResolvedValueOnce({ mode: "quiet", reason: "no fixture near" });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T12:10:00.000Z"));
+    try {
+      const response = await GET(
+        new NextRequest("http://localhost/api/cron/tick", {
+          headers: { authorization: "Bearer phase4-test-secret" },
+        }),
+      );
+      const body = (await response.json()) as { fixturePollers: string; phase4DueSource?: string };
+      expect(body.fixturePollers).toBe("ran");
+      expect(body.phase4DueSource).toBe("sync_state");
+      expect(vi.mocked(pollScores)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(reconcileMatchCache)).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("runs the fixture pollers on a manual trigger even in quiet mode", async () => {
+    // Route regression: ops needs ?secret= to force a full tick outside match windows.
+    vi.mocked(resolveTickMode).mockResolvedValueOnce({ mode: "quiet", reason: "no fixture near" });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T12:07:00.000Z"));
+    try {
+      const response = await GET(
+        new NextRequest("http://localhost/api/cron/tick?secret=phase4-test-secret"),
+      );
+      const body = (await response.json()) as { fixturePollers: string };
+      expect(body.fixturePollers).toBe("ran");
+      expect(vi.mocked(pollScores)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(reconcileMatchCache)).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("runs the fixture pollers on an active tick off the boundary", async () => {
+    // Route regression: an active tick must keep the one-minute fixture cadence.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T12:07:00.000Z"));
+    try {
+      const response = await GET(
+        new NextRequest("http://localhost/api/cron/tick", {
+          headers: { authorization: "Bearer phase4-test-secret" },
+        }),
+      );
+      const body = (await response.json()) as { tickMode: { mode: string }; fixturePollers: string };
+      expect(body.tickMode.mode).toBe("active");
+      expect(body.fixturePollers).toBe("ran");
+      expect(vi.mocked(pollScores)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(reconcileMatchCache)).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -23,13 +23,22 @@ export function isDueAt(nextDueAt: string | null | undefined, now: Date): boolea
 
 const EVERYTHING_DUE: Phase4DueSnapshot = { isDue: () => true, source: "fallback" };
 
+// Failing open is silent by design: the response looks the same as "everything was
+// due". Log it so a read that fails every tick shows up in the Vercel logs.
+function logReadFailure(err: unknown) {
+  console.error("[tick] sync_state read failed, treating all Phase 4 keys as due", err);
+}
+
 export async function readPhase4Due(admin: Admin, now = new Date()): Promise<Phase4DueSnapshot> {
   try {
     const { data, error } = await admin
       .from("sync_state")
       .select("key, next_due_at")
       .in("key", [...PHASE4_SYNC_KEYS]);
-    if (error || !Array.isArray(data)) return EVERYTHING_DUE;
+    if (error || !Array.isArray(data)) {
+      logReadFailure(error ?? { message: "sync_state returned a non-array payload" });
+      return EVERYTHING_DUE;
+    }
     const byKey = new Map<string, string | null>();
     for (const row of data as Array<{ key: string; next_due_at: string | null }>) {
       byKey.set(row.key, row.next_due_at);
@@ -38,7 +47,8 @@ export async function readPhase4Due(admin: Admin, now = new Date()): Promise<Pha
       source: "sync_state",
       isDue: (key) => (byKey.has(key) ? isDueAt(byKey.get(key), now) : true),
     };
-  } catch {
+  } catch (err) {
+    logReadFailure(err);
     return EVERYTHING_DUE;
   }
 }
