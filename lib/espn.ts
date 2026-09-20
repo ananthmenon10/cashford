@@ -83,13 +83,39 @@ async function dueFixtures(admin: Admin, now: Date): Promise<DueFixture[]> {
     .filter((r: DueFixture) => !!r.espn_slug);
 }
 
-async function fetchScoreboard(slug: string, from: string, to: string): Promise<any[] | null> {
-  try {
-    const res = await fetch(`${SCOREBOARD(slug)}?dates=${from}-${to}`);
-    return (await res.json()).events ?? [];
-  } catch {
-    return null;
+// ESPN's scoreboard stopped accepting the `dates=YYYYMMDD-YYYYMMDD` range form in Sept 2026
+// (HTTP 400 with a valid JSON body — so `res.ok` must be checked, or the failure reads as an
+// empty day and the poll goes quiet with no error). One call per distinct day; days that fail
+// are reported so partial results still land.
+async function fetchScoreboard(
+  slug: string,
+  days: Iterable<string>,
+): Promise<{ events: any[]; failedDays: string[] }> {
+  const events: any[] = [];
+  const failedDays: string[] = [];
+  for (const day of new Set(days)) {
+    try {
+      const res = await fetch(`${SCOREBOARD(slug)}?dates=${day}`);
+      if (!res.ok) {
+        failedDays.push(day);
+        continue;
+      }
+      events.push(...((await res.json()).events ?? []));
+    } catch {
+      failedDays.push(day);
+    }
   }
+  return { events, failedDays };
+}
+
+// The scoreboard days a set of kickoff instants can appear on: each kickoff's own UTC day
+// plus the days ±12h around it (ESPN's day grouping doesn't always match UTC midnight).
+function scoreboardDays(times: number[]): string[] {
+  const days: string[] = [];
+  for (const t of times) {
+    days.push(ymd(new Date(t - 12 * 3600e3)), ymd(new Date(t)), ymd(new Date(t + 12 * 3600e3)));
+  }
+  return days;
 }
 
 export async function pollScores(admin: Admin) {
@@ -111,14 +137,9 @@ export async function pollScores(admin: Admin) {
     const times = fixtures
       .map((f) => (f.kickoff_at ? new Date(f.kickoff_at).getTime() : now.getTime()))
       .filter((t) => Number.isFinite(t));
-    const from = ymd(new Date(Math.min(...times) - 12 * 3600e3));
-    const to = ymd(new Date(Math.max(...times) + 12 * 3600e3));
 
-    const events = await fetchScoreboard(slug, from, to);
-    if (!events) {
-      errors.push(`${slug}: espn fetch failed`);
-      continue;
-    }
+    const { events, failedDays } = await fetchScoreboard(slug, scoreboardDays(times));
+    if (failedDays.length > 0) errors.push(`${slug}: espn fetch failed for ${failedDays.join(", ")}`);
     fetched += events.length;
 
     const byExt = new Map(events.map((e: any) => [Number(e.id), e]));
@@ -270,13 +291,18 @@ export async function resolveKnockoutBracket(admin: Admin) {
     .or("home_team_id.is.null,away_team_id.is.null");
   if (!pending?.length) return { pending: 0, resolved: 0, skipped: true };
 
-  // One ESPN fetch spanning just the pending fixtures (≤32 KO events, under the 100 cap).
+  // One ESPN fetch per pending-fixture day (±24h). Knockout brackets only exist in
+  // the cup competition, so the slug is fixed here.
   const times = pending.map((p) => new Date(p.kickoff_at).getTime());
-  const from = ymd(new Date(Math.min(...times) - 24 * 3600e3));
-  const to = ymd(new Date(Math.max(...times) + 24 * 3600e3));
-  // Knockout brackets only exist in the cup competition, so the slug is fixed here.
-  const events = await fetchScoreboard(WC_SLUG, from, to);
-  if (!events) return { pending: pending.length, resolved: 0, error: "espn fetch failed" };
+  const koDays = times.flatMap((t) => [
+    ymd(new Date(t - 24 * 3600e3)),
+    ymd(new Date(t)),
+    ymd(new Date(t + 24 * 3600e3)),
+  ]);
+  const { events, failedDays } = await fetchScoreboard(WC_SLUG, koDays);
+  if (failedDays.length > 0 && events.length === 0) {
+    return { pending: pending.length, resolved: 0, error: "espn fetch failed" };
+  }
   const byExt = new Map(events.map((e: any) => [Number(e.id), e]));
 
   let resolved = 0;
